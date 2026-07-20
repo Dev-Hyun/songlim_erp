@@ -1,0 +1,556 @@
+from datetime import datetime, timezone
+from typing import Optional
+
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+
+from app.database import get_db
+from app.models import (
+    GradeMaster,
+    HospitalLedgerEntry,
+    HospitalProfile,
+    SupplyCatalog,
+    SupplyCategoryAccess,
+    SupplyFavorite,
+    SupplyOrder,
+    SupplyOrderItem,
+    SupplyPriceOverride,
+    User,
+)
+from app.routers.admin import require_admin
+from app.routers.auth import require_user
+
+router = APIRouter(prefix="/api/supply", tags=["supply"])
+
+
+async def require_hospital(user: User = Depends(require_user)) -> User:
+    if user.role != "hospital" or not user.hospital_profile_id:
+        raise HTTPException(status_code=403, detail="병원 계정만 이용할 수 있습니다")
+    return user
+
+
+async def _get_hospital_profile(db: AsyncSession, hospital_profile_id: int) -> HospitalProfile:
+    hp = (await db.execute(select(HospitalProfile).where(HospitalProfile.id == hospital_profile_id))).scalar_one_or_none()
+    if not hp:
+        raise HTTPException(status_code=404, detail="병원 정보를 찾을 수 없습니다")
+    return hp
+
+
+@router.get("/catalog")
+async def list_catalog(
+    db: AsyncSession = Depends(get_db),
+    category: Optional[str] = None,
+    user: User = Depends(require_hospital),
+):
+    hp = await _get_hospital_profile(db, user.hospital_profile_id)
+    q = select(SupplyCatalog).where(SupplyCatalog.is_active.is_(True)).order_by(SupplyCatalog.category, SupplyCatalog.sort_order)
+    if category:
+        q = q.where(SupplyCatalog.category == category)
+    items = (await db.execute(q)).scalars().all()
+
+    access_rows = (await db.execute(select(SupplyCategoryAccess))).scalars().all()
+    restricted = {r.category for r in access_rows}
+    allowed = {r.category for r in access_rows if r.hospital_type == hp.hospital_type}
+
+    overrides = {
+        o.catalog_id: o.override_price
+        for o in (
+            await db.execute(select(SupplyPriceOverride).where(SupplyPriceOverride.hospital_profile_id == hp.id))
+        ).scalars().all()
+    }
+    favorite_ids = {
+        f.catalog_id
+        for f in (
+            await db.execute(select(SupplyFavorite).where(SupplyFavorite.hospital_profile_id == hp.id))
+        ).scalars().all()
+    }
+
+    result = []
+    for it in items:
+        if it.category in restricted and it.category not in allowed:
+            continue
+        result.append({
+            "id": it.id, "name": it.name, "spec": it.spec, "category": it.category, "unit": it.unit,
+            "price": overrides.get(it.id, it.unit_price), "base_price": it.unit_price,
+            "has_special_price": it.id in overrides,
+            "description": it.description, "image_key": it.image_key,
+            "is_favorite": it.id in favorite_ids,
+        })
+    return result
+
+
+@router.get("/categories")
+async def list_categories(db: AsyncSession = Depends(get_db), user: User = Depends(require_hospital)):
+    hp = await _get_hospital_profile(db, user.hospital_profile_id)
+    items = (await db.execute(select(SupplyCatalog.category).where(SupplyCatalog.is_active.is_(True)))).scalars().all()
+    access_rows = (await db.execute(select(SupplyCategoryAccess))).scalars().all()
+    restricted = {r.category for r in access_rows}
+    allowed = {r.category for r in access_rows if r.hospital_type == hp.hospital_type}
+
+    counts: dict[str, int] = {}
+    for cat in items:
+        if cat in restricted and cat not in allowed:
+            continue
+        counts[cat] = counts.get(cat, 0) + 1
+    return [{"category": c, "count": n} for c, n in sorted(counts.items())]
+
+
+class FavoriteIn(BaseModel):
+    catalog_id: int
+
+
+@router.post("/favorites")
+async def add_favorite(payload: FavoriteIn, db: AsyncSession = Depends(get_db), user: User = Depends(require_hospital)):
+    existing = (
+        await db.execute(
+            select(SupplyFavorite).where(
+                SupplyFavorite.catalog_id == payload.catalog_id, SupplyFavorite.hospital_profile_id == user.hospital_profile_id
+            )
+        )
+    ).scalar_one_or_none()
+    if existing:
+        return {"id": existing.id}
+    f = SupplyFavorite(catalog_id=payload.catalog_id, hospital_profile_id=user.hospital_profile_id)
+    db.add(f)
+    await db.commit()
+    await db.refresh(f)
+    return {"id": f.id}
+
+
+@router.delete("/favorites/{catalog_id}")
+async def remove_favorite(catalog_id: int, db: AsyncSession = Depends(get_db), user: User = Depends(require_hospital)):
+    existing = (
+        await db.execute(
+            select(SupplyFavorite).where(
+                SupplyFavorite.catalog_id == catalog_id, SupplyFavorite.hospital_profile_id == user.hospital_profile_id
+            )
+        )
+    ).scalar_one_or_none()
+    if existing:
+        await db.delete(existing)
+        await db.commit()
+    return {"ok": True}
+
+
+class OrderItemIn(BaseModel):
+    catalog_id: int
+    qty: int = 1
+
+
+class OrderCreateIn(BaseModel):
+    items: list[OrderItemIn]
+
+
+@router.post("/orders")
+async def create_order(payload: OrderCreateIn, db: AsyncSession = Depends(get_db), user: User = Depends(require_hospital)):
+    if not payload.items:
+        raise HTTPException(status_code=400, detail="담긴 품목이 없습니다")
+    hp = await _get_hospital_profile(db, user.hospital_profile_id)
+
+    overrides = {
+        o.catalog_id: o.override_price
+        for o in (
+            await db.execute(select(SupplyPriceOverride).where(SupplyPriceOverride.hospital_profile_id == hp.id))
+        ).scalars().all()
+    }
+
+    order_items: list[SupplyOrderItem] = []
+    subtotal = 0
+    for it in payload.items:
+        catalog = (await db.execute(select(SupplyCatalog).where(SupplyCatalog.id == it.catalog_id))).scalar_one_or_none()
+        if not catalog:
+            continue
+        price = overrides.get(catalog.id, catalog.unit_price)
+        line_total = price * it.qty
+        subtotal += line_total
+        order_items.append(SupplyOrderItem(
+            catalog_id=catalog.id, name_snapshot=catalog.name, unit_snapshot=catalog.unit,
+            unit_price_snapshot=price, qty=it.qty, subtotal=line_total,
+        ))
+
+    discount_rate = None
+    gift_note = None
+    if hp.discount_grade_code:
+        g = (await db.execute(select(GradeMaster).where(GradeMaster.grade_code == hp.discount_grade_code))).scalar_one_or_none()
+        discount_rate = g.discount_rate if g else None
+    if hp.gift_grade_code:
+        g = (await db.execute(select(GradeMaster).where(GradeMaster.grade_code == hp.gift_grade_code))).scalar_one_or_none()
+        gift_note = g.gift_policy_note if g else None
+
+    total = subtotal
+    if discount_rate:
+        total = round(subtotal * (1 - discount_rate / 100))
+
+    order = SupplyOrder(
+        hospital_profile_id=hp.id, ordered_by=user.id, total_amount=total,
+        discount_rate_applied=discount_rate, gift_note=gift_note,
+    )
+    order.items = order_items
+    db.add(order)
+    await db.flush()
+
+    ledger = HospitalLedgerEntry(
+        hospital_profile_id=hp.id, entry_type="order", amount=-total,
+        memo=f"발주 #{order.id}", related_order_id=order.id, created_by=user.id,
+        created_at=datetime.now(timezone.utc).isoformat(),
+    )
+    db.add(ledger)
+    hp.balance -= total
+
+    await db.commit()
+    await db.refresh(order)
+    return {"id": order.id, "total_amount": order.total_amount}
+
+
+def _serialize_order(o: SupplyOrder) -> dict:
+    return {
+        "id": o.id, "status": o.status, "tracking_number": o.tracking_number,
+        "total_amount": o.total_amount, "discount_rate_applied": o.discount_rate_applied,
+        "gift_note": o.gift_note, "tax_invoice_status": o.tax_invoice_status,
+        "created_at": o.created_at, "updated_at": o.updated_at,
+        "items": [
+            {"id": i.id, "catalog_id": i.catalog_id, "name": i.name_snapshot, "unit": i.unit_snapshot,
+             "unit_price": i.unit_price_snapshot, "qty": i.qty, "subtotal": i.subtotal}
+            for i in o.items
+        ],
+    }
+
+
+@router.get("/orders")
+async def list_my_orders(
+    db: AsyncSession = Depends(get_db),
+    status: Optional[str] = None,
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
+    user: User = Depends(require_hospital),
+):
+    q = select(SupplyOrder).options(selectinload(SupplyOrder.items)).where(SupplyOrder.hospital_profile_id == user.hospital_profile_id)
+    if status:
+        q = q.where(SupplyOrder.status == status)
+    if date_from:
+        q = q.where(SupplyOrder.created_at >= date_from)
+    if date_to:
+        q = q.where(SupplyOrder.created_at <= date_to)
+    rows = (await db.execute(q.order_by(SupplyOrder.created_at.desc()))).scalars().all()
+    return [_serialize_order(o) for o in rows]
+
+
+@router.get("/orders/{oid}")
+async def get_my_order(oid: int, db: AsyncSession = Depends(get_db), user: User = Depends(require_hospital)):
+    o = (await db.execute(select(SupplyOrder).options(selectinload(SupplyOrder.items)).where(SupplyOrder.id == oid))).scalar_one_or_none()
+    if not o or o.hospital_profile_id != user.hospital_profile_id:
+        raise HTTPException(status_code=404, detail="발주 내역을 찾을 수 없습니다")
+    return _serialize_order(o)
+
+
+@router.get("/orders/{oid}/reorder-items")
+async def reorder_items(oid: int, db: AsyncSession = Depends(get_db), user: User = Depends(require_hospital)):
+    """기존 발주의 품목/수량을 그대로 프론트 장바구니에 채워넣기 위한 프리필 데이터."""
+    o = (await db.execute(select(SupplyOrder).options(selectinload(SupplyOrder.items)).where(SupplyOrder.id == oid))).scalar_one_or_none()
+    if not o or o.hospital_profile_id != user.hospital_profile_id:
+        raise HTTPException(status_code=404, detail="발주 내역을 찾을 수 없습니다")
+    return [{"catalog_id": i.catalog_id, "name": i.name_snapshot, "qty": i.qty} for i in o.items if i.catalog_id]
+
+
+@router.get("/balance")
+async def get_my_balance(db: AsyncSession = Depends(get_db), user: User = Depends(require_hospital)):
+    hp = await _get_hospital_profile(db, user.hospital_profile_id)
+    ledger = (
+        await db.execute(
+            select(HospitalLedgerEntry)
+            .where(HospitalLedgerEntry.hospital_profile_id == hp.id)
+            .order_by(HospitalLedgerEntry.created_at.desc())
+        )
+    ).scalars().all()
+    return {
+        "balance": hp.balance,
+        "is_receivable": hp.balance < 0,
+        "entries": [
+            {"id": e.id, "entry_type": e.entry_type, "amount": e.amount, "memo": e.memo,
+             "related_order_id": e.related_order_id, "created_at": e.created_at}
+            for e in ledger
+        ],
+    }
+
+
+# ────────────────────────────────────────────────────────
+# 관리자(송림 직원)측 — 카탈로그/카테고리권한/병원별 등급·가격오버라이드/발주관리/잔액조정
+# ────────────────────────────────────────────────────────
+class CatalogIn(BaseModel):
+    name: str
+    spec: Optional[str] = None
+    category: str = "기타"
+    unit: str = "개"
+    unit_price: int = 0
+    description: Optional[str] = None
+    image_key: Optional[str] = None
+    sort_order: int = 0
+    is_active: bool = True
+
+
+def _serialize_catalog(c: SupplyCatalog) -> dict:
+    return {
+        "id": c.id, "name": c.name, "spec": c.spec, "category": c.category, "unit": c.unit,
+        "unit_price": c.unit_price, "description": c.description, "image_key": c.image_key,
+        "sort_order": c.sort_order, "is_active": c.is_active,
+    }
+
+
+@router.get("/admin/catalog")
+async def admin_list_catalog(db: AsyncSession = Depends(get_db), _: User = Depends(require_admin)):
+    rows = (await db.execute(select(SupplyCatalog).order_by(SupplyCatalog.category, SupplyCatalog.sort_order))).scalars().all()
+    return [_serialize_catalog(c) for c in rows]
+
+
+@router.post("/admin/catalog")
+async def admin_create_catalog(payload: CatalogIn, db: AsyncSession = Depends(get_db), _: User = Depends(require_admin)):
+    c = SupplyCatalog(**payload.model_dump())
+    db.add(c)
+    await db.commit()
+    await db.refresh(c)
+    return _serialize_catalog(c)
+
+
+@router.patch("/admin/catalog/{cid}")
+async def admin_update_catalog(cid: int, payload: CatalogIn, db: AsyncSession = Depends(get_db), _: User = Depends(require_admin)):
+    c = (await db.execute(select(SupplyCatalog).where(SupplyCatalog.id == cid))).scalar_one_or_none()
+    if not c:
+        raise HTTPException(status_code=404, detail="품목을 찾을 수 없습니다")
+    for k, v in payload.model_dump().items():
+        setattr(c, k, v)
+    await db.commit()
+    return _serialize_catalog(c)
+
+
+@router.delete("/admin/catalog/{cid}")
+async def admin_delete_catalog(cid: int, db: AsyncSession = Depends(get_db), _: User = Depends(require_admin)):
+    c = (await db.execute(select(SupplyCatalog).where(SupplyCatalog.id == cid))).scalar_one_or_none()
+    if c:
+        await db.delete(c)
+        await db.commit()
+    return {"ok": True}
+
+
+class CategoryAccessIn(BaseModel):
+    category: str
+    hospital_type: str
+
+
+@router.get("/admin/category-access")
+async def admin_list_category_access(db: AsyncSession = Depends(get_db), _: User = Depends(require_admin)):
+    rows = (await db.execute(select(SupplyCategoryAccess))).scalars().all()
+    return [{"id": r.id, "category": r.category, "hospital_type": r.hospital_type} for r in rows]
+
+
+@router.post("/admin/category-access")
+async def admin_add_category_access(payload: CategoryAccessIn, db: AsyncSession = Depends(get_db), _: User = Depends(require_admin)):
+    r = SupplyCategoryAccess(**payload.model_dump())
+    db.add(r)
+    await db.commit()
+    await db.refresh(r)
+    return {"id": r.id}
+
+
+@router.delete("/admin/category-access/{rid}")
+async def admin_remove_category_access(rid: int, db: AsyncSession = Depends(get_db), _: User = Depends(require_admin)):
+    r = (await db.execute(select(SupplyCategoryAccess).where(SupplyCategoryAccess.id == rid))).scalar_one_or_none()
+    if r:
+        await db.delete(r)
+        await db.commit()
+    return {"ok": True}
+
+
+@router.get("/admin/hospitals")
+async def admin_list_hospitals(db: AsyncSession = Depends(get_db), _: User = Depends(require_admin)):
+    rows = (await db.execute(select(HospitalProfile))).scalars().all()
+    return [
+        {"id": h.id, "hospital_name": h.hospital_name, "hospital_type": h.hospital_type,
+         "discount_grade_code": h.discount_grade_code, "gift_grade_code": h.gift_grade_code, "balance": h.balance}
+        for h in rows
+    ]
+
+
+class HospitalGradeIn(BaseModel):
+    discount_grade_code: Optional[str] = None
+    gift_grade_code: Optional[str] = None
+
+
+@router.patch("/admin/hospitals/{hid}/grades")
+async def admin_set_hospital_grades(hid: int, payload: HospitalGradeIn, db: AsyncSession = Depends(get_db), _: User = Depends(require_admin)):
+    hp = await _get_hospital_profile(db, hid)
+    hp.discount_grade_code = payload.discount_grade_code
+    hp.gift_grade_code = payload.gift_grade_code
+    await db.commit()
+    return {"ok": True}
+
+
+class PriceOverrideIn(BaseModel):
+    catalog_id: int
+    hospital_profile_id: int
+    override_price: int
+
+
+@router.get("/admin/price-overrides")
+async def admin_list_price_overrides(db: AsyncSession = Depends(get_db), hospital_profile_id: Optional[int] = None, _: User = Depends(require_admin)):
+    q = select(SupplyPriceOverride)
+    if hospital_profile_id:
+        q = q.where(SupplyPriceOverride.hospital_profile_id == hospital_profile_id)
+    rows = (await db.execute(q)).scalars().all()
+    return [{"id": o.id, "catalog_id": o.catalog_id, "hospital_profile_id": o.hospital_profile_id, "override_price": o.override_price} for o in rows]
+
+
+@router.post("/admin/price-overrides")
+async def admin_upsert_price_override(payload: PriceOverrideIn, db: AsyncSession = Depends(get_db), _: User = Depends(require_admin)):
+    existing = (
+        await db.execute(
+            select(SupplyPriceOverride).where(
+                SupplyPriceOverride.catalog_id == payload.catalog_id,
+                SupplyPriceOverride.hospital_profile_id == payload.hospital_profile_id,
+            )
+        )
+    ).scalar_one_or_none()
+    if existing:
+        existing.override_price = payload.override_price
+        await db.commit()
+        return {"id": existing.id}
+    o = SupplyPriceOverride(**payload.model_dump())
+    db.add(o)
+    await db.commit()
+    await db.refresh(o)
+    return {"id": o.id}
+
+
+@router.delete("/admin/price-overrides/{oid}")
+async def admin_delete_price_override(oid: int, db: AsyncSession = Depends(get_db), _: User = Depends(require_admin)):
+    o = (await db.execute(select(SupplyPriceOverride).where(SupplyPriceOverride.id == oid))).scalar_one_or_none()
+    if o:
+        await db.delete(o)
+        await db.commit()
+    return {"ok": True}
+
+
+@router.get("/admin/orders")
+async def admin_list_orders(
+    db: AsyncSession = Depends(get_db),
+    status: Optional[str] = None,
+    hospital_profile_id: Optional[int] = None,
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
+    _: User = Depends(require_admin),
+):
+    q = select(SupplyOrder).options(selectinload(SupplyOrder.items))
+    if status:
+        q = q.where(SupplyOrder.status == status)
+    if hospital_profile_id:
+        q = q.where(SupplyOrder.hospital_profile_id == hospital_profile_id)
+    if date_from:
+        q = q.where(SupplyOrder.created_at >= date_from)
+    if date_to:
+        q = q.where(SupplyOrder.created_at <= date_to)
+    rows = (await db.execute(q.order_by(SupplyOrder.created_at.desc()))).scalars().all()
+    result = []
+    for o in rows:
+        hp = (await db.execute(select(HospitalProfile).where(HospitalProfile.id == o.hospital_profile_id))).scalar_one_or_none()
+        d = _serialize_order(o)
+        d["hospital_name"] = hp.hospital_name if hp else None
+        d["hospital_profile_id"] = o.hospital_profile_id
+        result.append(d)
+    return result
+
+
+@router.get("/admin/orders/{oid}")
+async def admin_get_order(oid: int, db: AsyncSession = Depends(get_db), _: User = Depends(require_admin)):
+    o = (await db.execute(select(SupplyOrder).options(selectinload(SupplyOrder.items)).where(SupplyOrder.id == oid))).scalar_one_or_none()
+    if not o:
+        raise HTTPException(status_code=404, detail="발주 내역을 찾을 수 없습니다")
+    hp = (await db.execute(select(HospitalProfile).where(HospitalProfile.id == o.hospital_profile_id))).scalar_one_or_none()
+    d = _serialize_order(o)
+    d["hospital_name"] = hp.hospital_name if hp else None
+    return d
+
+
+class OrderStatusIn(BaseModel):
+    status: str
+
+
+@router.patch("/admin/orders/{oid}/status")
+async def admin_update_order_status(oid: int, payload: OrderStatusIn, db: AsyncSession = Depends(get_db), _: User = Depends(require_admin)):
+    if payload.status not in ("접수", "출고", "배송완료", "직납출고", "직납완료"):
+        raise HTTPException(status_code=400, detail="잘못된 상태값입니다")
+    o = (await db.execute(select(SupplyOrder).where(SupplyOrder.id == oid))).scalar_one_or_none()
+    if not o:
+        raise HTTPException(status_code=404, detail="발주 내역을 찾을 수 없습니다")
+    o.status = payload.status
+    await db.commit()
+    return {"ok": True}
+
+
+class TrackingIn(BaseModel):
+    tracking_number: str
+
+
+@router.patch("/admin/orders/{oid}/tracking")
+async def admin_set_tracking(oid: int, payload: TrackingIn, db: AsyncSession = Depends(get_db), _: User = Depends(require_admin)):
+    o = (await db.execute(select(SupplyOrder).where(SupplyOrder.id == oid))).scalar_one_or_none()
+    if not o:
+        raise HTTPException(status_code=404, detail="발주 내역을 찾을 수 없습니다")
+    o.tracking_number = payload.tracking_number
+    await db.commit()
+    return {"ok": True}
+
+
+class TaxInvoiceIn(BaseModel):
+    tax_invoice_status: str
+
+
+@router.patch("/admin/orders/{oid}/tax-invoice")
+async def admin_set_tax_invoice_status(oid: int, payload: TaxInvoiceIn, db: AsyncSession = Depends(get_db), _: User = Depends(require_admin)):
+    """실제 국세청 전자세금계산서 발행 연동 전까지는 상태값만 수기로 기록 (ISSUE 참고)."""
+    if payload.tax_invoice_status not in ("미발행", "발행요청", "발행완료"):
+        raise HTTPException(status_code=400, detail="잘못된 상태값입니다")
+    o = (await db.execute(select(SupplyOrder).where(SupplyOrder.id == oid))).scalar_one_or_none()
+    if not o:
+        raise HTTPException(status_code=404, detail="발주 내역을 찾을 수 없습니다")
+    o.tax_invoice_status = payload.tax_invoice_status
+    await db.commit()
+    return {"ok": True}
+
+
+class BalanceAdjustIn(BaseModel):
+    amount: int  # 부호 있음: +선납충전, -미수금 증가/차감
+    memo: Optional[str] = None
+
+
+@router.post("/admin/hospitals/{hid}/balance-adjust")
+async def admin_adjust_balance(hid: int, payload: BalanceAdjustIn, db: AsyncSession = Depends(get_db), user: User = Depends(require_admin)):
+    hp = await _get_hospital_profile(db, hid)
+    entry_type = "topup" if payload.amount > 0 else "adjustment"
+    ledger = HospitalLedgerEntry(
+        hospital_profile_id=hp.id, entry_type=entry_type, amount=payload.amount, memo=payload.memo,
+        created_by=user.id, created_at=datetime.now(timezone.utc).isoformat(),
+    )
+    db.add(ledger)
+    hp.balance += payload.amount
+    await db.commit()
+    return {"ok": True, "balance": hp.balance}
+
+
+@router.get("/admin/hospitals/{hid}/ledger")
+async def admin_get_hospital_ledger(hid: int, db: AsyncSession = Depends(get_db), _: User = Depends(require_admin)):
+    hp = await _get_hospital_profile(db, hid)
+    rows = (
+        await db.execute(
+            select(HospitalLedgerEntry).where(HospitalLedgerEntry.hospital_profile_id == hid).order_by(HospitalLedgerEntry.created_at.desc())
+        )
+    ).scalars().all()
+    return {
+        "balance": hp.balance,
+        "entries": [
+            {"id": e.id, "entry_type": e.entry_type, "amount": e.amount, "memo": e.memo,
+             "related_order_id": e.related_order_id, "created_at": e.created_at}
+            for e in rows
+        ],
+    }
