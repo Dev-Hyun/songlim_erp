@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.models import Hospital, Equipment, SalesNote, User
-from app.routers.auth import require_user
+from app.routers.auth import require_staff
 
 router = APIRouter(prefix="/api", tags=["sales_map"])
 
@@ -145,6 +145,7 @@ async def _query_hospitals(
 @router.get("/hospitals")
 async def get_hospitals(
     db: AsyncSession = Depends(get_db),
+    user: User = Depends(require_staff),
     lat: Optional[float] = None,
     lng: Optional[float] = None,
     radius_km: float = 3.0,
@@ -164,6 +165,7 @@ async def get_hospitals(
 @router.get("/hospitals/export")
 async def export_hospitals_excel(
     db: AsyncSession = Depends(get_db),
+    user: User = Depends(require_staff),
     lat: float = 37.5665,
     lng: float = 126.978,
     radius_km: float = 3.0,
@@ -279,14 +281,14 @@ async def search_hospital(
 
 
 @router.get("/regions/sido")
-async def get_sido_list(db: AsyncSession = Depends(get_db)):
+async def get_sido_list(db: AsyncSession = Depends(get_db), user: User = Depends(require_staff)):
     q = select(Hospital.sido).where(Hospital.sido.is_not(None)).distinct().order_by(Hospital.sido)
     rows = (await db.execute(q)).scalars().all()
     return list(rows)
 
 
 @router.get("/regions/sigungu")
-async def get_sigungu_list(db: AsyncSession = Depends(get_db), sido: str = Query(...)):
+async def get_sigungu_list(db: AsyncSession = Depends(get_db), sido: str = Query(...), user: User = Depends(require_staff)):
     q = (
         select(Hospital.sigungu)
         .where(Hospital.sido == sido, Hospital.sigungu.is_not(None))
@@ -298,7 +300,7 @@ async def get_sigungu_list(db: AsyncSession = Depends(get_db), sido: str = Query
 
 
 @router.get("/hospital/{hospital_id}")
-async def get_hospital_detail(hospital_id: int, db: AsyncSession = Depends(get_db)):
+async def get_hospital_detail(hospital_id: int, db: AsyncSession = Depends(get_db), user: User = Depends(require_staff)):
     """병원 상세 — 지도 마커/카드 클릭 시 우측 패널에 표시. 카테고리별 연도별 보유장비 이력 포함."""
     h = (await db.execute(select(Hospital).where(Hospital.id == hospital_id))).scalar_one_or_none()
     if not h:
@@ -346,7 +348,7 @@ class ManualEquipmentIn(BaseModel):
 
 
 @router.get("/equipment/catalog")
-async def get_equipment_catalog(db: AsyncSession = Depends(get_db), category: str = "us"):
+async def get_equipment_catalog(db: AsyncSession = Depends(get_db), category: str = "us", user: User = Depends(require_staff)):
     """수동 등록 시 제조사/장비 선택용 드롭다운 — 기존 임포트 데이터의 distinct 값 재사용."""
     q = (
         select(Equipment.manufacturer, Equipment.model)
@@ -358,7 +360,7 @@ async def get_equipment_catalog(db: AsyncSession = Depends(get_db), category: st
 
 
 @router.post("/equipment/manual")
-async def register_manual_equipment(payload: ManualEquipmentIn, db: AsyncSession = Depends(get_db)):
+async def register_manual_equipment(payload: ManualEquipmentIn, db: AsyncSession = Depends(get_db), user: User = Depends(require_staff)):
     """동물병원/2026 신규개원 등 공공데이터에 없는 병원의 장비를 직원이 직접 등록.
     등록 즉시 지도/병원정보에 매칭되도록 source='manual'로 저장."""
     eq = Equipment(
@@ -385,7 +387,7 @@ class ManualEquipmentUpdateIn(BaseModel):
 
 
 @router.patch("/equipment/manual/{equipment_id}")
-async def update_manual_equipment(equipment_id: int, payload: ManualEquipmentUpdateIn, db: AsyncSession = Depends(get_db)):
+async def update_manual_equipment(equipment_id: int, payload: ManualEquipmentUpdateIn, db: AsyncSession = Depends(get_db), user: User = Depends(require_staff)):
     """수동 등록된 장비만 추후 수정 가능 (source='manual'인 행만 허용, 공공데이터 임포트 행은 보호)."""
     eq = (await db.execute(select(Equipment).where(Equipment.id == equipment_id))).scalar_one_or_none()
     if not eq:
@@ -401,7 +403,7 @@ async def update_manual_equipment(equipment_id: int, payload: ManualEquipmentUpd
 
 
 @router.delete("/equipment/manual/{equipment_id}")
-async def delete_manual_equipment(equipment_id: int, db: AsyncSession = Depends(get_db)):
+async def delete_manual_equipment(equipment_id: int, db: AsyncSession = Depends(get_db), user: User = Depends(require_staff)):
     eq = (await db.execute(select(Equipment).where(Equipment.id == equipment_id))).scalar_one_or_none()
     if not eq:
         raise HTTPException(status_code=404, detail="장비를 찾을 수 없습니다")
@@ -423,7 +425,7 @@ class SalesNoteIn(BaseModel):
 
 @router.post("/sales-notes")
 async def create_sales_note(
-    payload: SalesNoteIn, db: AsyncSession = Depends(get_db), user: User = Depends(require_user)
+    payload: SalesNoteIn, db: AsyncSession = Depends(get_db), user: User = Depends(require_staff)
 ):
     note = SalesNote(hospital_id=payload.hospital_id, user_id=user.id, visit_date=payload.visit_date, content=payload.content)
     db.add(note)
@@ -435,6 +437,7 @@ async def create_sales_note(
 @router.get("/sales-notes")
 async def list_sales_notes(
     db: AsyncSession = Depends(get_db),
+    user: User = Depends(require_staff),
     hospital_id: Optional[int] = None,
     user_id: Optional[int] = None,
     date_from: Optional[date] = None,
@@ -466,6 +469,7 @@ async def list_sales_notes(
 @router.get("/stats/by-maker")
 async def stats_by_maker(
     db: AsyncSession = Depends(get_db),
+    user: User = Depends(require_staff),
     category: str = "us",
     year: int = 2025,
     sido: Optional[str] = None,

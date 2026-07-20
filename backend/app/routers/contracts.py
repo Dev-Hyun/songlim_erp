@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.models import Contract, ContractComment, ContractItem, ContractPhoto, User
-from app.routers.auth import require_user
+from app.routers.auth import require_staff
 
 router = APIRouter(prefix="/api/contracts", tags=["contracts"])
 
@@ -80,7 +80,7 @@ def _serialize(c: Contract) -> dict:
 
 
 @router.get("")
-async def list_contracts(db: AsyncSession = Depends(get_db)):
+async def list_contracts(db: AsyncSession = Depends(get_db), user: User = Depends(require_staff)):
     rows = (await db.execute(select(Contract).order_by(Contract.updated_at.desc()))).scalars().all()
     result = []
     for c in rows:
@@ -90,7 +90,7 @@ async def list_contracts(db: AsyncSession = Depends(get_db)):
 
 
 @router.post("")
-async def create_contract(payload: ContractCreateIn, db: AsyncSession = Depends(get_db), user: User = Depends(require_user)):
+async def create_contract(payload: ContractCreateIn, db: AsyncSession = Depends(get_db), user: User = Depends(require_staff)):
     title = payload.title or (f"{payload.buyer_hospital} 판매계약" if payload.buyer_hospital else "새 계약 건")
     c = Contract(
         title=title, body=payload.body, hospital_id=payload.hospital_id, status=payload.status, author_id=user.id,
@@ -110,7 +110,7 @@ async def create_contract(payload: ContractCreateIn, db: AsyncSession = Depends(
 
 
 @router.get("/{cid}")
-async def get_contract(cid: int, db: AsyncSession = Depends(get_db)):
+async def get_contract(cid: int, db: AsyncSession = Depends(get_db), user: User = Depends(require_staff)):
     c = (await db.execute(select(Contract).where(Contract.id == cid))).scalar_one_or_none()
     if not c:
         raise HTTPException(status_code=404, detail="계약을 찾을 수 없습니다")
@@ -126,7 +126,7 @@ async def get_contract(cid: int, db: AsyncSession = Depends(get_db)):
 
 
 @router.patch("/{cid}")
-async def update_contract(cid: int, payload: ContractUpdateIn, db: AsyncSession = Depends(get_db), user: User = Depends(require_user)):
+async def update_contract(cid: int, payload: ContractUpdateIn, db: AsyncSession = Depends(get_db), user: User = Depends(require_staff)):
     c = (await db.execute(select(Contract).where(Contract.id == cid))).scalar_one_or_none()
     if not c:
         raise HTTPException(status_code=404, detail="계약을 찾을 수 없습니다")
@@ -154,7 +154,7 @@ async def update_contract(cid: int, payload: ContractUpdateIn, db: AsyncSession 
 
 
 @router.delete("/{cid}")
-async def delete_contract(cid: int, db: AsyncSession = Depends(get_db), user: User = Depends(require_user)):
+async def delete_contract(cid: int, db: AsyncSession = Depends(get_db), user: User = Depends(require_staff)):
     c = (await db.execute(select(Contract).where(Contract.id == cid))).scalar_one_or_none()
     if not c:
         raise HTTPException(status_code=404, detail="계약을 찾을 수 없습니다")
@@ -166,7 +166,7 @@ async def delete_contract(cid: int, db: AsyncSession = Depends(get_db), user: Us
 
 
 @router.post("/{cid}/comments")
-async def add_comment(cid: int, payload: CommentIn, db: AsyncSession = Depends(get_db), user: User = Depends(require_user)):
+async def add_comment(cid: int, payload: CommentIn, db: AsyncSession = Depends(get_db), user: User = Depends(require_staff)):
     comment = ContractComment(contract_id=cid, user_id=user.id, body=payload.body, created_at=datetime.now(timezone.utc).isoformat())
     db.add(comment)
     await db.commit()
@@ -175,7 +175,7 @@ async def add_comment(cid: int, payload: CommentIn, db: AsyncSession = Depends(g
 
 
 @router.delete("/{cid}/comments/{comment_id}")
-async def delete_comment(cid: int, comment_id: int, db: AsyncSession = Depends(get_db), user: User = Depends(require_user)):
+async def delete_comment(cid: int, comment_id: int, db: AsyncSession = Depends(get_db), user: User = Depends(require_staff)):
     comment = (await db.execute(select(ContractComment).where(ContractComment.id == comment_id))).scalar_one_or_none()
     if not comment:
         raise HTTPException(status_code=404, detail="댓글을 찾을 수 없습니다")
@@ -187,7 +187,7 @@ async def delete_comment(cid: int, comment_id: int, db: AsyncSession = Depends(g
 
 
 @router.post("/{cid}/photos")
-async def upload_photo(cid: int, file: UploadFile = File(...), db: AsyncSession = Depends(get_db), user: User = Depends(require_user)):
+async def upload_photo(cid: int, file: UploadFile = File(...), db: AsyncSession = Depends(get_db), user: User = Depends(require_staff)):
     dir_path = os.path.join(UPLOAD_DIR, str(cid))
     os.makedirs(dir_path, exist_ok=True)
     token = secrets.token_hex(8)
@@ -203,7 +203,7 @@ async def upload_photo(cid: int, file: UploadFile = File(...), db: AsyncSession 
 
 
 @router.get("/{cid}/photos/{photo_id}/image")
-async def get_photo(cid: int, photo_id: int, db: AsyncSession = Depends(get_db)):
+async def get_photo(cid: int, photo_id: int, db: AsyncSession = Depends(get_db), user: User = Depends(require_staff)):
     photo = (await db.execute(select(ContractPhoto).where(ContractPhoto.id == photo_id))).scalar_one_or_none()
     if not photo:
         raise HTTPException(status_code=404, detail="사진을 찾을 수 없습니다")
@@ -214,7 +214,7 @@ async def get_photo(cid: int, photo_id: int, db: AsyncSession = Depends(get_db))
 
 
 @router.delete("/{cid}/photos/{photo_id}")
-async def delete_photo(cid: int, photo_id: int, db: AsyncSession = Depends(get_db), user: User = Depends(require_user)):
+async def delete_photo(cid: int, photo_id: int, db: AsyncSession = Depends(get_db), user: User = Depends(require_staff)):
     photo = (await db.execute(select(ContractPhoto).where(ContractPhoto.id == photo_id))).scalar_one_or_none()
     if not photo:
         raise HTTPException(status_code=404, detail="사진을 찾을 수 없습니다")

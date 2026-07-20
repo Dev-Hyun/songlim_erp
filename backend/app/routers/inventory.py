@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.models import InvEquipment, InvSupply, User
-from app.routers.auth import require_user
+from app.routers.auth import require_staff
 
 router = APIRouter(prefix="/api/inventory", tags=["inventory"])
 
@@ -54,7 +54,7 @@ def _supply_dict(s: InvSupply) -> dict:
 
 
 @router.get("/equipment")
-async def list_equipment(db: AsyncSession = Depends(get_db), category: Optional[str] = None):
+async def list_equipment(db: AsyncSession = Depends(get_db), category: Optional[str] = None, user: User = Depends(require_staff)):
     q = select(InvEquipment)
     if category:
         q = q.where(InvEquipment.category == category)
@@ -64,7 +64,7 @@ async def list_equipment(db: AsyncSession = Depends(get_db), category: Optional[
 
 
 @router.post("/equipment")
-async def create_equipment(payload: InvEquipmentIn, db: AsyncSession = Depends(get_db), user: User = Depends(require_user)):
+async def create_equipment(payload: InvEquipmentIn, db: AsyncSession = Depends(get_db), user: User = Depends(require_staff)):
     e = InvEquipment(**payload.model_dump(), updated_at=datetime.now(timezone.utc).isoformat(), updated_by=user.id)
     db.add(e)
     await db.commit()
@@ -73,7 +73,7 @@ async def create_equipment(payload: InvEquipmentIn, db: AsyncSession = Depends(g
 
 
 @router.patch("/equipment/{eid}")
-async def update_equipment(eid: int, payload: InvEquipmentIn, db: AsyncSession = Depends(get_db), user: User = Depends(require_user)):
+async def update_equipment(eid: int, payload: InvEquipmentIn, db: AsyncSession = Depends(get_db), user: User = Depends(require_staff)):
     e = (await db.execute(select(InvEquipment).where(InvEquipment.id == eid))).scalar_one_or_none()
     if not e:
         raise HTTPException(status_code=404, detail="항목을 찾을 수 없습니다")
@@ -87,7 +87,7 @@ async def update_equipment(eid: int, payload: InvEquipmentIn, db: AsyncSession =
 
 
 @router.delete("/equipment/{eid}")
-async def delete_equipment(eid: int, db: AsyncSession = Depends(get_db), user: User = Depends(require_user)):
+async def delete_equipment(eid: int, db: AsyncSession = Depends(get_db), user: User = Depends(require_staff)):
     e = (await db.execute(select(InvEquipment).where(InvEquipment.id == eid))).scalar_one_or_none()
     if not e:
         raise HTTPException(status_code=404, detail="항목을 찾을 수 없습니다")
@@ -97,7 +97,7 @@ async def delete_equipment(eid: int, db: AsyncSession = Depends(get_db), user: U
 
 
 @router.get("/supplies")
-async def list_supplies(db: AsyncSession = Depends(get_db), branch: Optional[str] = None):
+async def list_supplies(db: AsyncSession = Depends(get_db), branch: Optional[str] = None, user: User = Depends(require_staff)):
     q = select(InvSupply)
     if branch:
         q = q.where(InvSupply.branch == branch)
@@ -107,7 +107,7 @@ async def list_supplies(db: AsyncSession = Depends(get_db), branch: Optional[str
 
 
 @router.post("/supplies")
-async def create_supply(payload: InvSupplyIn, db: AsyncSession = Depends(get_db), user: User = Depends(require_user)):
+async def create_supply(payload: InvSupplyIn, db: AsyncSession = Depends(get_db), user: User = Depends(require_staff)):
     s = InvSupply(**payload.model_dump(), updated_at=datetime.now(timezone.utc).isoformat(), updated_by=user.id)
     db.add(s)
     await db.commit()
@@ -116,7 +116,7 @@ async def create_supply(payload: InvSupplyIn, db: AsyncSession = Depends(get_db)
 
 
 @router.patch("/supplies/{sid}")
-async def update_supply(sid: int, payload: InvSupplyIn, db: AsyncSession = Depends(get_db), user: User = Depends(require_user)):
+async def update_supply(sid: int, payload: InvSupplyIn, db: AsyncSession = Depends(get_db), user: User = Depends(require_staff)):
     s = (await db.execute(select(InvSupply).where(InvSupply.id == sid))).scalar_one_or_none()
     if not s:
         raise HTTPException(status_code=404, detail="항목을 찾을 수 없습니다")
@@ -130,7 +130,7 @@ async def update_supply(sid: int, payload: InvSupplyIn, db: AsyncSession = Depen
 
 
 @router.delete("/supplies/{sid}")
-async def delete_supply(sid: int, db: AsyncSession = Depends(get_db), user: User = Depends(require_user)):
+async def delete_supply(sid: int, db: AsyncSession = Depends(get_db), user: User = Depends(require_staff)):
     s = (await db.execute(select(InvSupply).where(InvSupply.id == sid))).scalar_one_or_none()
     if not s:
         raise HTTPException(status_code=404, detail="항목을 찾을 수 없습니다")

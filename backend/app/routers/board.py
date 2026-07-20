@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.models import CsComment, CsTicket, Notice, Suggestion, TechComment, TechPost, User
-from app.routers.auth import get_current_user, require_user
+from app.routers.auth import get_current_user, require_staff, require_user
 
 router = APIRouter(prefix="/api", tags=["board"])
 
@@ -79,7 +79,7 @@ class CsCommentIn(BaseModel):
 
 
 @router.get("/cs")
-async def list_cs(db: AsyncSession = Depends(get_db), status: Optional[str] = None):
+async def list_cs(db: AsyncSession = Depends(get_db), status: Optional[str] = None, user: User = Depends(require_staff)):
     q = (
         select(CsTicket, User.display_name, User.username)
         .join(User, User.id == CsTicket.created_by)
@@ -94,7 +94,7 @@ async def list_cs(db: AsyncSession = Depends(get_db), status: Optional[str] = No
 
 
 @router.post("/cs")
-async def create_cs(payload: CsTicketIn, db: AsyncSession = Depends(get_db), user: User = Depends(require_user)):
+async def create_cs(payload: CsTicketIn, db: AsyncSession = Depends(get_db), user: User = Depends(require_staff)):
     t = CsTicket(title=payload.title, content=payload.content, created_by=user.id)
     db.add(t)
     await db.commit()
@@ -103,7 +103,7 @@ async def create_cs(payload: CsTicketIn, db: AsyncSession = Depends(get_db), use
 
 
 @router.get("/cs/{tid}")
-async def get_cs(tid: int, db: AsyncSession = Depends(get_db)):
+async def get_cs(tid: int, db: AsyncSession = Depends(get_db), user: User = Depends(require_staff)):
     row = (
         await db.execute(
             select(CsTicket, User.display_name, User.username).join(User, User.id == CsTicket.created_by).where(CsTicket.id == tid)
@@ -121,7 +121,7 @@ async def get_cs(tid: int, db: AsyncSession = Depends(get_db)):
 
 
 @router.patch("/cs/{tid}/status")
-async def update_cs_status(tid: int, status: str, db: AsyncSession = Depends(get_db), user: User = Depends(require_user)):
+async def update_cs_status(tid: int, status: str, db: AsyncSession = Depends(get_db), user: User = Depends(require_staff)):
     if status not in ("접수", "처리중", "처리완료"):
         raise HTTPException(status_code=400, detail="잘못된 상태값입니다")
     t = (await db.execute(select(CsTicket).where(CsTicket.id == tid))).scalar_one_or_none()
@@ -133,7 +133,7 @@ async def update_cs_status(tid: int, status: str, db: AsyncSession = Depends(get
 
 
 @router.post("/cs/{tid}/comments")
-async def add_cs_comment(tid: int, payload: CsCommentIn, db: AsyncSession = Depends(get_db), user: User = Depends(require_user)):
+async def add_cs_comment(tid: int, payload: CsCommentIn, db: AsyncSession = Depends(get_db), user: User = Depends(require_staff)):
     c = CsComment(ticket_id=tid, content=payload.content, created_by=user.id, created_at=datetime.now(timezone.utc).isoformat())
     db.add(c)
     await db.commit()
@@ -155,7 +155,7 @@ class TechCommentIn(BaseModel):
 
 
 @router.get("/tech-posts")
-async def list_tech_posts(db: AsyncSession = Depends(get_db), category: Optional[str] = None):
+async def list_tech_posts(db: AsyncSession = Depends(get_db), category: Optional[str] = None, user: User = Depends(require_staff)):
     q = (
         select(TechPost, User.display_name, User.username)
         .join(User, User.id == TechPost.created_by)
@@ -170,7 +170,7 @@ async def list_tech_posts(db: AsyncSession = Depends(get_db), category: Optional
 
 
 @router.post("/tech-posts")
-async def create_tech_post(payload: TechPostIn, db: AsyncSession = Depends(get_db), user: User = Depends(require_user)):
+async def create_tech_post(payload: TechPostIn, db: AsyncSession = Depends(get_db), user: User = Depends(require_staff)):
     p = TechPost(title=payload.title, category=payload.category, content=payload.content, created_by=user.id)
     db.add(p)
     await db.commit()
@@ -179,7 +179,7 @@ async def create_tech_post(payload: TechPostIn, db: AsyncSession = Depends(get_d
 
 
 @router.get("/tech-posts/{pid}")
-async def get_tech_post(pid: int, db: AsyncSession = Depends(get_db)):
+async def get_tech_post(pid: int, db: AsyncSession = Depends(get_db), user: User = Depends(require_staff)):
     row = (
         await db.execute(
             select(TechPost, User.display_name, User.username).join(User, User.id == TechPost.created_by).where(TechPost.id == pid)
@@ -207,7 +207,7 @@ async def get_tech_post(pid: int, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/tech-posts/{pid}/comments")
-async def add_tech_comment(pid: int, payload: TechCommentIn, db: AsyncSession = Depends(get_db), user: User = Depends(require_user)):
+async def add_tech_comment(pid: int, payload: TechCommentIn, db: AsyncSession = Depends(get_db), user: User = Depends(require_staff)):
     c = TechComment(post_id=pid, content=payload.content, created_by=user.id, created_at=datetime.now(timezone.utc).isoformat())
     db.add(c)
     await db.commit()
@@ -224,7 +224,7 @@ class SuggestionIn(BaseModel):
 
 
 @router.get("/suggestions")
-async def list_suggestions(db: AsyncSession = Depends(get_db)):
+async def list_suggestions(db: AsyncSession = Depends(get_db), user: User = Depends(require_staff)):
     # 익명 게시판 — 작성자는 관리자에게도 노출하지 않음 (created_by는 DB에만 보관, API 응답에서 제외)
     rows = (await db.execute(select(Suggestion).order_by(Suggestion.created_at.desc()))).scalars().all()
     return [{"id": s.id, "title": s.title, "content": s.content, "status": s.status,
@@ -232,7 +232,7 @@ async def list_suggestions(db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/suggestions")
-async def create_suggestion(payload: SuggestionIn, db: AsyncSession = Depends(get_db), user: User = Depends(require_user)):
+async def create_suggestion(payload: SuggestionIn, db: AsyncSession = Depends(get_db), user: User = Depends(require_staff)):
     s = Suggestion(title=payload.title, content=payload.content, created_by=user.id)
     db.add(s)
     await db.commit()
@@ -241,7 +241,7 @@ async def create_suggestion(payload: SuggestionIn, db: AsyncSession = Depends(ge
 
 
 @router.patch("/suggestions/{sid}/status")
-async def update_suggestion_status(sid: int, status: str, db: AsyncSession = Depends(get_db), user: User = Depends(require_user)):
+async def update_suggestion_status(sid: int, status: str, db: AsyncSession = Depends(get_db), user: User = Depends(require_staff)):
     if status not in ("접수", "검토중", "반영완료"):
         raise HTTPException(status_code=400, detail="잘못된 상태값입니다")
     s = (await db.execute(select(Suggestion).where(Suggestion.id == sid))).scalar_one_or_none()

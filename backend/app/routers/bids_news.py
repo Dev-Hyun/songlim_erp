@@ -17,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import AsyncSessionLocal, get_db
 from app.models import Bid, NewsArticle, User
 from app.routers.admin import require_admin
+from app.routers.auth import require_staff
 
 router = APIRouter(prefix="/api", tags=["bids_news"])
 
@@ -340,6 +341,7 @@ async def refresh_news_job():
 @router.get("/bids")
 async def get_bids(
     db: AsyncSession = Depends(get_db),
+    user: User = Depends(require_staff),
     source: str = "",
     search: str = "",
     page: int = 1,
@@ -374,7 +376,7 @@ async def get_bids(
 
 
 @router.get("/bids/{bid_id}")
-async def get_bid_detail(bid_id: int, db: AsyncSession = Depends(get_db)):
+async def get_bid_detail(bid_id: int, db: AsyncSession = Depends(get_db), user: User = Depends(require_staff)):
     b = (await db.execute(select(Bid).where(Bid.id == bid_id))).scalar_one_or_none()
     if not b:
         raise HTTPException(status_code=404, detail="입찰 정보를 찾을 수 없습니다")

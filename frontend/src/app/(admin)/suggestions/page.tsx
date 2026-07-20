@@ -2,6 +2,7 @@
 
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import SimpleBoard from "@/components/board/SimpleBoard";
+import StaffOnly from "@/components/auth/StaffOnly";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8010";
 
@@ -14,15 +15,17 @@ async function updateStatus(id: number, status: string) {
 
 export default function SuggestionsPage() {
   return (
-    <div>
-      <PageBreadcrumb pageTitle="건의사항" />
-      <SimpleBoard
-        endpoint="/api/suggestions"
-        title="건의사항"
-        hasStatus
-        statusOptions={["접수", "검토중", "반영완료"]}
-        onStatusChange={updateStatus}
-      />
-    </div>
+    <StaffOnly>
+      <div>
+        <PageBreadcrumb pageTitle="건의사항" />
+        <SimpleBoard
+          endpoint="/api/suggestions"
+          title="건의사항"
+          hasStatus
+          statusOptions={["접수", "검토중", "반영완료"]}
+          onStatusChange={updateStatus}
+        />
+      </div>
+    </StaffOnly>
   );
 }

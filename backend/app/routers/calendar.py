@@ -8,13 +8,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.google_calendar_sync import push_create_event, push_delete_event
 from app.models import CalendarEvent, CalendarEventAssignee, CalendarEventTeam, StaffProfile, User
-from app.routers.auth import require_user
+from app.routers.auth import require_staff
 
 router = APIRouter(prefix="/api/calendar-events", tags=["calendar"])
 
 
 @router.get("/staff")
-async def list_staff(db: AsyncSession = Depends(get_db), _: User = Depends(require_user)):
+async def list_staff(db: AsyncSession = Depends(get_db), _: User = Depends(require_staff)):
     """캘린더 초대/팀 선택용 — 송림 직원 목록 (부서 포함)."""
     rows = (
         await db.execute(
@@ -36,7 +36,7 @@ class CalendarEventIn(BaseModel):
 
 
 @router.get("")
-async def list_events(db: AsyncSession = Depends(get_db)):
+async def list_events(db: AsyncSession = Depends(get_db), user: User = Depends(require_staff)):
     rows = (await db.execute(select(CalendarEvent).order_by(CalendarEvent.start_at))).scalars().all()
     result = []
     for e in rows:
@@ -52,7 +52,7 @@ async def list_events(db: AsyncSession = Depends(get_db)):
 
 
 @router.post("")
-async def create_event(payload: CalendarEventIn, db: AsyncSession = Depends(get_db), user: User = Depends(require_user)):
+async def create_event(payload: CalendarEventIn, db: AsyncSession = Depends(get_db), user: User = Depends(require_staff)):
     e = CalendarEvent(title=payload.title, start_at=payload.start_at, end_at=payload.end_at,
                        is_shared=payload.is_shared, created_by=user.id)
     db.add(e)
@@ -72,7 +72,7 @@ async def create_event(payload: CalendarEventIn, db: AsyncSession = Depends(get_
 
 
 @router.delete("/{eid}")
-async def delete_event(eid: int, db: AsyncSession = Depends(get_db), user: User = Depends(require_user)):
+async def delete_event(eid: int, db: AsyncSession = Depends(get_db), user: User = Depends(require_staff)):
     e = (await db.execute(select(CalendarEvent).where(CalendarEvent.id == eid))).scalar_one_or_none()
     if not e:
         raise HTTPException(status_code=404, detail="일정을 찾을 수 없습니다")

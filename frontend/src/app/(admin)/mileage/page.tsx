@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import { useAuth } from "@/context/AuthContext";
+import StaffOnly from "@/components/auth/StaffOnly";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8010";
 
@@ -81,6 +82,7 @@ export default function MileagePage() {
   if (authLoading) return <div className="p-8 text-center text-sm text-gray-400">불러오는 중...</div>;
 
   return (
+    <StaffOnly>
     <div>
       <PageBreadcrumb pageTitle="운행일지" />
       {!user ? (
@@ -153,5 +155,6 @@ export default function MileagePage() {
         </div>
       )}
     </div>
+    </StaffOnly>
   );
 }

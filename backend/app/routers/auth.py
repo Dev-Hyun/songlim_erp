@@ -1,3 +1,4 @@
+import os
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -13,6 +14,8 @@ from app.security import hash_password, new_session_token, verify_password
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 COOKIE_NAME = "session_token"
+# 배포 도메인이 HTTPS로 확정되면 .env에서 COOKIE_SECURE=true 로 전환
+COOKIE_SECURE = os.environ.get("COOKIE_SECURE", "false").lower() == "true"
 
 
 async def get_current_user(
@@ -30,6 +33,14 @@ async def get_current_user(
 async def require_user(user: Optional[User] = Depends(get_current_user)) -> User:
     if not user:
         raise HTTPException(status_code=401, detail="로그인이 필요합니다")
+    return user
+
+
+async def require_staff(user: User = Depends(require_user)) -> User:
+    """송림 내부 직원 전용 — 병원 계정(role='hospital')은 공지사항/의료소식/소모품발주 3개 페이지만 접근 가능하므로
+    나머지 모든 사내 전용 라우터(계약/납품/재고/CS/캘린더/커뮤니티/건의사항/운행일지/자료실/영업지도/통계)는 이 의존성으로 막는다."""
+    if user.role != "songrim":
+        raise HTTPException(status_code=403, detail="송림 직원만 접근 가능합니다")
     return user
 
 
@@ -70,7 +81,8 @@ async def _create_session(db: AsyncSession, response: Response, user: User):
     db.add(Session(token=token, user_id=user.id, created_at=datetime.now(timezone.utc).isoformat()))
     await db.commit()
     response.set_cookie(
-        COOKIE_NAME, token, httponly=True, max_age=60 * 60 * 24 * 30, samesite="lax"
+        COOKIE_NAME, token, httponly=True, max_age=60 * 60 * 24 * 30,
+        samesite="lax", secure=COOKIE_SECURE,
     )
 
 

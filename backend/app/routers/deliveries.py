@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.models import Delivery, DeliveryComment, DeliveryItem, DeliveryPhoto, User
-from app.routers.auth import require_user
+from app.routers.auth import require_staff
 
 router = APIRouter(prefix="/api/deliveries", tags=["deliveries"])
 
@@ -85,13 +85,13 @@ def _apply_site_type_fields(site_type: str, data: dict) -> dict:
 
 
 @router.get("")
-async def list_deliveries(db: AsyncSession = Depends(get_db)):
+async def list_deliveries(db: AsyncSession = Depends(get_db), user: User = Depends(require_staff)):
     rows = (await db.execute(select(Delivery).order_by(Delivery.updated_at.desc()))).scalars().all()
     return [_serialize(d) for d in rows]
 
 
 @router.post("")
-async def create_delivery(payload: DeliveryCreateIn, db: AsyncSession = Depends(get_db), user: User = Depends(require_user)):
+async def create_delivery(payload: DeliveryCreateIn, db: AsyncSession = Depends(get_db), user: User = Depends(require_staff)):
     if payload.site_type not in ("delivery", "demo"):
         raise HTTPException(status_code=400, detail="잘못된 site_type 입니다")
     data = _apply_site_type_fields(payload.site_type, payload.model_dump(exclude={"items"}))
@@ -106,7 +106,7 @@ async def create_delivery(payload: DeliveryCreateIn, db: AsyncSession = Depends(
 
 
 @router.get("/{did}")
-async def get_delivery(did: int, db: AsyncSession = Depends(get_db)):
+async def get_delivery(did: int, db: AsyncSession = Depends(get_db), user: User = Depends(require_staff)):
     d = (await db.execute(select(Delivery).where(Delivery.id == did))).scalar_one_or_none()
     if not d:
         raise HTTPException(status_code=404, detail="납품 건을 찾을 수 없습니다")
@@ -122,7 +122,7 @@ async def get_delivery(did: int, db: AsyncSession = Depends(get_db)):
 
 
 @router.patch("/{did}")
-async def update_delivery(did: int, payload: DeliveryUpdateIn, db: AsyncSession = Depends(get_db), user: User = Depends(require_user)):
+async def update_delivery(did: int, payload: DeliveryUpdateIn, db: AsyncSession = Depends(get_db), user: User = Depends(require_staff)):
     d = (await db.execute(select(Delivery).where(Delivery.id == did))).scalar_one_or_none()
     if not d:
         raise HTTPException(status_code=404, detail="납품 건을 찾을 수 없습니다")
@@ -151,7 +151,7 @@ async def update_delivery(did: int, payload: DeliveryUpdateIn, db: AsyncSession 
 
 
 @router.delete("/{did}")
-async def delete_delivery(did: int, db: AsyncSession = Depends(get_db), user: User = Depends(require_user)):
+async def delete_delivery(did: int, db: AsyncSession = Depends(get_db), user: User = Depends(require_staff)):
     d = (await db.execute(select(Delivery).where(Delivery.id == did))).scalar_one_or_none()
     if not d:
         raise HTTPException(status_code=404, detail="납품 건을 찾을 수 없습니다")
@@ -163,7 +163,7 @@ async def delete_delivery(did: int, db: AsyncSession = Depends(get_db), user: Us
 
 
 @router.post("/{did}/comments")
-async def add_comment(did: int, payload: CommentIn, db: AsyncSession = Depends(get_db), user: User = Depends(require_user)):
+async def add_comment(did: int, payload: CommentIn, db: AsyncSession = Depends(get_db), user: User = Depends(require_staff)):
     comment = DeliveryComment(delivery_id=did, user_id=user.id, content=payload.content, created_at=datetime.now(timezone.utc).isoformat())
     db.add(comment)
     await db.commit()
@@ -172,7 +172,7 @@ async def add_comment(did: int, payload: CommentIn, db: AsyncSession = Depends(g
 
 
 @router.post("/{did}/photos")
-async def upload_photo(did: int, file: UploadFile = File(...), db: AsyncSession = Depends(get_db), user: User = Depends(require_user)):
+async def upload_photo(did: int, file: UploadFile = File(...), db: AsyncSession = Depends(get_db), user: User = Depends(require_staff)):
     dir_path = os.path.join(UPLOAD_DIR, str(did))
     os.makedirs(dir_path, exist_ok=True)
     token = secrets.token_hex(8)
@@ -187,7 +187,7 @@ async def upload_photo(did: int, file: UploadFile = File(...), db: AsyncSession 
 
 
 @router.get("/{did}/photos/{photo_id}/image")
-async def get_photo(did: int, photo_id: int, db: AsyncSession = Depends(get_db)):
+async def get_photo(did: int, photo_id: int, db: AsyncSession = Depends(get_db), user: User = Depends(require_staff)):
     photo = (await db.execute(select(DeliveryPhoto).where(DeliveryPhoto.id == photo_id))).scalar_one_or_none()
     if not photo:
         raise HTTPException(status_code=404, detail="사진을 찾을 수 없습니다")

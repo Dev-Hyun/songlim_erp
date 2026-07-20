@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import StatsClient from "@/components/stats/StatsClient";
+import StaffOnly from "@/components/auth/StaffOnly";
 
 export const metadata: Metadata = {
   title: "영업지도 통계 | 송림 ERP",
@@ -9,9 +10,11 @@ export const metadata: Metadata = {
 
 export default function SalesMapStatsPage() {
   return (
-    <div>
-      <PageBreadcrumb pageTitle="영업지도 통계" />
-      <StatsClient />
-    </div>
+    <StaffOnly>
+      <div>
+        <PageBreadcrumb pageTitle="영업지도 통계" />
+        <StatsClient />
+      </div>
+    </StaffOnly>
   );
 }

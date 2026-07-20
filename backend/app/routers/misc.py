@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.models import MileageLog, StaffProfile, StorageFile, StorageFolderPermission, User
-from app.routers.auth import require_user
+from app.routers.auth import require_staff
 
 router = APIRouter(prefix="/api", tags=["misc"])
 
@@ -54,7 +54,7 @@ class MileageLogIn(BaseModel):
 
 
 @router.get("/mileage-logs")
-async def list_mileage_logs(db: AsyncSession = Depends(get_db), user: User = Depends(require_user)):
+async def list_mileage_logs(db: AsyncSession = Depends(get_db), user: User = Depends(require_staff)):
     rows = (
         await db.execute(select(MileageLog).where(MileageLog.user_id == user.id).order_by(MileageLog.log_date.desc()))
     ).scalars().all()
@@ -84,7 +84,7 @@ async def _prev_km_for(db: AsyncSession, user_id: int, log_date: str) -> float:
 
 
 @router.post("/mileage-logs")
-async def create_mileage_log(payload: MileageLogIn, db: AsyncSession = Depends(get_db), user: User = Depends(require_user)):
+async def create_mileage_log(payload: MileageLogIn, db: AsyncSession = Depends(get_db), user: User = Depends(require_staff)):
     prev_km = payload.prev_km if payload.prev_km is not None else await _prev_km_for(db, user.id, payload.log_date)
     # 차번호 자동저장: 미입력 시 직전 기록의 차량 재사용
     vehicle = payload.vehicle
@@ -108,7 +108,7 @@ async def create_mileage_log(payload: MileageLogIn, db: AsyncSession = Depends(g
 
 
 @router.get("/mileage-logs/export")
-async def export_mileage(year: int = 0, month: int = 0, db: AsyncSession = Depends(get_db), user: User = Depends(require_user)):
+async def export_mileage(year: int = 0, month: int = 0, db: AsyncSession = Depends(get_db), user: User = Depends(require_staff)):
     """국세청 업무용승용차 운행기록부 양식 Excel (레거시 /api/mileage/export 1:1 이식)."""
     import calendar as _cal
     import io
@@ -267,7 +267,7 @@ async def export_mileage(year: int = 0, month: int = 0, db: AsyncSession = Depen
 # 자료실 (클라우드 NAS / 사내 문서 서식) — folder_path로 두 메뉴 모두 커버
 # ────────────────────────────────────────────────────────
 @router.get("/storage")
-async def list_storage_files(db: AsyncSession = Depends(get_db), folder_path: str = "nas", user: User = Depends(require_user)):
+async def list_storage_files(db: AsyncSession = Depends(get_db), folder_path: str = "nas", user: User = Depends(require_staff)):
     await _check_folder_access(folder_path, user, db, write=False)
     rows = (
         await db.execute(select(StorageFile).where(StorageFile.folder_path == folder_path).order_by(StorageFile.created_at.desc()))
@@ -280,7 +280,7 @@ async def upload_storage_file(
     folder_path: str = "nas",
     file: UploadFile = File(...),
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(require_user),
+    user: User = Depends(require_staff),
 ):
     await _check_folder_access(folder_path, user, db, write=True)
     dir_path = os.path.join(UPLOAD_DIR, folder_path)
@@ -298,7 +298,7 @@ async def upload_storage_file(
 
 
 @router.get("/storage/{file_id}/download")
-async def download_storage_file(file_id: int, db: AsyncSession = Depends(get_db)):
+async def download_storage_file(file_id: int, db: AsyncSession = Depends(get_db), user: User = Depends(require_staff)):
     f = (await db.execute(select(StorageFile).where(StorageFile.id == file_id))).scalar_one_or_none()
     if not f:
         raise HTTPException(status_code=404, detail="파일을 찾을 수 없습니다")
@@ -309,7 +309,7 @@ async def download_storage_file(file_id: int, db: AsyncSession = Depends(get_db)
 
 
 @router.delete("/storage/{file_id}")
-async def delete_storage_file(file_id: int, db: AsyncSession = Depends(get_db), user: User = Depends(require_user)):
+async def delete_storage_file(file_id: int, db: AsyncSession = Depends(get_db), user: User = Depends(require_staff)):
     f = (await db.execute(select(StorageFile).where(StorageFile.id == file_id))).scalar_one_or_none()
     if not f:
         raise HTTPException(status_code=404, detail="파일을 찾을 수 없습니다")
@@ -329,7 +329,7 @@ class StorageFolderPermissionIn(BaseModel):
 
 
 @router.get("/storage/permissions")
-async def list_folder_permissions(db: AsyncSession = Depends(get_db), user: User = Depends(require_user)):
+async def list_folder_permissions(db: AsyncSession = Depends(get_db), user: User = Depends(require_staff)):
     if not user.is_admin:
         raise HTTPException(status_code=403, detail="관리자만 접근 가능합니다")
     rows = (await db.execute(select(StorageFolderPermission))).scalars().all()
@@ -337,7 +337,7 @@ async def list_folder_permissions(db: AsyncSession = Depends(get_db), user: User
 
 
 @router.post("/storage/permissions")
-async def create_folder_permission(payload: StorageFolderPermissionIn, db: AsyncSession = Depends(get_db), user: User = Depends(require_user)):
+async def create_folder_permission(payload: StorageFolderPermissionIn, db: AsyncSession = Depends(get_db), user: User = Depends(require_staff)):
     if not user.is_admin:
         raise HTTPException(status_code=403, detail="관리자만 접근 가능합니다")
     if payload.permission_level not in ("view", "edit"):
@@ -350,7 +350,7 @@ async def create_folder_permission(payload: StorageFolderPermissionIn, db: Async
 
 
 @router.delete("/storage/permissions/{perm_id}")
-async def delete_folder_permission(perm_id: int, db: AsyncSession = Depends(get_db), user: User = Depends(require_user)):
+async def delete_folder_permission(perm_id: int, db: AsyncSession = Depends(get_db), user: User = Depends(require_staff)):
     if not user.is_admin:
         raise HTTPException(status_code=403, detail="관리자만 접근 가능합니다")
     p = (await db.execute(select(StorageFolderPermission).where(StorageFolderPermission.id == perm_id))).scalar_one_or_none()

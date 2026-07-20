@@ -5,6 +5,7 @@ import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import { useAuth } from "@/context/AuthContext";
 import { fetchMySalesNotes } from "@/components/sales-map/api";
 import { SalesNoteItem } from "@/components/sales-map/types";
+import StaffOnly from "@/components/auth/StaffOnly";
 
 export default function MySalesNotesPage() {
   const { user, loading: authLoading } = useAuth();
@@ -20,6 +21,7 @@ export default function MySalesNotesPage() {
   }, [user]);
 
   return (
+    <StaffOnly>
     <div>
       <PageBreadcrumb pageTitle="영업노트" />
       {authLoading || loading ? (
@@ -46,5 +48,6 @@ export default function MySalesNotesPage() {
         </div>
       )}
     </div>
+    </StaffOnly>
   );
 }

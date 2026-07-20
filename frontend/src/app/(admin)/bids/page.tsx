@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
+import StaffOnly from "@/components/auth/StaffOnly";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8010";
 
@@ -38,6 +39,7 @@ export default function BidsPage() {
   useEffect(load, [source, search]);
 
   return (
+    <StaffOnly>
     <div>
       <PageBreadcrumb pageTitle="입찰정보" />
       <div className="space-y-4">
@@ -111,5 +113,6 @@ export default function BidsPage() {
         </div>
       </div>
     </div>
+    </StaffOnly>
   );
 }

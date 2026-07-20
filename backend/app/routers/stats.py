@@ -5,7 +5,8 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.models import Equipment, Hospital
+from app.models import Equipment, Hospital, User
+from app.routers.auth import require_staff
 
 router = APIRouter(prefix="/api/stats", tags=["stats"])
 
@@ -23,6 +24,7 @@ def _type_filter(type_group: Optional[str]):
 @router.get("/summary")
 async def stats_summary(
     db: AsyncSession = Depends(get_db),
+    user: User = Depends(require_staff),
     category: str = "us",
     year: int = 2025,
     sido: Optional[str] = None,
@@ -68,6 +70,7 @@ async def stats_summary(
 @router.get("/market-share")
 async def market_share(
     db: AsyncSession = Depends(get_db),
+    user: User = Depends(require_staff),
     category: str = "us",
     year: int = 2025,
     sido: Optional[str] = None,
@@ -100,6 +103,7 @@ async def market_share(
 @router.get("/yearly-trend")
 async def yearly_trend(
     db: AsyncSession = Depends(get_db),
+    user: User = Depends(require_staff),
     category: str = "us",
     sido: Optional[str] = None,
     sigungu: Optional[str] = None,
@@ -149,6 +153,7 @@ async def yearly_trend(
 @router.get("/by-region")
 async def by_region(
     db: AsyncSession = Depends(get_db),
+    user: User = Depends(require_staff),
     category: str = "us",
     year: int = 2025,
     maker: Optional[str] = None,
@@ -168,6 +173,7 @@ async def by_region(
 @router.get("/by-type")
 async def by_type(
     db: AsyncSession = Depends(get_db),
+    user: User = Depends(require_staff),
     category: str = "us",
     year: int = 2025,
     maker: Optional[str] = None,
