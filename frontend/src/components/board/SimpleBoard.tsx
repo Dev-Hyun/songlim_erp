@@ -13,6 +13,8 @@ export interface BoardItem {
   status?: string;
   category?: string;
   created_by_name?: string;
+  hospital_name?: string | null;
+  is_mine?: boolean;
   created_at: string;
 }
 
@@ -48,6 +50,13 @@ export default function SimpleBoard({ endpoint, title, hasStatus, statusOptions,
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [endpoint]);
+
+  async function deleteItem(id: number) {
+    if (!confirm("이 글을 삭제하시겠습니까?")) return;
+    const base = endpoint.split("?")[0];
+    await fetch(`${API}${base}/${id}`, { method: "DELETE", credentials: "include" });
+    load();
+  }
 
   function isContentEmpty(html: string) {
     return !html.replace(/<[^>]*>/g, "").trim() && !html.includes("<img");
@@ -108,8 +117,12 @@ export default function SimpleBoard({ endpoint, title, hasStatus, statusOptions,
               >
                 <span className="flex items-center gap-2 text-sm font-medium text-gray-800 dark:text-white/90">
                   {item.title}
-                  {item.created_by_name && (
-                    <span className="text-xs font-normal text-gray-400">{item.created_by_name}</span>
+                  {item.hospital_name ? (
+                    <span className="text-xs font-normal text-gray-400">{item.hospital_name}</span>
+                  ) : (
+                    item.created_by_name && (
+                      <span className="text-xs font-normal text-gray-400">{item.created_by_name}</span>
+                    )
                   )}
                 </span>
                 <div className="flex items-center gap-2">
@@ -136,6 +149,17 @@ export default function SimpleBoard({ endpoint, title, hasStatus, statusOptions,
                     )
                   )}
                   <span className="text-xs text-gray-400">{item.created_at?.slice(0, 10)}</span>
+                  {!detailHrefBase && (item.is_mine || user?.is_admin) && (
+                    <span
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        deleteItem(item.id);
+                      }}
+                      className="text-xs font-semibold text-error-500 hover:underline"
+                    >
+                      삭제
+                    </span>
+                  )}
                 </div>
               </button>
               {!detailHrefBase && expanded === item.id && (

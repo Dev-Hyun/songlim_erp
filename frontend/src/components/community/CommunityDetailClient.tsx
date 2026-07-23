@@ -13,6 +13,7 @@ interface Post {
   content: string;
   created_by: number;
   created_by_name: string;
+  is_mine: boolean;
   views: number;
   created_at: string;
 }
@@ -75,7 +76,7 @@ export default function CommunityDetailClient({ id }: { id: number }) {
         <button onClick={() => router.push("/community")} className="text-xs font-semibold text-gray-500 hover:text-brand-500">
           ← 목록으로
         </button>
-        {user?.role === "songrim" && (
+        {(post.is_mine || user?.is_admin) && (
           <button onClick={deletePost} className="text-xs font-semibold text-error-500 hover:underline">
             삭제
           </button>

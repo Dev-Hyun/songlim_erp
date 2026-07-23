@@ -10,7 +10,8 @@ export default function CommunityPage() {
     <StaffOnly>
       <div>
         <PageBreadcrumb pageTitle="커뮤니티" />
-        <SimpleBoard endpoint="/api/tech-posts" title="커뮤니티" detailHrefBase="/community" />
+        {/* 공동구매/중고기기와는 완전히 분리된 별도 게시판 — category=general만 조회 */}
+        <SimpleBoard endpoint="/api/tech-posts?category=general" title="커뮤니티" detailHrefBase="/community" />
       </div>
     </StaffOnly>
   );

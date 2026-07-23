@@ -39,6 +39,7 @@ async def list_notices(
     rows = (await db.execute(q)).all()
     return [{"id": n.id, "title": n.title, "content": n.content, "notice_type": n.notice_type,
              "created_by": n.created_by, "created_by_name": display_name or username,
+             "is_mine": user is not None and n.created_by == user.id,
              "created_at": n.created_at} for n, display_name, username in rows]
 
 
@@ -118,18 +119,24 @@ async def create_cs(payload: CsTicketIn, db: AsyncSession = Depends(get_db), use
 async def get_cs(tid: int, db: AsyncSession = Depends(get_db), user: User = Depends(require_user)):
     row = (
         await db.execute(
-            select(CsTicket, User.display_name, User.username).join(User, User.id == CsTicket.created_by).where(CsTicket.id == tid)
+            select(CsTicket, User.display_name, User.username, User.hospital_profile_id)
+            .join(User, User.id == CsTicket.created_by).where(CsTicket.id == tid)
         )
     ).first()
     if not row:
         raise HTTPException(status_code=404, detail="티켓을 찾을 수 없습니다")
-    t, display_name, username = row
+    t, display_name, username, hp_id = row
     if user.role == "hospital" and t.created_by != user.id:
         raise HTTPException(status_code=403, detail="권한이 없습니다")
+    hospital_name = None
+    if user.role == "songrim" and hp_id:
+        hp = (await db.execute(select(HospitalProfile.hospital_name).where(HospitalProfile.id == hp_id))).scalar_one_or_none()
+        hospital_name = hp
     comments = (await db.execute(select(CsComment).where(CsComment.ticket_id == tid).order_by(CsComment.created_at))).scalars().all()
     return {
         "ticket": {"id": t.id, "title": t.title, "content": t.content, "status": t.status,
                    "created_by": t.created_by, "created_by_name": display_name or username,
+                   "hospital_name": hospital_name,
                    "is_mine": t.created_by == user.id, "created_at": t.created_at},
         "comments": [{"id": c.id, "content": c.content, "created_by": c.created_by, "created_at": c.created_at} for c in comments],
     }
@@ -201,7 +208,8 @@ async def list_tech_posts(db: AsyncSession = Depends(get_db), category: Optional
         q = q.where(TechPost.category == category)
     rows = (await db.execute(q)).all()
     return [{"id": p.id, "title": p.title, "content": p.content, "category": p.category, "created_by": p.created_by,
-             "created_by_name": display_name or username, "views": p.views, "created_at": p.created_at}
+             "created_by_name": display_name or username, "views": p.views, "created_at": p.created_at,
+             "is_mine": p.created_by == user.id}
             for p, display_name, username in rows]
 
 
@@ -238,7 +246,8 @@ async def get_tech_post(pid: int, db: AsyncSession = Depends(get_db), user: User
     ).all()
     return {
         "post": {"id": p.id, "title": p.title, "category": p.category, "content": p.content, "created_by": p.created_by,
-                 "created_by_name": display_name or username, "views": p.views, "created_at": p.created_at},
+                 "created_by_name": display_name or username, "views": p.views, "created_at": p.created_at,
+                 "is_mine": p.created_by == user.id},
         "comments": [{"id": c.id, "content": c.content, "created_by": c.created_by,
                       "created_by_name": cdn or cun, "created_at": c.created_at} for c, cdn, cun in comments],
     }
@@ -255,9 +264,12 @@ async def add_tech_comment(pid: int, payload: TechCommentIn, db: AsyncSession = 
 
 @router.delete("/tech-posts/{pid}")
 async def delete_tech_post(pid: int, db: AsyncSession = Depends(get_db), user: User = Depends(require_staff)):
+    """삭제는 작성자 본인 + 관리자만 가능."""
     p = (await db.execute(select(TechPost).where(TechPost.id == pid))).scalar_one_or_none()
     if not p:
         raise HTTPException(status_code=404, detail="게시글을 찾을 수 없습니다")
+    if p.created_by != user.id and not user.is_admin:
+        raise HTTPException(status_code=403, detail="권한이 없습니다")
     await db.execute(delete(TechComment).where(TechComment.post_id == pid))
     await db.delete(p)
     await db.commit()
@@ -274,9 +286,11 @@ class SuggestionIn(BaseModel):
 
 @router.get("/suggestions")
 async def list_suggestions(db: AsyncSession = Depends(get_db), user: User = Depends(require_staff)):
-    # 익명 게시판 — 작성자는 관리자에게도 노출하지 않음 (created_by는 DB에만 보관, API 응답에서 제외)
+    # 익명 게시판 — 작성자는 관리자에게도 노출하지 않음 (created_by는 DB에만 보관, API 응답에서 제외).
+    # 단, 본인 글은 삭제할 수 있어야 하므로 신원은 감춘 채 is_mine만 알려준다.
     rows = (await db.execute(select(Suggestion).order_by(Suggestion.created_at.desc()))).scalars().all()
     return [{"id": s.id, "title": s.title, "content": s.content, "status": s.status,
+             "is_mine": s.created_by == user.id,
              "created_at": s.created_at} for s in rows]
 
 
@@ -287,6 +301,19 @@ async def create_suggestion(payload: SuggestionIn, db: AsyncSession = Depends(ge
     await db.commit()
     await db.refresh(s)
     return {"id": s.id}
+
+
+@router.delete("/suggestions/{sid}")
+async def delete_suggestion(sid: int, db: AsyncSession = Depends(get_db), user: User = Depends(require_staff)):
+    """삭제는 작성자 본인 + 관리자만 가능(익명 게시판이지만 본인 글은 본인이 알아볼 수 있음)."""
+    s = (await db.execute(select(Suggestion).where(Suggestion.id == sid))).scalar_one_or_none()
+    if not s:
+        raise HTTPException(status_code=404, detail="건의사항을 찾을 수 없습니다")
+    if s.created_by != user.id and not user.is_admin:
+        raise HTTPException(status_code=403, detail="권한이 없습니다")
+    await db.delete(s)
+    await db.commit()
+    return {"ok": True}
 
 
 @router.patch("/suggestions/{sid}/status")

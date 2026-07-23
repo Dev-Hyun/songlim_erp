@@ -15,6 +15,8 @@ interface Ticket {
   status: string;
   created_by: number;
   created_by_name: string;
+  hospital_name: string | null;
+  is_mine: boolean;
   created_at: string;
 }
 
@@ -70,13 +72,26 @@ export default function CsDetailClient({ id }: { id: number }) {
     load();
   }
 
+  async function deleteTicket() {
+    if (!confirm("이 CS 문의를 삭제하시겠습니까?")) return;
+    await fetch(`${API}/api/cs/${id}`, { method: "DELETE", credentials: "include" });
+    router.push("/cs");
+  }
+
   if (!ticket) return <div className="p-8 text-center text-sm text-gray-400">불러오는 중...</div>;
 
   return (
     <div className="space-y-4">
-      <button onClick={() => router.push("/cs")} className="text-xs font-semibold text-gray-500 hover:text-brand-500">
-        ← 목록으로
-      </button>
+      <div className="flex items-center justify-between">
+        <button onClick={() => router.push("/cs")} className="text-xs font-semibold text-gray-500 hover:text-brand-500">
+          ← 목록으로
+        </button>
+        {(ticket.is_mine || user?.is_admin) && (
+          <button onClick={deleteTicket} className="text-xs font-semibold text-error-500 hover:underline">
+            삭제
+          </button>
+        )}
+      </div>
       <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-bold text-gray-800 dark:text-white/90">{ticket.title}</h2>
@@ -95,7 +110,7 @@ export default function CsDetailClient({ id }: { id: number }) {
           )}
         </div>
         <div className="mt-1 text-xs text-gray-400">
-          {ticket.created_by_name} · {ticket.created_at?.slice(0, 16).replace("T", " ")}
+          {ticket.hospital_name || ticket.created_by_name} · {ticket.created_at?.slice(0, 16).replace("T", " ")}
         </div>
         <div
           className="prose prose-sm dark:prose-invert mt-4 max-w-none text-sm text-gray-700 dark:text-gray-300"
