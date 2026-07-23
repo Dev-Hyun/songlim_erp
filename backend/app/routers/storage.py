@@ -182,6 +182,9 @@ async def _delete_folder_recursive(db: AsyncSession, folder_id: int):
     subfolders = (await db.execute(select(StorageFolder).where(StorageFolder.parent_id == folder_id))).scalars().all()
     for sub in subfolders:
         await _delete_folder_recursive(db, sub.id)
+    perms = (await db.execute(select(StorageFolderPermission).where(StorageFolderPermission.folder_id == folder_id))).scalars().all()
+    for p in perms:
+        await db.delete(p)
     folder = await _get_folder_or_404(db, folder_id)
     await db.delete(folder)
 
