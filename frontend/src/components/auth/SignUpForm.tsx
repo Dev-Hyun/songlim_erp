@@ -3,10 +3,8 @@ import Input from "@/components/form/input/InputField";
 import Label from "@/components/form/Label";
 import Select from "@/components/form/Select";
 import Button from "@/components/ui/button/Button";
-import { useAuth } from "@/context/AuthContext";
 import { ChevronLeftIcon, EyeCloseIcon, EyeIcon } from "@/icons";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import React, { useState } from "react";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8010";
@@ -34,14 +32,12 @@ export default function SignUpForm() {
   const [phone, setPhone] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const router = useRouter();
-  const { refresh } = useAuth();
+  const [submitted, setSubmitted] = useState(false);
 
   // 송림 직원
   const [email, setEmail] = useState("");
   const [department, setDepartment] = useState(DEPARTMENTS[0]);
   const [position, setPosition] = useState(POSITIONS[0]);
-  const [note, setNote] = useState("");
 
   // 병원 회원 — 병원명 검색(심평원/동물병원 API) 자동완성. 매칭 시 이름/전화번호만 자동입력, 나머지는 수동입력 (DB구성요청서 3-1)
   const [hospitalType, setHospitalType] = useState(HOSPITAL_TYPES[0]);
@@ -87,7 +83,7 @@ export default function SignUpForm() {
       const endpoint = role === "songrim" ? "/api/auth/register/staff" : "/api/auth/register/hospital";
       const body =
         role === "songrim"
-          ? { username, password, display_name: displayName, phone, email, department, position, note }
+          ? { username, password, display_name: displayName, phone, email, department, position }
           : {
               username,
               password,
@@ -114,22 +110,42 @@ export default function SignUpForm() {
         setError(data.detail || "회원가입에 실패했습니다");
         return;
       }
-      await refresh();
-      router.push("/");
+      setSubmitted(true);
     } finally {
       setLoading(false);
     }
+  }
+
+  if (submitted) {
+    return (
+      <div className="flex flex-1 w-full items-center justify-center lg:w-1/2">
+        <div className="w-full max-w-md text-center">
+          <h1 className="mb-3 text-title-sm font-semibold text-gray-800 dark:text-white/90">
+            회원가입 신청 완료
+          </h1>
+          <p className="mb-6 text-sm text-gray-500 dark:text-gray-400">
+            관리자 승인 후 로그인하실 수 있습니다. 승인은 송림 담당자가 확인 후 처리합니다.
+          </p>
+          <Link
+            href="/signin"
+            className="inline-block rounded-lg bg-brand-500 px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-600"
+          >
+            로그인 페이지로
+          </Link>
+        </div>
+      </div>
+    );
   }
 
   return (
     <div className="flex flex-col flex-1 lg:w-1/2 w-full overflow-y-auto no-scrollbar">
       <div className="w-full max-w-md sm:pt-10 mx-auto mb-5">
         <Link
-          href="/"
+          href="/signin"
           className="inline-flex items-center text-sm text-gray-500 transition-colors hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
         >
           <ChevronLeftIcon />
-          대시보드로
+          로그인으로
         </Link>
       </div>
       <div className="flex flex-col justify-center flex-1 w-full max-w-md mx-auto">
@@ -290,10 +306,6 @@ export default function SignUpForm() {
                       <Label>직급</Label>
                       <Select options={POSITIONS.map((v) => ({ value: v, label: v }))} defaultValue={position} onChange={setPosition} />
                     </div>
-                  </div>
-                  <div>
-                    <Label>특이사항 (선택)</Label>
-                    <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="특이사항" />
                   </div>
                 </>
               )}

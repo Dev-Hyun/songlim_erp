@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.models import GradeMaster, StaffProfile, User
 from app.routers.auth import require_user
+from app.security import hash_password
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
@@ -28,7 +29,8 @@ async def list_users(db: AsyncSession = Depends(get_db), _: User = Depends(requi
             staff = (await db.execute(select(StaffProfile).where(StaffProfile.user_id == u.id))).scalar_one_or_none()
         result.append({
             "id": u.id, "username": u.username, "display_name": u.display_name, "role": u.role,
-            "is_admin": u.is_admin, "department": staff.department if staff else None,
+            "is_admin": u.is_admin, "is_approved": u.is_approved,
+            "department": staff.department if staff else None,
             "position": staff.position if staff else None,
         })
     return result
@@ -40,6 +42,32 @@ async def set_admin(uid: int, is_admin: bool, db: AsyncSession = Depends(get_db)
     if not u:
         raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다")
     u.is_admin = is_admin
+    await db.commit()
+    return {"ok": True}
+
+
+@router.patch("/users/{uid}/approve")
+async def approve_user(uid: int, db: AsyncSession = Depends(get_db), _: User = Depends(require_admin)):
+    u = (await db.execute(select(User).where(User.id == uid))).scalar_one_or_none()
+    if not u:
+        raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다")
+    u.is_approved = True
+    await db.commit()
+    return {"ok": True}
+
+
+class ResetPasswordIn(BaseModel):
+    new_password: str
+
+
+@router.post("/users/{uid}/reset-password")
+async def reset_password(uid: int, payload: ResetPasswordIn, db: AsyncSession = Depends(get_db), _: User = Depends(require_admin)):
+    u = (await db.execute(select(User).where(User.id == uid))).scalar_one_or_none()
+    if not u:
+        raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다")
+    if len(payload.new_password) < 4:
+        raise HTTPException(status_code=400, detail="비밀번호는 4자 이상이어야 합니다")
+    u.password_hash = hash_password(payload.new_password)
     await db.commit()
     return {"ok": True}
 

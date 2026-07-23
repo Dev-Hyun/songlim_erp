@@ -57,6 +57,7 @@ class User(Base, TimestampMixin):
     email: Mapped[Optional[str]] = mapped_column(default=None)
     role: Mapped[str] = mapped_column()  # songrim | hospital
     is_admin: Mapped[bool] = mapped_column(default=False)
+    is_approved: Mapped[bool] = mapped_column(default=True)  # 회원가입 승인 대기 — 자가가입(register_staff/hospital)만 False로 시작
     # role='hospital'일 때만 설정 (병원당 여러 담당자 계정 가능 → 1:N)
     hospital_profile_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("hospital_profiles.id"), default=None
@@ -81,7 +82,6 @@ class StaffProfile(Base, TimestampMixin):
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), primary_key=True)
     department: Mapped[Optional[str]] = mapped_column(default=None)
     position: Mapped[Optional[str]] = mapped_column(default=None)
-    note: Mapped[Optional[str]] = mapped_column(default=None)  # 특이사항
 
     user: Mapped["User"] = relationship(back_populates="staff_profile")
 

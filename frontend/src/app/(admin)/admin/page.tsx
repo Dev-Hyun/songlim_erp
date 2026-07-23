@@ -12,6 +12,7 @@ interface UserRow {
   display_name: string | null;
   role: string;
   is_admin: boolean;
+  is_approved: boolean;
   department: string | null;
   position: string | null;
 }
@@ -53,6 +54,28 @@ export default function AdminPage() {
     load();
   }
 
+  async function approveUser(uid: number) {
+    await fetch(`${API}/api/admin/users/${uid}/approve`, { method: "PATCH", credentials: "include" });
+    load();
+  }
+
+  async function resetPassword(uid: number, username: string) {
+    const pw = window.prompt(`${username} 계정의 새 비밀번호를 입력하세요 (4자 이상)`);
+    if (!pw) return;
+    const res = await fetch(`${API}/api/admin/users/${uid}/reset-password`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ new_password: pw }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      alert(data.detail || "비밀번호 초기화에 실패했습니다");
+      return;
+    }
+    alert("비밀번호가 초기화되었습니다");
+  }
+
   async function addGrade() {
     if (!newGrade.grade_code || !newGrade.label) return;
     await fetch(`${API}/api/admin/grades`, {
@@ -90,9 +113,43 @@ export default function AdminPage() {
     );
   }
 
+  const pendingUsers = users.filter((u) => !u.is_approved);
+
   return (
     <div className="space-y-6">
       <PageBreadcrumb pageTitle="관리자페이지" />
+
+      <div className="rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-white/[0.03]">
+        <h2 className="mb-3 text-base font-bold text-gray-800 dark:text-white/90">회원가입 승인 대기 ({pendingUsers.length})</h2>
+        {pendingUsers.length === 0 ? (
+          <div className="py-4 text-center text-sm text-gray-400">승인 대기 중인 계정이 없습니다</div>
+        ) : (
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-gray-200 text-left text-xs text-gray-400 dark:border-gray-800">
+                <th className="py-1.5">아이디</th>
+                <th className="py-1.5">이름</th>
+                <th className="py-1.5">역할</th>
+                <th className="py-1.5">부서/직급</th>
+                <th className="w-16" />
+              </tr>
+            </thead>
+            <tbody>
+              {pendingUsers.map((u) => (
+                <tr key={u.id} className="border-b border-gray-100 dark:border-gray-800">
+                  <td className="py-1.5">{u.username}</td>
+                  <td className="py-1.5">{u.display_name}</td>
+                  <td className="py-1.5">{u.role === "songrim" ? "송림" : "병원"}</td>
+                  <td className="py-1.5">{u.department ? `${u.department} · ${u.position}` : "-"}</td>
+                  <td className="py-1.5">
+                    <button onClick={() => approveUser(u.id)} className="rounded-full bg-brand-500 px-3 py-1 text-xs font-bold text-white">승인</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
 
       <div className="rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-white/[0.03]">
         <h2 className="mb-3 text-base font-bold text-gray-800 dark:text-white/90">등급 관리 (할인율/사은품)</h2>
@@ -141,7 +198,9 @@ export default function AdminPage() {
               <th className="py-1.5">이름</th>
               <th className="py-1.5">역할</th>
               <th className="py-1.5">부서/직급</th>
+              <th className="py-1.5">승인상태</th>
               <th className="py-1.5">관리자</th>
+              <th className="py-1.5">비밀번호</th>
             </tr>
           </thead>
           <tbody>
@@ -152,11 +211,23 @@ export default function AdminPage() {
                 <td className="py-1.5">{u.role === "songrim" ? "송림" : "병원"}</td>
                 <td className="py-1.5">{u.department ? `${u.department} · ${u.position}` : "-"}</td>
                 <td className="py-1.5">
+                  {u.is_approved ? (
+                    <span className="text-xs text-success-600 dark:text-success-400">승인됨</span>
+                  ) : (
+                    <button onClick={() => approveUser(u.id)} className="rounded-full bg-brand-500 px-2 py-0.5 text-xs font-bold text-white">승인 대기 · 승인하기</button>
+                  )}
+                </td>
+                <td className="py-1.5">
                   <button
                     onClick={() => toggleAdmin(u.id, u.is_admin)}
                     className={`rounded-full px-2 py-0.5 text-xs font-bold ${u.is_admin ? "bg-brand-500 text-white" : "bg-gray-100 text-gray-500 dark:bg-white/10"}`}
                   >
                     {u.is_admin ? "관리자" : "일반"}
+                  </button>
+                </td>
+                <td className="py-1.5">
+                  <button onClick={() => resetPassword(u.id, u.username)} className="text-xs font-semibold text-gray-500 hover:text-brand-500 dark:text-gray-400">
+                    초기화
                   </button>
                 </td>
               </tr>

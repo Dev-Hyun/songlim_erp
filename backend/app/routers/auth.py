@@ -52,7 +52,6 @@ class StaffRegisterIn(BaseModel):
     email: Optional[str] = None
     department: str
     position: str
-    note: Optional[str] = None
 
 
 class HospitalRegisterIn(BaseModel):
@@ -99,15 +98,14 @@ async def register_staff(payload: StaffRegisterIn, response: Response, db: Async
         phone=payload.phone,
         email=payload.email,
         role="songrim",
+        is_approved=False,
     )
     db.add(user)
     await db.flush()
-    db.add(StaffProfile(user_id=user.id, department=payload.department, position=payload.position, note=payload.note))
+    db.add(StaffProfile(user_id=user.id, department=payload.department, position=payload.position))
     await db.commit()
-    await db.refresh(user)
 
-    await _create_session(db, response, user)
-    return {"id": user.id, "username": user.username}
+    return {"id": user.id, "username": user.username, "pending_approval": True}
 
 
 @router.post("/register/hospital")
@@ -145,13 +143,12 @@ async def register_hospital(payload: HospitalRegisterIn, response: Response, db:
         phone=payload.phone,
         role="hospital",
         hospital_profile_id=profile.id,
+        is_approved=False,
     )
     db.add(user)
     await db.commit()
-    await db.refresh(user)
 
-    await _create_session(db, response, user)
-    return {"id": user.id, "username": user.username}
+    return {"id": user.id, "username": user.username, "pending_approval": True}
 
 
 @router.post("/login")
@@ -159,6 +156,8 @@ async def login(payload: LoginIn, response: Response, db: AsyncSession = Depends
     user = (await db.execute(select(User).where(User.username == payload.username))).scalar_one_or_none()
     if not user or not verify_password(payload.password, user.password_hash):
         raise HTTPException(status_code=401, detail="아이디 또는 비밀번호가 올바르지 않습니다")
+    if not user.is_approved:
+        raise HTTPException(status_code=403, detail="관리자 승인 대기 중인 계정입니다. 승인 후 다시 시도해주세요.")
     await _create_session(db, response, user)
     return {"id": user.id, "username": user.username, "role": user.role}
 
