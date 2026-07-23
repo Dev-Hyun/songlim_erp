@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
+import RichTextEditor from "@/components/common/RichTextEditor";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8010";
 
@@ -48,8 +49,12 @@ export default function SimpleBoard({ endpoint, title, hasStatus, statusOptions,
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [endpoint]);
 
+  function isContentEmpty(html: string) {
+    return !html.replace(/<[^>]*>/g, "").trim() && !html.includes("<img");
+  }
+
   async function submit() {
-    if (!newTitle.trim() || !newContent.trim()) return;
+    if (!newTitle.trim() || isContentEmpty(newContent)) return;
     const createUrl = endpoint.split("?")[0];
     await fetch(`${API}${createUrl}`, {
       method: "POST",
@@ -82,12 +87,7 @@ export default function SimpleBoard({ endpoint, title, hasStatus, statusOptions,
             placeholder="제목"
             className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
           />
-          <textarea
-            value={newContent}
-            onChange={(e) => setNewContent(e.target.value)}
-            placeholder="내용"
-            className="min-h-[100px] w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
-          />
+          <RichTextEditor value={newContent} onChange={setNewContent} placeholder="내용" />
           <button onClick={submit} className="rounded-lg bg-brand-500 px-4 py-2 text-sm font-bold text-white">
             등록
           </button>
@@ -139,7 +139,10 @@ export default function SimpleBoard({ endpoint, title, hasStatus, statusOptions,
                 </div>
               </button>
               {!detailHrefBase && expanded === item.id && (
-                <div className="whitespace-pre-wrap px-4 pb-4 text-sm text-gray-600 dark:text-gray-300">{item.content}</div>
+                <div
+                  className="prose prose-sm dark:prose-invert max-w-none px-4 pb-4 text-sm text-gray-600 dark:text-gray-300"
+                  dangerouslySetInnerHTML={{ __html: item.content || "" }}
+                />
               )}
             </div>
           ))

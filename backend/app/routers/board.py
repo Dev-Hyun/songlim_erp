@@ -7,6 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
+from app.html_sanitize import sanitize_html
 from app.models import CsComment, CsTicket, Notice, Suggestion, TechComment, TechPost, User
 from app.routers.auth import get_current_user, require_staff, require_user
 
@@ -45,7 +46,7 @@ async def list_notices(
 async def create_notice(payload: NoticeIn, db: AsyncSession = Depends(get_db), user: User = Depends(require_user)):
     if user.role != "songrim":
         raise HTTPException(status_code=403, detail="공지사항은 송림 직원만 작성할 수 있습니다")
-    n = Notice(title=payload.title, content=payload.content, notice_type=payload.notice_type, created_by=user.id)
+    n = Notice(title=payload.title, content=sanitize_html(payload.content), notice_type=payload.notice_type, created_by=user.id)
     db.add(n)
     await db.commit()
     await db.refresh(n)
@@ -98,7 +99,7 @@ async def list_cs(db: AsyncSession = Depends(get_db), status: Optional[str] = No
 
 @router.post("/cs")
 async def create_cs(payload: CsTicketIn, db: AsyncSession = Depends(get_db), user: User = Depends(require_user)):
-    t = CsTicket(title=payload.title, content=payload.content, created_by=user.id)
+    t = CsTicket(title=payload.title, content=sanitize_html(payload.content), created_by=user.id)
     db.add(t)
     await db.commit()
     await db.refresh(t)
@@ -139,7 +140,7 @@ async def update_cs_status(tid: int, status: str, db: AsyncSession = Depends(get
 
 @router.post("/cs/{tid}/comments")
 async def add_cs_comment(tid: int, payload: CsCommentIn, db: AsyncSession = Depends(get_db), user: User = Depends(require_staff)):
-    c = CsComment(ticket_id=tid, content=payload.content, created_by=user.id, created_at=datetime.now(timezone.utc).isoformat())
+    c = CsComment(ticket_id=tid, content=sanitize_html(payload.content), created_by=user.id, created_at=datetime.now(timezone.utc).isoformat())
     db.add(c)
     await db.commit()
     await db.refresh(c)
@@ -183,7 +184,7 @@ async def list_tech_posts(db: AsyncSession = Depends(get_db), category: Optional
 
 @router.post("/tech-posts")
 async def create_tech_post(payload: TechPostIn, db: AsyncSession = Depends(get_db), user: User = Depends(require_staff)):
-    p = TechPost(title=payload.title, category=payload.category, content=payload.content, created_by=user.id)
+    p = TechPost(title=payload.title, category=payload.category, content=sanitize_html(payload.content), created_by=user.id)
     db.add(p)
     await db.commit()
     await db.refresh(p)
@@ -222,7 +223,7 @@ async def get_tech_post(pid: int, db: AsyncSession = Depends(get_db), user: User
 
 @router.post("/tech-posts/{pid}/comments")
 async def add_tech_comment(pid: int, payload: TechCommentIn, db: AsyncSession = Depends(get_db), user: User = Depends(require_staff)):
-    c = TechComment(post_id=pid, content=payload.content, created_by=user.id, created_at=datetime.now(timezone.utc).isoformat())
+    c = TechComment(post_id=pid, content=sanitize_html(payload.content), created_by=user.id, created_at=datetime.now(timezone.utc).isoformat())
     db.add(c)
     await db.commit()
     await db.refresh(c)
@@ -247,7 +248,7 @@ async def list_suggestions(db: AsyncSession = Depends(get_db), user: User = Depe
 
 @router.post("/suggestions")
 async def create_suggestion(payload: SuggestionIn, db: AsyncSession = Depends(get_db), user: User = Depends(require_staff)):
-    s = Suggestion(title=payload.title, content=payload.content, created_by=user.id)
+    s = Suggestion(title=payload.title, content=sanitize_html(payload.content), created_by=user.id)
     db.add(s)
     await db.commit()
     await db.refresh(s)

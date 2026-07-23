@@ -23,6 +23,7 @@ from app.routers import (
     sales_map,
     stats,
     supply,
+    uploads,
 )
 
 app = FastAPI(title="송림 ERP API")
@@ -51,6 +52,7 @@ app.include_router(calendar.router)
 app.include_router(google_calendar.router)
 app.include_router(admin.router)
 app.include_router(supply.router)
+app.include_router(uploads.router)
 
 
 @app.get("/api/health")

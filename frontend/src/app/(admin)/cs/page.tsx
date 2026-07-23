@@ -26,6 +26,7 @@ export default function CsPage() {
         hasStatus
         statusOptions={["접수", "처리중", "처리완료"]}
         onStatusChange={isStaff ? updateStatus : undefined}
+        detailHrefBase="/cs"
       />
     </div>
   );
