@@ -13,8 +13,9 @@ class SupplyCatalog(Base, TimestampMixin):
     name: Mapped[str] = mapped_column()
     spec: Mapped[Optional[str]] = mapped_column(default=None)
     category: Mapped[str] = mapped_column(default="기타")
+    pack_size: Mapped[int] = mapped_column(default=1)  # 개수단위 — 예: 100개입 박스면 100, 낱개면 1
     unit: Mapped[str] = mapped_column(default="개")
-    unit_price: Mapped[int] = mapped_column(default=0)
+    unit_price: Mapped[int] = mapped_column(default=0)  # pack_size 단위 묶음 기준 가격
     description: Mapped[Optional[str]] = mapped_column(default=None)
     image_key: Mapped[Optional[str]] = mapped_column(default=None)
     sort_order: Mapped[int] = mapped_column(default=0)
@@ -78,6 +79,7 @@ class SupplyOrderItem(Base):
     catalog_id: Mapped[Optional[int]] = mapped_column(ForeignKey("supply_catalog.id"), default=None)
     name_snapshot: Mapped[str] = mapped_column()
     unit_snapshot: Mapped[str] = mapped_column(default="개")
+    pack_size_snapshot: Mapped[int] = mapped_column(default=1)
     unit_price_snapshot: Mapped[int] = mapped_column(default=0)
     qty: Mapped[int] = mapped_column(default=1)
     subtotal: Mapped[int] = mapped_column(default=0)

@@ -9,8 +9,8 @@ import React, { useState } from "react";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8010";
 
-const DEPARTMENTS = ["관리자", "총무팀", "동물사업부", "초음파임상팀", "영업팀", "기술팀"];
-const POSITIONS = ["회장", "사장", "상무", "이사", "부장", "과장", "팀장", "대리", "주임", "사원"];
+const DEPARTMENTS = ["총무팀", "동물사업부", "초음파임상팀", "영업팀", "기술팀"];
+const POSITIONS = ["사장", "상무", "이사", "부장", "과장", "팀장", "대리", "주임", "사원"];
 const HOSPITAL_TYPES = ["의원", "병원", "대학병원", "동물병원"];
 
 type Role = "songrim" | "hospital";

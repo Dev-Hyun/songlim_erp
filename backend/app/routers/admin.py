@@ -2,11 +2,12 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.models import GradeMaster, StaffProfile, User
+from app.models import GradeMaster, Hospital, HospitalProfile, StaffProfile, User
+from app.models.auth import Session as UserSession
 from app.routers.auth import require_user
 from app.security import hash_password
 
@@ -68,6 +69,31 @@ async def reset_password(uid: int, payload: ResetPasswordIn, db: AsyncSession = 
     if len(payload.new_password) < 4:
         raise HTTPException(status_code=400, detail="비밀번호는 4자 이상이어야 합니다")
     u.password_hash = hash_password(payload.new_password)
+    await db.commit()
+    return {"ok": True}
+
+
+@router.delete("/users/{uid}")
+async def delete_user(uid: int, db: AsyncSession = Depends(get_db), me: User = Depends(require_admin)):
+    """계정 삭제(테스트 계정 정리용). 세션/직원프로필/병원프로필까지 함께 정리하고,
+    병원프로필이 영업지도 병원과 연동돼 있었다면 그 연동도 해제한다."""
+    if uid == me.id:
+        raise HTTPException(status_code=400, detail="본인 계정은 삭제할 수 없습니다")
+    u = (await db.execute(select(User).where(User.id == uid))).scalar_one_or_none()
+    if not u:
+        raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다")
+
+    hp_id = u.hospital_profile_id
+    await db.execute(delete(UserSession).where(UserSession.user_id == uid))
+    await db.execute(delete(StaffProfile).where(StaffProfile.user_id == uid))
+    await db.execute(delete(User).where(User.id == uid))
+    if hp_id:
+        others = (await db.execute(select(User).where(User.hospital_profile_id == hp_id))).scalars().all()
+        if not others:
+            matched = (await db.execute(select(Hospital).where(Hospital.hospital_profile_id == hp_id))).scalars().all()
+            for m in matched:
+                m.hospital_profile_id = None
+            await db.execute(delete(HospitalProfile).where(HospitalProfile.id == hp_id))
     await db.commit()
     return {"ok": True}
 

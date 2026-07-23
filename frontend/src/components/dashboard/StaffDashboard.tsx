@@ -103,7 +103,7 @@ export default function StaffDashboard() {
   const upcomingEvents = events
     .filter((e) => e.start_at >= todayStr)
     .sort((a, b) => a.start_at.localeCompare(b.start_at))
-    .slice(0, 5);
+    .slice(0, 4);
   const todayCount = events.filter((e) => e.start_at.slice(0, 10) === todayStr).length;
 
   const greetName = user?.display_name || user?.username || "";
@@ -155,7 +155,7 @@ export default function StaffDashboard() {
             <div className="py-6 text-center text-sm text-gray-400">등록된 공지가 없습니다</div>
           ) : (
             <ul className="space-y-3">
-              {notices.slice(0, 5).map((n) => (
+              {notices.slice(0, 4).map((n) => (
                 <li key={n.id} className="flex items-center justify-between text-sm">
                   <span className="truncate font-medium text-gray-700 dark:text-gray-200">{n.title}</span>
                   <span className="ml-3 shrink-0 text-xs text-gray-400">{timeAgo(n.created_at)}</span>
@@ -177,7 +177,7 @@ export default function StaffDashboard() {
             <div className="py-6 text-center text-sm text-gray-400">등록된 계약이 없습니다</div>
           ) : (
             <ul className="space-y-3">
-              {contracts.slice(0, 5).map((c) => (
+              {contracts.slice(0, 4).map((c) => (
                 <li key={c.id} className="flex items-center justify-between text-sm">
                   <div className="min-w-0">
                     <div className="truncate font-medium text-gray-700 dark:text-gray-200">{c.title}</div>
@@ -204,7 +204,7 @@ export default function StaffDashboard() {
             <div className="py-6 text-center text-sm text-gray-400">접수된 CS가 없습니다</div>
           ) : (
             <ul className="space-y-3">
-              {csTickets.slice(0, 5).map((t) => (
+              {csTickets.slice(0, 4).map((t) => (
                 <li key={t.id} className="flex items-center justify-between text-sm">
                   <div className="min-w-0">
                     <div className="truncate font-medium text-gray-700 dark:text-gray-200">{t.title}</div>

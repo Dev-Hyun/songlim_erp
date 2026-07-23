@@ -1,6 +1,6 @@
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -73,7 +73,8 @@ async def list_catalog(
         if it.category in restricted and it.category not in allowed:
             continue
         result.append({
-            "id": it.id, "name": it.name, "spec": it.spec, "category": it.category, "unit": it.unit,
+            "id": it.id, "name": it.name, "spec": it.spec, "category": it.category,
+            "pack_size": it.pack_size, "unit": it.unit,
             "price": overrides.get(it.id, it.unit_price), "base_price": it.unit_price,
             "has_special_price": it.id in overrides,
             "description": it.description, "image_key": it.image_key,
@@ -168,6 +169,7 @@ async def create_order(payload: OrderCreateIn, db: AsyncSession = Depends(get_db
         subtotal += line_total
         order_items.append(SupplyOrderItem(
             catalog_id=catalog.id, name_snapshot=catalog.name, unit_snapshot=catalog.unit,
+            pack_size_snapshot=catalog.pack_size,
             unit_price_snapshot=price, qty=it.qty, subtotal=line_total,
         ))
 
@@ -205,6 +207,7 @@ def _serialize_order(o: SupplyOrder) -> dict:
         "created_at": o.created_at, "updated_at": o.updated_at,
         "items": [
             {"id": i.id, "catalog_id": i.catalog_id, "name": i.name_snapshot, "unit": i.unit_snapshot,
+             "pack_size": i.pack_size_snapshot,
              "unit_price": i.unit_price_snapshot, "qty": i.qty, "subtotal": i.subtotal}
             for i in o.items
         ],
@@ -254,6 +257,7 @@ class CatalogIn(BaseModel):
     name: str
     spec: Optional[str] = None
     category: str = "기타"
+    pack_size: int = 1
     unit: str = "개"
     unit_price: int = 0
     description: Optional[str] = None
@@ -264,7 +268,8 @@ class CatalogIn(BaseModel):
 
 def _serialize_catalog(c: SupplyCatalog) -> dict:
     return {
-        "id": c.id, "name": c.name, "spec": c.spec, "category": c.category, "unit": c.unit,
+        "id": c.id, "name": c.name, "spec": c.spec, "category": c.category,
+        "pack_size": c.pack_size, "unit": c.unit,
         "unit_price": c.unit_price, "description": c.description, "image_key": c.image_key,
         "sort_order": c.sort_order, "is_active": c.is_active,
     }
@@ -303,6 +308,76 @@ async def admin_delete_catalog(cid: int, db: AsyncSession = Depends(get_db), _: 
         await db.delete(c)
         await db.commit()
     return {"ok": True}
+
+
+CATALOG_XLSX_HEADERS = ["품목명", "규격", "카테고리", "개수단위", "단위", "기본금액", "설명", "노출여부"]
+
+
+@router.get("/admin/catalog/export")
+async def admin_export_catalog(db: AsyncSession = Depends(get_db), _: User = Depends(require_staff)):
+    import io
+    from urllib.parse import quote
+
+    import openpyxl
+    from fastapi.responses import StreamingResponse
+
+    rows = (await db.execute(select(SupplyCatalog).order_by(SupplyCatalog.category, SupplyCatalog.sort_order))).scalars().all()
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "소모품 카탈로그"
+    ws.append(CATALOG_XLSX_HEADERS)
+    for c in rows:
+        ws.append([c.name, c.spec or "", c.category, c.pack_size, c.unit, c.unit_price, c.description or "", "O" if c.is_active else "X"])
+    for i, w in enumerate([28, 20, 14, 10, 8, 12, 30, 10], start=1):
+        ws.column_dimensions[chr(64 + i)].width = w
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    fname = "소모품_카탈로그.xlsx"
+    return StreamingResponse(
+        buf,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quote(fname)}"},
+    )
+
+
+@router.post("/admin/catalog/import")
+async def admin_import_catalog(file: UploadFile = File(...), db: AsyncSession = Depends(get_db), _: User = Depends(require_staff)):
+    """엑셀 업로드로 카탈로그 일괄 추가. 이미 등록된 품목명(중복)은 건너뛰고 신규 항목만 추가한다."""
+    import io
+
+    import openpyxl
+
+    content = await file.read()
+    wb = openpyxl.load_workbook(io.BytesIO(content))
+    ws = wb.active
+
+    existing_names = {n for (n,) in (await db.execute(select(SupplyCatalog.name))).all()}
+    added = 0
+    skipped = 0
+    for row in ws.iter_rows(min_row=2, values_only=True):
+        if not row or not row[0]:
+            continue
+        name = str(row[0]).strip()
+        if not name or name in existing_names:
+            skipped += 1
+            continue
+        spec = str(row[1]).strip() if len(row) > 1 and row[1] else None
+        category = str(row[2]).strip() if len(row) > 2 and row[2] else "기타"
+        pack_size = int(row[3]) if len(row) > 3 and row[3] else 1
+        unit = str(row[4]).strip() if len(row) > 4 and row[4] else "개"
+        unit_price = int(row[5]) if len(row) > 5 and row[5] else 0
+        description = str(row[6]).strip() if len(row) > 6 and row[6] else None
+        is_active = not (len(row) > 7 and str(row[7]).strip().upper() == "X")
+        db.add(SupplyCatalog(
+            name=name, spec=spec, category=category, pack_size=pack_size, unit=unit,
+            unit_price=unit_price, description=description, is_active=is_active,
+        ))
+        existing_names.add(name)
+        added += 1
+    await db.commit()
+    return {"added": added, "skipped": skipped}
 
 
 class CategoryAccessIn(BaseModel):

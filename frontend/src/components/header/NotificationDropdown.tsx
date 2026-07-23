@@ -1,10 +1,41 @@
 "use client";
-import React, { useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { Dropdown } from "../ui/dropdown/Dropdown";
+import { useAuth } from "@/context/AuthContext";
+import { fetchNotifications, markNotificationsSeen, NotificationItem } from "./notificationsApi";
+
+function timeAgo(iso: string) {
+  const d = new Date(iso.replace(" ", "T"));
+  if (isNaN(d.getTime())) return iso;
+  const diffMs = Date.now() - d.getTime();
+  const days = Math.floor(diffMs / 86400000);
+  if (days <= 0) return "오늘";
+  if (days === 1) return "어제";
+  if (days < 7) return `${days}일 전`;
+  return d.toLocaleDateString("ko-KR", { month: "short", day: "numeric" });
+}
 
 export default function NotificationDropdown() {
+  const { user } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
-  const [notifying, setNotifying] = useState(false);
+  const [items, setItems] = useState<NotificationItem[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  const isHospital = user?.role === "hospital";
+
+  const load = useCallback(async () => {
+    if (!isHospital) return;
+    const data = await fetchNotifications();
+    setItems(data.items);
+    setUnreadCount(data.unread_count);
+  }, [isHospital]);
+
+  useEffect(() => {
+    load();
+    const interval = setInterval(load, 60000);
+    return () => clearInterval(interval);
+  }, [load]);
 
   function toggleDropdown() {
     setIsOpen(!isOpen);
@@ -16,8 +47,11 @@ export default function NotificationDropdown() {
 
   const handleClick = () => {
     toggleDropdown();
-    setNotifying(false);
+    if (!isOpen && isHospital && unreadCount > 0) {
+      markNotificationsSeen().then(() => setUnreadCount(0));
+    }
   };
+
   return (
     <div className="relative">
       <button
@@ -26,7 +60,7 @@ export default function NotificationDropdown() {
       >
         <span
           className={`absolute right-0 top-0.5 z-10 h-2 w-2 rounded-full bg-orange-400 ${
-            !notifying ? "hidden" : "flex"
+            unreadCount === 0 ? "hidden" : "flex"
           }`}
         >
           <span className="absolute inline-flex w-full h-full bg-orange-400 rounded-full opacity-75 animate-ping"></span>
@@ -75,9 +109,27 @@ export default function NotificationDropdown() {
             </svg>
           </button>
         </div>
-        <div className="flex flex-1 flex-col items-center justify-center text-center text-gray-400 dark:text-gray-500">
-          <p className="text-sm">새로운 알림이 없습니다</p>
-        </div>
+        {!isHospital || items.length === 0 ? (
+          <div className="flex flex-1 flex-col items-center justify-center text-center text-gray-400 dark:text-gray-500">
+            <p className="text-sm">새로운 알림이 없습니다</p>
+          </div>
+        ) : (
+          <ul className="flex flex-1 flex-col gap-1 overflow-y-auto custom-scrollbar">
+            {items.map((it, idx) => (
+              <li key={idx}>
+                <Link
+                  href={it.link}
+                  onClick={closeDropdown}
+                  className="flex flex-col gap-0.5 rounded-lg px-2 py-2.5 hover:bg-gray-100 dark:hover:bg-gray-800"
+                >
+                  <span className="text-xs font-medium text-brand-500">{it.label}</span>
+                  <span className="truncate text-sm text-gray-700 dark:text-gray-300">{it.title}</span>
+                  <span className="text-xs text-gray-400">{timeAgo(it.created_at)}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
       </Dropdown>
     </div>
   );

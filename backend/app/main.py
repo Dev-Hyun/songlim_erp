@@ -20,6 +20,7 @@ from app.routers import (
     google_calendar,
     inventory,
     misc,
+    notifications,
     sales_map,
     stats,
     storage,
@@ -55,6 +56,7 @@ app.include_router(admin.router)
 app.include_router(supply.router)
 app.include_router(uploads.router)
 app.include_router(storage.router)
+app.include_router(notifications.router)
 
 
 @app.get("/api/health")

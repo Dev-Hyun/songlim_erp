@@ -59,6 +59,17 @@ export default function AdminPage() {
     load();
   }
 
+  async function deleteUser(uid: number, username: string) {
+    if (!confirm(`${username} 계정을 완전히 삭제하시겠습니까? 되돌릴 수 없습니다.`)) return;
+    const res = await fetch(`${API}/api/admin/users/${uid}`, { method: "DELETE", credentials: "include" });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      alert(data.detail || "삭제에 실패했습니다");
+      return;
+    }
+    load();
+  }
+
   async function resetPassword(uid: number, username: string) {
     const pw = window.prompt(`${username} 계정의 새 비밀번호를 입력하세요 (4자 이상)`);
     if (!pw) return;
@@ -201,6 +212,7 @@ export default function AdminPage() {
               <th className="py-1.5">승인상태</th>
               <th className="py-1.5">관리자</th>
               <th className="py-1.5">비밀번호</th>
+              <th className="py-1.5">삭제</th>
             </tr>
           </thead>
           <tbody>
@@ -229,6 +241,13 @@ export default function AdminPage() {
                   <button onClick={() => resetPassword(u.id, u.username)} className="text-xs font-semibold text-gray-500 hover:text-brand-500 dark:text-gray-400">
                     초기화
                   </button>
+                </td>
+                <td className="py-1.5">
+                  {u.username !== "admin" && (
+                    <button onClick={() => deleteUser(u.id, u.username)} className="text-xs font-semibold text-error-500 hover:underline">
+                      삭제
+                    </button>
+                  )}
                 </td>
               </tr>
             ))}

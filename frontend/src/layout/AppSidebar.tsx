@@ -91,6 +91,7 @@ const hospitalNavItems: NavItem[] = [
   { icon: <BoxIconLine />, name: "중고기기", path: "/used-equipment" },
   { icon: <ChatIcon />, name: "CS접수", path: "/cs" },
   { icon: <DollarLineIcon />, name: "소모품 발주", path: "/supply" },
+  { icon: <DollarLineIcon />, name: "내 발주 내역 보기", path: "/my/supply-orders" },
 ];
 
 const othersItems: NavItem[] = [

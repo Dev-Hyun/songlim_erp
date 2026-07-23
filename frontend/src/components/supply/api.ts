@@ -5,6 +5,7 @@ export interface CatalogItem {
   name: string;
   spec: string | null;
   category: string;
+  pack_size: number;
   unit: string;
   price: number;
   base_price: number;
@@ -24,6 +25,7 @@ export interface OrderItem {
   catalog_id: number | null;
   name: string;
   unit: string;
+  pack_size: number;
   unit_price: number;
   qty: number;
   subtotal: number;
@@ -85,6 +87,7 @@ export interface AdminCatalogItem {
   name: string;
   spec: string | null;
   category: string;
+  pack_size: number;
   unit: string;
   unit_price: number;
   description: string | null;
@@ -100,6 +103,7 @@ export interface CatalogInput {
   name: string;
   spec?: string;
   category: string;
+  pack_size?: number;
   unit: string;
   unit_price: number;
   description?: string;
@@ -113,6 +117,17 @@ export const adminCreateCatalog = (payload: CatalogInput) =>
 
 export const adminUpdateCatalog = (id: number, payload: CatalogInput) =>
   fetch(`${API}/api/supply/admin/catalog/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify(payload) }).then((r) => j(r));
+
+export function adminCatalogExportUrl() {
+  return `${API}/api/supply/admin/catalog/export`;
+}
+
+export async function adminImportCatalog(file: File): Promise<{ added: number; skipped: number }> {
+  const form = new FormData();
+  form.append("file", file);
+  const res = await fetch(`${API}/api/supply/admin/catalog/import`, { method: "POST", credentials: "include", body: form });
+  return j(res);
+}
 
 export const adminDeleteCatalog = (id: number) =>
   fetch(`${API}/api/supply/admin/catalog/${id}`, { method: "DELETE", credentials: "include" }).then((r) => j(r));
