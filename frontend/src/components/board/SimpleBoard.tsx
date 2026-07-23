@@ -114,22 +114,26 @@ export default function SimpleBoard({ endpoint, title, hasStatus, statusOptions,
                 </span>
                 <div className="flex items-center gap-2">
                   {hasStatus && item.status && (
-                    <select
-                      value={item.status}
-                      onClick={(e) => e.stopPropagation()}
-                      onChange={async (e) => {
-                        e.stopPropagation();
-                        if (onStatusChange) {
+                    onStatusChange ? (
+                      <select
+                        value={item.status}
+                        onClick={(e) => e.stopPropagation()}
+                        onChange={async (e) => {
+                          e.stopPropagation();
                           await onStatusChange(item.id, e.target.value);
                           load();
-                        }
-                      }}
-                      className="rounded-full border border-gray-300 bg-white px-2 py-0.5 text-[11px] dark:border-gray-700 dark:bg-gray-900"
-                    >
-                      {(statusOptions || []).map((s) => (
-                        <option key={s} value={s}>{s}</option>
-                      ))}
-                    </select>
+                        }}
+                        className="rounded-full border border-gray-300 bg-white px-2 py-0.5 text-[11px] dark:border-gray-700 dark:bg-gray-900"
+                      >
+                        {(statusOptions || []).map((s) => (
+                          <option key={s} value={s}>{s}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <span className="rounded-full border border-gray-300 bg-white px-2 py-0.5 text-[11px] text-gray-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400">
+                        {item.status}
+                      </span>
+                    )
                   )}
                   <span className="text-xs text-gray-400">{item.created_at?.slice(0, 10)}</span>
                 </div>

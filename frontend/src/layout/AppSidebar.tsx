@@ -6,12 +6,16 @@ import { useSidebar } from "../context/SidebarContext";
 import { useAuth } from "../context/AuthContext";
 import {
   BoxCubeIcon,
+  BoxIconLine,
   CalenderIcon,
   ChatIcon,
   ChevronDownIcon,
   DollarLineIcon,
   FolderIcon,
+  GroupIcon,
   HorizontaLDots,
+  InfoIcon,
+  MailIcon,
   PieChartIcon,
   TaskIcon,
   TimeIcon,
@@ -58,6 +62,8 @@ const navItems: NavItem[] = [
       { name: "CS", path: "/cs", pro: false },
       { name: "의료소식", path: "/news", pro: false },
       { name: "입찰정보", path: "/bids", pro: false },
+      { name: "공동구매", path: "/group-buy", pro: false },
+      { name: "중고기기", path: "/used-equipment", pro: false },
     ],
   },
   {
@@ -75,6 +81,16 @@ const navItems: NavItem[] = [
     name: "소모품 발주",
     path: "/supply",
   },
+];
+
+// 병원 계정 전용 — 영업/사내 관리 메뉴는 노출하지 않고 이 6개만 보여준다
+const hospitalNavItems: NavItem[] = [
+  { icon: <InfoIcon />, name: "병원용 공지사항", path: "/notices/hospital" },
+  { icon: <MailIcon />, name: "의료소식", path: "/news" },
+  { icon: <GroupIcon />, name: "공동구매", path: "/group-buy" },
+  { icon: <BoxIconLine />, name: "중고기기", path: "/used-equipment" },
+  { icon: <ChatIcon />, name: "CS접수", path: "/cs" },
+  { icon: <DollarLineIcon />, name: "소모품 발주", path: "/supply" },
 ];
 
 const othersItems: NavItem[] = [
@@ -110,15 +126,9 @@ const AppSidebar: React.FC = () => {
   const { user } = useAuth();
   const pathname = usePathname();
 
-  // 병원 계정은 사내용 공지사항 메뉴를 볼 수 없음
-  const visibleNavItems = useMemo(() => {
-    if (user?.role !== "hospital") return navItems;
-    return navItems.map((nav) =>
-      nav.subItems
-        ? { ...nav, subItems: nav.subItems.filter((s) => s.path !== "/notices/internal") }
-        : nav
-    );
-  }, [user]);
+  const isHospital = user?.role === "hospital";
+  // 병원 계정은 영업/사내 전용 메뉴 전체를 대체하는 별도의 6개 메뉴만 본다
+  const visibleNavItems = useMemo(() => (isHospital ? hospitalNavItems : navItems), [isHospital]);
 
   const renderMenuItems = (
     navItems: NavItem[],
@@ -362,22 +372,24 @@ const AppSidebar: React.FC = () => {
               {renderMenuItems(visibleNavItems, "main")}
             </div>
 
-            <div className="">
-              <h2
-                className={`mb-4 text-xs uppercase flex leading-[20px] text-gray-400 ${
-                  !isExpanded && !isHovered
-                    ? "lg:justify-center"
-                    : "justify-start"
-                }`}
-              >
-                {isExpanded || isHovered || isMobileOpen ? (
-                  "MYPAGE"
-                ) : (
-                  <HorizontaLDots />
-                )}
-              </h2>
-              {renderMenuItems(othersItems, "others")}
-            </div>
+            {!isHospital && (
+              <div className="">
+                <h2
+                  className={`mb-4 text-xs uppercase flex leading-[20px] text-gray-400 ${
+                    !isExpanded && !isHovered
+                      ? "lg:justify-center"
+                      : "justify-start"
+                  }`}
+                >
+                  {isExpanded || isHovered || isMobileOpen ? (
+                    "MYPAGE"
+                  ) : (
+                    <HorizontaLDots />
+                  )}
+                </h2>
+                {renderMenuItems(othersItems, "others")}
+              </div>
+            )}
           </div>
         </nav>
       </div>

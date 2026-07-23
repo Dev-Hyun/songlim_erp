@@ -79,12 +79,15 @@ class CsCommentIn(BaseModel):
 
 
 @router.get("/cs")
-async def list_cs(db: AsyncSession = Depends(get_db), status: Optional[str] = None, user: User = Depends(require_staff)):
+async def list_cs(db: AsyncSession = Depends(get_db), status: Optional[str] = None, user: User = Depends(require_user)):
     q = (
         select(CsTicket, User.display_name, User.username)
         .join(User, User.id == CsTicket.created_by)
         .order_by(CsTicket.created_at.desc())
     )
+    # 병원 계정은 본인이 접수한 CS만 볼 수 있음
+    if user.role == "hospital":
+        q = q.where(CsTicket.created_by == user.id)
     if status:
         q = q.where(CsTicket.status == status)
     rows = (await db.execute(q)).all()
@@ -94,7 +97,7 @@ async def list_cs(db: AsyncSession = Depends(get_db), status: Optional[str] = No
 
 
 @router.post("/cs")
-async def create_cs(payload: CsTicketIn, db: AsyncSession = Depends(get_db), user: User = Depends(require_staff)):
+async def create_cs(payload: CsTicketIn, db: AsyncSession = Depends(get_db), user: User = Depends(require_user)):
     t = CsTicket(title=payload.title, content=payload.content, created_by=user.id)
     db.add(t)
     await db.commit()
@@ -103,7 +106,7 @@ async def create_cs(payload: CsTicketIn, db: AsyncSession = Depends(get_db), use
 
 
 @router.get("/cs/{tid}")
-async def get_cs(tid: int, db: AsyncSession = Depends(get_db), user: User = Depends(require_staff)):
+async def get_cs(tid: int, db: AsyncSession = Depends(get_db), user: User = Depends(require_user)):
     row = (
         await db.execute(
             select(CsTicket, User.display_name, User.username).join(User, User.id == CsTicket.created_by).where(CsTicket.id == tid)
@@ -112,6 +115,8 @@ async def get_cs(tid: int, db: AsyncSession = Depends(get_db), user: User = Depe
     if not row:
         raise HTTPException(status_code=404, detail="티켓을 찾을 수 없습니다")
     t, display_name, username = row
+    if user.role == "hospital" and t.created_by != user.id:
+        raise HTTPException(status_code=403, detail="권한이 없습니다")
     comments = (await db.execute(select(CsComment).where(CsComment.ticket_id == tid).order_by(CsComment.created_at))).scalars().all()
     return {
         "ticket": {"id": t.id, "title": t.title, "content": t.content, "status": t.status,
@@ -154,8 +159,15 @@ class TechCommentIn(BaseModel):
     content: str
 
 
+HOSPITAL_VISIBLE_CATEGORIES = ("공동구매", "중고기기")
+
+
 @router.get("/tech-posts")
-async def list_tech_posts(db: AsyncSession = Depends(get_db), category: Optional[str] = None, user: User = Depends(require_staff)):
+async def list_tech_posts(db: AsyncSession = Depends(get_db), category: Optional[str] = None, user: User = Depends(require_user)):
+    # 병원 계정은 공동구매/중고기기 게시판만 읽기 전용으로 열람 가능 (사내 커뮤니티 전체는 접근 불가)
+    if user.role == "hospital" and category not in HOSPITAL_VISIBLE_CATEGORIES:
+        raise HTTPException(status_code=403, detail="접근 권한이 없습니다")
+
     q = (
         select(TechPost, User.display_name, User.username)
         .join(User, User.id == TechPost.created_by)
@@ -179,7 +191,7 @@ async def create_tech_post(payload: TechPostIn, db: AsyncSession = Depends(get_d
 
 
 @router.get("/tech-posts/{pid}")
-async def get_tech_post(pid: int, db: AsyncSession = Depends(get_db), user: User = Depends(require_staff)):
+async def get_tech_post(pid: int, db: AsyncSession = Depends(get_db), user: User = Depends(require_user)):
     row = (
         await db.execute(
             select(TechPost, User.display_name, User.username).join(User, User.id == TechPost.created_by).where(TechPost.id == pid)
@@ -188,6 +200,8 @@ async def get_tech_post(pid: int, db: AsyncSession = Depends(get_db), user: User
     if not row:
         raise HTTPException(status_code=404, detail="게시글을 찾을 수 없습니다")
     p, display_name, username = row
+    if user.role == "hospital" and p.category not in HOSPITAL_VISIBLE_CATEGORIES:
+        raise HTTPException(status_code=403, detail="접근 권한이 없습니다")
     p.views += 1
     await db.commit()
     comments = (
