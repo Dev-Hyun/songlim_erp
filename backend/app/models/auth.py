@@ -39,7 +39,6 @@ class HospitalProfile(Base, TimestampMixin):
     gift_grade_code: Mapped[Optional[str]] = mapped_column(
         ForeignKey("grade_master.grade_code"), default=None
     )
-    balance: Mapped[int] = mapped_column(default=0)  # 양수=선납 충전잔액, 음수=미수금 (hospital_ledger_entries 누적합)
 
     users: Mapped[list["User"]] = relationship(back_populates="hospital_profile")
 

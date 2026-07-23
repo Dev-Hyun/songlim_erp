@@ -78,8 +78,8 @@ const navItems: NavItem[] = [
   },
   {
     icon: <DollarLineIcon />,
-    name: "소모품 발주",
-    path: "/supply",
+    name: "소모품 발주 내역",
+    path: "/supply-orders",
   },
 ];
 
@@ -105,19 +105,19 @@ const othersItems: NavItem[] = [
     path: "/mileage",
   },
   {
-    icon: <DollarLineIcon />,
-    name: "소모품 발주 내역",
-    path: "/my/supply-orders",
-  },
-  {
     icon: <UserCircleIcon />,
     name: "관리자페이지",
     path: "/admin",
   },
   {
     icon: <BoxCubeIcon />,
-    name: "소모품 발주 관리",
-    path: "/admin/supply",
+    name: "소모품 카탈로그 관리",
+    path: "/admin/supply-catalog",
+  },
+  {
+    icon: <BoxCubeIcon />,
+    name: "병원 관리",
+    path: "/admin/hospitals",
   },
 ];
 

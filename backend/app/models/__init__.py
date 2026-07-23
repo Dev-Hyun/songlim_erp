@@ -15,7 +15,6 @@ from .supply import (
     SupplyFavorite,
     SupplyOrder,
     SupplyOrderItem,
-    HospitalLedgerEntry,
 )
 from .sales_map import Hospital, Equipment, SalesNote
 from .contracts import Contract, ContractItem, ContractPhoto, ContractComment
@@ -40,7 +39,6 @@ __all__ = [
     "SupplyFavorite",
     "SupplyOrder",
     "SupplyOrderItem",
-    "HospitalLedgerEntry",
     "Hospital",
     "Equipment",
     "SalesNote",

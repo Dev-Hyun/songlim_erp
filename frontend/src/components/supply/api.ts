@@ -44,12 +44,6 @@ export interface SupplyOrder {
   hospital_profile_id?: number;
 }
 
-export interface BalanceInfo {
-  balance: number;
-  is_receivable: boolean;
-  entries: { id: number; entry_type: string; amount: number; memo: string | null; related_order_id: number | null; created_at: string }[];
-}
-
 async function j<T>(res: Response): Promise<T> {
   if (!res.ok) throw new Error((await res.json().catch(() => ({}))).detail || "요청 실패");
   return res.json();
@@ -84,9 +78,6 @@ export const fetchMyOrder = (id: number): Promise<SupplyOrder> =>
 
 export const fetchReorderItems = (id: number): Promise<{ catalog_id: number; name: string; qty: number }[]> =>
   fetch(`${API}/api/supply/orders/${id}/reorder-items`, { credentials: "include" }).then((r) => j(r));
-
-export const fetchMyBalance = (): Promise<BalanceInfo> =>
-  fetch(`${API}/api/supply/balance`, { credentials: "include" }).then((r) => j(r));
 
 // ── 관리자측 ──
 export interface AdminCatalogItem {
@@ -132,11 +123,30 @@ export interface AdminHospital {
   hospital_type: string;
   discount_grade_code: string | null;
   gift_grade_code: string | null;
-  balance: number;
 }
 
 export const adminFetchHospitals = (): Promise<AdminHospital[]> =>
   fetch(`${API}/api/supply/admin/hospitals`, { credentials: "include" }).then((r) => j(r));
+
+export interface HospitalDetail {
+  id: number;
+  hospital_name: string;
+  hospital_type: string;
+  hospital_dept: string | null;
+  hospital_address: string | null;
+  hospital_tel: string | null;
+  business_reg_no: string | null;
+  ceo_name: string | null;
+  ceo_phone: string | null;
+  discount_grade_code: string | null;
+  gift_grade_code: string | null;
+  matched_hospital_id: number | null;
+  equipment: { id: number; category: string; year: number; manufacturer: string | null; model: string | null; eq_count: number; source: string }[];
+  sales_notes: { id: number; visit_date: string | null; content: string; created_by_name: string }[];
+}
+
+export const adminFetchHospitalDetail = (hid: number): Promise<HospitalDetail> =>
+  fetch(`${API}/api/supply/admin/hospitals/${hid}/detail`, { credentials: "include" }).then((r) => j(r));
 
 export const adminSetHospitalGrades = (hid: number, payload: { discount_grade_code: string | null; gift_grade_code: string | null }) =>
   fetch(`${API}/api/supply/admin/hospitals/${hid}/grades`, { method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify(payload) }).then((r) => j(r));
@@ -189,12 +199,6 @@ export const adminSetTracking = (id: number, tracking_number: string) =>
 
 export const adminSetTaxInvoiceStatus = (id: number, tax_invoice_status: string) =>
   fetch(`${API}/api/supply/admin/orders/${id}/tax-invoice`, { method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ tax_invoice_status }) }).then((r) => j(r));
-
-export const adminAdjustBalance = (hid: number, amount: number, memo?: string) =>
-  fetch(`${API}/api/supply/admin/hospitals/${hid}/balance-adjust`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ amount, memo }) }).then((r) => j(r));
-
-export const adminFetchHospitalLedger = (hid: number): Promise<BalanceInfo> =>
-  fetch(`${API}/api/supply/admin/hospitals/${hid}/ledger`, { credentials: "include" }).then((r) => j(r));
 
 export interface GradeRow {
   grade_code: string;

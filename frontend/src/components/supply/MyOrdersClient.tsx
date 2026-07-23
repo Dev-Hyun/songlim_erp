@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { BalanceInfo, SupplyOrder, fetchMyBalance, fetchMyOrders } from "./api";
+import { SupplyOrder, fetchMyOrders } from "./api";
+import { printOrder } from "./print";
 
 const STATUS_COLOR: Record<string, string> = {
   접수: "bg-gray-100 text-gray-600 dark:bg-white/10 dark:text-gray-300",
@@ -16,21 +17,16 @@ const STATUSES = ["접수", "출고", "배송완료", "직납출고", "직납완
 export default function MyOrdersClient() {
   const router = useRouter();
   const [orders, setOrders] = useState<SupplyOrder[]>([]);
-  const [balance, setBalance] = useState<BalanceInfo | null>(null);
   const [status, setStatus] = useState("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<number | null>(null);
-  const [showLedger, setShowLedger] = useState(false);
 
   function load() {
     setLoading(true);
-    Promise.all([
-      fetchMyOrders({ status: status || undefined, date_from: dateFrom || undefined, date_to: dateTo || undefined }),
-      fetchMyBalance(),
-    ])
-      .then(([o, b]) => { setOrders(o); setBalance(b); })
+    fetchMyOrders({ status: status || undefined, date_from: dateFrom || undefined, date_to: dateTo || undefined })
+      .then(setOrders)
       .finally(() => setLoading(false));
   }
 
@@ -38,38 +34,14 @@ export default function MyOrdersClient() {
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
-          <div className="text-xs font-semibold text-gray-400">
-            {balance && balance.balance < 0 ? "현재 미수금" : "선납 충전잔액"}
-          </div>
-          <div className={`mt-1 text-2xl font-extrabold ${balance && balance.balance < 0 ? "text-error-500" : "text-brand-500"}`}>
-            {balance ? Math.abs(balance.balance).toLocaleString() : 0}원
-          </div>
-          <button onClick={() => setShowLedger((v) => !v)} className="mt-2 text-xs font-semibold text-gray-400 hover:text-brand-500">
-            {showLedger ? "거래내역 닫기 ▲" : "거래내역 보기 ▼"}
-          </button>
-          {showLedger && balance && (
-            <div className="mt-3 max-h-48 space-y-1.5 overflow-y-auto border-t border-gray-100 pt-3 text-xs dark:border-gray-800">
-              {balance.entries.map((e) => (
-                <div key={e.id} className="flex justify-between">
-                  <span className="text-gray-500">{e.created_at?.slice(0, 10)} · {e.memo || (e.entry_type === "topup" ? "선납 충전" : e.entry_type === "order" ? "발주 차감" : "조정")}</span>
-                  <span className={e.amount >= 0 ? "font-semibold text-brand-500" : "font-semibold text-error-500"}>
-                    {e.amount >= 0 ? "+" : ""}{e.amount.toLocaleString()}원
-                  </span>
-                </div>
-              ))}
-              {balance.entries.length === 0 && <div className="text-gray-400">거래내역이 없습니다</div>}
-            </div>
-          )}
-        </div>
-        <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
+      <div className="flex items-center justify-between rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
+        <div>
           <div className="text-xs font-semibold text-gray-400">누적 발주 건수</div>
           <div className="mt-1 text-2xl font-extrabold text-gray-800 dark:text-white">{orders.length}건</div>
-          <button onClick={() => router.push("/supply")} className="mt-3 rounded-full bg-brand-500 px-4 py-1.5 text-xs font-bold text-white">
-            + 새 발주하기
-          </button>
         </div>
+        <button onClick={() => router.push("/supply")} className="rounded-full bg-brand-500 px-4 py-1.5 text-xs font-bold text-white">
+          + 새 발주하기
+        </button>
       </div>
 
       <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-white/[0.03]">
@@ -130,12 +102,20 @@ export default function MyOrdersClient() {
                     </tbody>
                   </table>
                   {o.gift_note && <div className="mt-2 text-[11px] text-success-600 dark:text-success-400">🎁 {o.gift_note}</div>}
-                  <button
-                    onClick={() => router.push(`/supply?reorder=${o.id}`)}
-                    className="mt-3 rounded-full border border-gray-300 px-3 py-1.5 text-[11px] font-semibold text-gray-600 hover:border-brand-300 hover:text-brand-500 dark:border-gray-700 dark:text-gray-300"
-                  >
-                    ↻ 이 내역으로 재주문
-                  </button>
+                  <div className="mt-3 flex gap-2">
+                    <button
+                      onClick={() => router.push(`/supply?reorder=${o.id}`)}
+                      className="rounded-full border border-gray-300 px-3 py-1.5 text-[11px] font-semibold text-gray-600 hover:border-brand-300 hover:text-brand-500 dark:border-gray-700 dark:text-gray-300"
+                    >
+                      ↻ 이 내역으로 재주문
+                    </button>
+                    <button
+                      onClick={() => printOrder(o)}
+                      className="rounded-full border border-gray-300 px-3 py-1.5 text-[11px] font-semibold text-gray-600 hover:border-brand-300 hover:text-brand-500 dark:border-gray-700 dark:text-gray-300"
+                    >
+                      🖨 발주서 출력
+                    </button>
+                  </div>
                 </div>
               )}
             </div>

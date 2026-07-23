@@ -83,19 +83,3 @@ class SupplyOrderItem(Base):
     subtotal: Mapped[int] = mapped_column(default=0)
 
     order: Mapped["SupplyOrder"] = relationship(back_populates="items")
-
-
-class HospitalLedgerEntry(Base):
-    """병원 잔액 원장 — amount 부호로 미수금/충전잔액을 함께 표현.
-    누적 합(HospitalProfile.balance)이 양수면 선납 충전잔액, 음수면 미수금."""
-    __tablename__ = "hospital_ledger_entries"
-    __table_args__ = (Index("idx_ledger_hospital_date", "hospital_profile_id", "created_at"),)
-
-    id: Mapped[int] = mapped_column(primary_key=True)
-    hospital_profile_id: Mapped[int] = mapped_column(ForeignKey("hospital_profiles.id"))
-    entry_type: Mapped[str] = mapped_column()  # topup(선납충전) | order(발주차감) | adjustment(수동조정)
-    amount: Mapped[int] = mapped_column()  # 부호 있음: +충전/-차감
-    memo: Mapped[Optional[str]] = mapped_column(default=None)
-    related_order_id: Mapped[Optional[int]] = mapped_column(ForeignKey("supply_orders.id"), default=None)
-    created_by: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), default=None)
-    created_at: Mapped[str] = mapped_column()
