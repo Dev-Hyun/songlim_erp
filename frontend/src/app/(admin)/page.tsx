@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import DashboardHome from "@/components/ecommerce/DashboardHome";
+import StaffOnly from "@/components/auth/StaffOnly";
 
 export const metadata: Metadata = {
   title: "대시보드 | SONGLIM ERP",
@@ -7,5 +8,9 @@ export const metadata: Metadata = {
 };
 
 export default function Ecommerce() {
-  return <DashboardHome />;
+  return (
+    <StaffOnly>
+      <DashboardHome />
+    </StaffOnly>
+  );
 }
