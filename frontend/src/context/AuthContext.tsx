@@ -8,11 +8,21 @@ export interface AuthUser {
   id: number;
   username: string;
   display_name: string | null;
+  phone: string | null;
+  email: string | null;
   role: "songrim" | "hospital";
   is_admin: boolean;
   hospital_profile_id: number | null;
+  department: string | null;
   position: string | null;
   hospital_name: string | null;
+  hospital_type: string | null;
+  hospital_dept: string | null;
+  hospital_address: string | null;
+  hospital_tel: string | null;
+  business_reg_no: string | null;
+  ceo_name: string | null;
+  ceo_phone: string | null;
 }
 
 interface AuthContextValue {

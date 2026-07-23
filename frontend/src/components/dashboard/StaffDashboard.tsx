@@ -126,7 +126,7 @@ export default function StaffDashboard() {
       </div>
 
       <div className="col-span-12 xl:col-span-6">
-        <ComponentCard title="다가오는 일정">
+        <ComponentCard title="다가오는 일정" className="h-[380px]">
           {loading ? (
             <div className="py-6 text-center text-sm text-gray-400">불러오는 중...</div>
           ) : upcomingEvents.length === 0 ? (
@@ -148,7 +148,7 @@ export default function StaffDashboard() {
       </div>
 
       <div className="col-span-12 xl:col-span-6">
-        <ComponentCard title="사내 공지사항">
+        <ComponentCard title="사내 공지사항" className="h-[380px]">
           {loading ? (
             <div className="py-6 text-center text-sm text-gray-400">불러오는 중...</div>
           ) : notices.length === 0 ? (
@@ -170,7 +170,7 @@ export default function StaffDashboard() {
       </div>
 
       <div className="col-span-12 xl:col-span-6">
-        <ComponentCard title="최근 계약 진행 현황">
+        <ComponentCard title="최근 계약 진행 현황" className="h-[380px]">
           {loading ? (
             <div className="py-6 text-center text-sm text-gray-400">불러오는 중...</div>
           ) : contracts.length === 0 ? (
@@ -197,7 +197,7 @@ export default function StaffDashboard() {
       </div>
 
       <div className="col-span-12 xl:col-span-6">
-        <ComponentCard title="최근 CS 접수">
+        <ComponentCard title="최근 CS 접수" className="h-[380px]">
           {loading ? (
             <div className="py-6 text-center text-sm text-gray-400">불러오는 중...</div>
           ) : csTickets.length === 0 ? (

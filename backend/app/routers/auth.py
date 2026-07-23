@@ -178,33 +178,105 @@ async def logout(
     return {"ok": True}
 
 
+def _serialize_me(user: User, staff: Optional[StaffProfile], hospital: Optional[HospitalProfile]) -> dict:
+    return {
+        "id": user.id,
+        "username": user.username,
+        "display_name": user.display_name,
+        "phone": user.phone,
+        "email": user.email,
+        "role": user.role,
+        "is_admin": user.is_admin,
+        "hospital_profile_id": user.hospital_profile_id,
+        "department": staff.department if staff else None,
+        "position": staff.position if staff else None,
+        "hospital_name": hospital.hospital_name if hospital else None,
+        "hospital_type": hospital.hospital_type if hospital else None,
+        "hospital_dept": hospital.hospital_dept if hospital else None,
+        "hospital_address": hospital.hospital_address if hospital else None,
+        "hospital_tel": hospital.hospital_tel if hospital else None,
+        "business_reg_no": hospital.business_reg_no if hospital else None,
+        "ceo_name": hospital.ceo_name if hospital else None,
+        "ceo_phone": hospital.ceo_phone if hospital else None,
+    }
+
+
 @router.get("/me")
 async def get_me(user: Optional[User] = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     if not user:
         return {"user": None}
 
-    position = None
-    hospital_name = None
+    staff = None
+    hospital = None
     if user.role == "songrim":
         staff = (
             await db.execute(select(StaffProfile).where(StaffProfile.user_id == user.id))
         ).scalar_one_or_none()
-        position = staff.position if staff else None
     elif user.hospital_profile_id:
-        profile = (
+        hospital = (
             await db.execute(select(HospitalProfile).where(HospitalProfile.id == user.hospital_profile_id))
         ).scalar_one_or_none()
-        hospital_name = profile.hospital_name if profile else None
 
-    return {
-        "user": {
-            "id": user.id,
-            "username": user.username,
-            "display_name": user.display_name,
-            "role": user.role,
-            "is_admin": user.is_admin,
-            "hospital_profile_id": user.hospital_profile_id,
-            "position": position,
-            "hospital_name": hospital_name,
-        }
-    }
+    return {"user": _serialize_me(user, staff, hospital)}
+
+
+class ProfileUpdateIn(BaseModel):
+    display_name: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    # role='songrim'
+    department: Optional[str] = None
+    position: Optional[str] = None
+    # role='hospital'
+    hospital_dept: Optional[str] = None
+    hospital_address: Optional[str] = None
+    hospital_tel: Optional[str] = None
+    ceo_name: Optional[str] = None
+    ceo_phone: Optional[str] = None
+
+
+@router.patch("/me")
+async def update_me(
+    payload: ProfileUpdateIn,
+    user: User = Depends(require_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """계정 설정에서 본인 정보 수정. 회원가입 때 입력한 항목만 대상이며,
+    아이디/병원명/사업자번호처럼 신원 확인에 쓰이는 값은 여기서 바꾸지 않는다."""
+    if payload.display_name is not None:
+        user.display_name = payload.display_name
+    if payload.phone is not None:
+        user.phone = payload.phone
+    if payload.email is not None:
+        user.email = payload.email
+
+    staff = None
+    hospital = None
+    if user.role == "songrim":
+        staff = (
+            await db.execute(select(StaffProfile).where(StaffProfile.user_id == user.id))
+        ).scalar_one_or_none()
+        if staff:
+            if payload.department is not None:
+                staff.department = payload.department
+            if payload.position is not None:
+                staff.position = payload.position
+    elif user.hospital_profile_id:
+        hospital = (
+            await db.execute(select(HospitalProfile).where(HospitalProfile.id == user.hospital_profile_id))
+        ).scalar_one_or_none()
+        if hospital:
+            if payload.hospital_dept is not None:
+                hospital.hospital_dept = payload.hospital_dept
+            if payload.hospital_address is not None:
+                hospital.hospital_address = payload.hospital_address
+            if payload.hospital_tel is not None:
+                hospital.hospital_tel = payload.hospital_tel
+            if payload.ceo_name is not None:
+                hospital.ceo_name = payload.ceo_name
+            if payload.ceo_phone is not None:
+                hospital.ceo_phone = payload.ceo_phone
+
+    await db.commit()
+    await db.refresh(user)
+    return {"user": _serialize_me(user, staff, hospital)}

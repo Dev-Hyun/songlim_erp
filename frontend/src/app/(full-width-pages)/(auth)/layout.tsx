@@ -30,7 +30,7 @@ export default function AuthLayout({
                   />
                 </Link>
                 <p className="text-center text-gray-400 dark:text-white/60">
-                  병-의원 통합 소모품 발주 시스템
+                  병·의원 통합 소모품 발주 시스템
                 </p>
               </div>
             </div>
