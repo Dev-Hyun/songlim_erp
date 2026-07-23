@@ -44,6 +44,11 @@ function formatSize(bytes: number) {
   return `${(bytes / 1024 / 1024).toFixed(1)}MB`;
 }
 
+function formatDateTime(iso?: string) {
+  if (!iso) return "-";
+  return iso.replace("T", " ").slice(0, 16);
+}
+
 type DragItem = { kind: "folder" | "file"; id: number };
 
 function Row({
@@ -53,13 +58,15 @@ function Row({
   selected,
   onToggle,
   onOpen,
-  onRename,
   onDelete,
   onCopy,
   dragItem,
   onDropItem,
   isDropTarget,
   canWrite,
+  layout = "list",
+  autoRename,
+  onRenameCommit,
 }: {
   icon: string;
   name: string;
@@ -67,19 +74,29 @@ function Row({
   selected: boolean;
   onToggle: () => void;
   onOpen?: () => void;
-  onRename: () => void;
   onDelete: () => void;
   onCopy: () => void;
   dragItem: DragItem;
   onDropItem?: (item: DragItem) => void;
   isDropTarget: boolean;
   canWrite: boolean;
+  layout?: "list" | "grid";
+  autoRename?: boolean;
+  onRenameCommit?: (newName: string) => void;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [renaming, setRenaming] = useState(!!autoRename);
+  const [renameValue, setRenameValue] = useState(name);
+  const inputRef = (el: HTMLInputElement | null) => {
+    if (el && renaming) {
+      el.focus();
+      el.select();
+    }
+  };
   const [{ isDragging }, dragRef] = useDrag({
     type: ITEM_TYPE,
     item: dragItem,
-    canDrag: canWrite,
+    canDrag: canWrite && !renaming,
     collect: (monitor) => ({ isDragging: monitor.isDragging() }),
   });
   const [{ isOver }, dropRef] = useDrop({
@@ -88,6 +105,74 @@ function Row({
     drop: (item: DragItem) => onDropItem?.(item),
     collect: (monitor) => ({ isOver: monitor.isOver() && monitor.canDrop() }),
   });
+
+  function commitRename() {
+    setRenaming(false);
+    const trimmed = renameValue.trim();
+    if (trimmed && trimmed !== name) onRenameCommit?.(trimmed);
+  }
+
+  const nameNode = renaming ? (
+    <input
+      ref={inputRef}
+      value={renameValue}
+      onChange={(e) => setRenameValue(e.target.value)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") commitRename();
+        if (e.key === "Escape") { setRenaming(false); setRenameValue(name); }
+      }}
+      onBlur={commitRename}
+      onClick={(e) => e.stopPropagation()}
+      className="min-w-0 flex-1 rounded border border-brand-400 bg-white px-1.5 py-0.5 text-sm dark:bg-gray-900"
+    />
+  ) : (
+    <span className="truncate">{name}</span>
+  );
+
+  const menu = canWrite && (
+    <div className="relative">
+      <button onClick={() => setMenuOpen((v) => !v)} className="rounded px-1.5 text-gray-400 hover:bg-gray-100 dark:hover:bg-white/10">
+        ⋯
+      </button>
+      {menuOpen && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
+          <div className="absolute right-0 top-6 z-50 w-32 rounded-lg border border-gray-200 bg-white py-1 text-xs shadow-lg dark:border-gray-700 dark:bg-gray-900">
+            <button onClick={() => { setMenuOpen(false); setRenaming(true); }} className="block w-full px-3 py-1.5 text-left hover:bg-gray-50 dark:hover:bg-white/5">이름변경</button>
+            <button onClick={() => { setMenuOpen(false); onCopy(); }} className="block w-full px-3 py-1.5 text-left hover:bg-gray-50 dark:hover:bg-white/5">사본 만들기</button>
+            <button onClick={() => { setMenuOpen(false); onDelete(); }} className="block w-full px-3 py-1.5 text-left text-error-500 hover:bg-gray-50 dark:hover:bg-white/5">삭제</button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+
+  if (layout === "grid") {
+    return (
+      <div
+        ref={(el) => {
+          dragRef(el);
+          if (isDropTarget) dropRef(el);
+        }}
+        onClick={onOpen}
+        className={`group relative flex cursor-pointer flex-col items-center rounded-xl border border-transparent p-3 text-center hover:border-gray-200 hover:bg-gray-50 dark:hover:border-gray-800 dark:hover:bg-white/[0.03] ${
+          isOver ? "border-brand-300 bg-brand-50 dark:bg-brand-500/10" : ""
+        } ${isDragging ? "opacity-40" : ""}`}
+      >
+        <input
+          type="checkbox"
+          checked={selected}
+          onClick={(e) => e.stopPropagation()}
+          onChange={onToggle}
+          className="absolute left-2 top-2 h-3.5 w-3.5"
+        />
+        {menu && <div className="absolute right-1 top-1" onClick={(e) => e.stopPropagation()}>{menu}</div>}
+        <span className="mb-1.5 text-4xl">{icon}</span>
+        <div className="flex w-full items-center justify-center px-1 text-xs font-medium text-gray-800 dark:text-white/90">{nameNode}</div>
+        <span className="mt-0.5 text-[10px] text-gray-400">{meta}</span>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -99,36 +184,20 @@ function Row({
         isOver ? "bg-brand-50 dark:bg-brand-500/10" : ""
       } ${isDragging ? "opacity-40" : ""}`}
     >
-      <div className="flex min-w-0 items-center gap-2.5">
+      <div className="flex min-w-0 flex-1 items-center gap-2.5">
         <input type="checkbox" checked={selected} onChange={onToggle} className="h-3.5 w-3.5 shrink-0" />
         <button
           onClick={onOpen}
-          disabled={!onOpen}
-          className="flex min-w-0 items-center gap-2 text-left text-sm font-medium text-gray-800 hover:text-brand-500 disabled:hover:text-gray-800 dark:text-white/90"
+          disabled={!onOpen || renaming}
+          className="flex min-w-0 flex-1 items-center gap-2 text-left text-sm font-medium text-gray-800 hover:text-brand-500 disabled:hover:text-gray-800 dark:text-white/90"
         >
           <span className="shrink-0 text-lg">{icon}</span>
-          <span className="truncate">{name}</span>
+          {nameNode}
         </button>
       </div>
       <div className="flex shrink-0 items-center gap-3">
         <span className="text-xs text-gray-400">{meta}</span>
-        {canWrite && (
-          <div className="relative">
-            <button onClick={() => setMenuOpen((v) => !v)} className="rounded px-1.5 text-gray-400 hover:bg-gray-100 dark:hover:bg-white/10">
-              ⋯
-            </button>
-            {menuOpen && (
-              <>
-                <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
-                <div className="absolute right-0 top-6 z-20 w-32 rounded-lg border border-gray-200 bg-white py-1 text-xs shadow-lg dark:border-gray-700 dark:bg-gray-900">
-                  <button onClick={() => { setMenuOpen(false); onRename(); }} className="block w-full px-3 py-1.5 text-left hover:bg-gray-50 dark:hover:bg-white/5">이름변경</button>
-                  <button onClick={() => { setMenuOpen(false); onCopy(); }} className="block w-full px-3 py-1.5 text-left hover:bg-gray-50 dark:hover:bg-white/5">사본 만들기</button>
-                  <button onClick={() => { setMenuOpen(false); onDelete(); }} className="block w-full px-3 py-1.5 text-left text-error-500 hover:bg-gray-50 dark:hover:bg-white/5">삭제</button>
-                </div>
-              </>
-            )}
-          </div>
-        )}
+        {menu}
       </div>
     </div>
   );
@@ -164,6 +233,8 @@ function BreadcrumbCrumb({
   );
 }
 
+type SortKey = "name" | "date";
+
 function StorageBrowser({ root, space, ownerId, title, canManagePermissions }: { root: string; space: string; ownerId?: number; title: string; canManagePermissions: boolean }) {
   const { user } = useAuth();
   const [folderId, setFolderId] = useState<number | null>(null);
@@ -171,6 +242,10 @@ function StorageBrowser({ root, space, ownerId, title, canManagePermissions }: {
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [showPerms, setShowPerms] = useState(false);
+  const [view, setView] = useState<"list" | "grid">("list");
+  const [sortKey, setSortKey] = useState<SortKey>("name");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const [justCreatedFolderId, setJustCreatedFolderId] = useState<number | null>(null);
 
   const canWrite = space === "personal" ? true : !!user; // 백엔드가 실제 권한을 최종 검증함
 
@@ -208,10 +283,17 @@ function StorageBrowser({ root, space, ownerId, title, canManagePermissions }: {
   }
 
   async function handleNewFolder() {
-    const name = window.prompt("새 폴더 이름");
-    if (!name) return;
-    await createFolder(root, space, folderId, name, ownerId);
+    const res = await createFolder(root, space, folderId, "새 폴더", ownerId);
+    setJustCreatedFolderId(res.id);
     load();
+  }
+
+  function sortRows<T extends { name?: string; filename?: string; created_at: string }>(rows: T[]): T[] {
+    const sorted = [...rows].sort((a, b) => {
+      if (sortKey === "name") return (a.name || a.filename || "").localeCompare(b.name || b.filename || "");
+      return a.created_at.localeCompare(b.created_at);
+    });
+    return sortDir === "asc" ? sorted : sorted.reverse();
   }
 
   async function handleMoveTarget(item: DragItem, targetFolderId: number | null) {
@@ -260,6 +342,25 @@ function StorageBrowser({ root, space, ownerId, title, canManagePermissions }: {
               선택 {selected.size}개 삭제
             </button>
           )}
+          <select
+            value={sortKey}
+            onChange={(e) => setSortKey(e.target.value as SortKey)}
+            className="rounded-full border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-gray-600 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300"
+          >
+            <option value="name">이름순</option>
+            <option value="date">날짜순</option>
+          </select>
+          <button
+            onClick={() => setSortDir((d) => (d === "asc" ? "desc" : "asc"))}
+            className="rounded-full border border-gray-300 px-2.5 py-1.5 text-xs font-bold text-gray-600 dark:border-gray-700 dark:text-gray-300"
+            title="정렬 방향"
+          >
+            {sortDir === "asc" ? "▲" : "▼"}
+          </button>
+          <div className="flex gap-1 rounded-full bg-gray-100 p-1 dark:bg-white/[0.04]">
+            <button onClick={() => setView("list")} className={`rounded-full px-2.5 py-1 text-xs font-bold ${view === "list" ? "bg-white shadow dark:bg-gray-700" : "text-gray-500"}`}>☰ 목록</button>
+            <button onClick={() => setView("grid")} className={`rounded-full px-2.5 py-1 text-xs font-bold ${view === "grid" ? "bg-white shadow dark:bg-gray-700" : "text-gray-500"}`}>▦ 아이콘</button>
+          </div>
           {canManagePermissions && (
             <button onClick={() => setShowPerms(true)} className="rounded-full border border-gray-300 px-3 py-1.5 text-xs font-bold text-gray-600 dark:border-gray-700 dark:text-gray-300">
               폴더 권한 관리
@@ -286,7 +387,7 @@ function StorageBrowser({ root, space, ownerId, title, canManagePermissions }: {
       </div>
 
       <div
-        className={`overflow-hidden rounded-2xl border-2 border-dashed bg-white dark:bg-white/[0.03] ${
+        className={`rounded-2xl border-2 border-dashed bg-white dark:bg-white/[0.03] ${
           isDragActive ? "border-brand-400 bg-brand-50/50 dark:bg-brand-500/5" : "border-transparent"
         }`}
       >
@@ -298,19 +399,21 @@ function StorageBrowser({ root, space, ownerId, title, canManagePermissions }: {
               폴더가 비어 있습니다. 파일을 이 영역에 끌어다 놓아 업로드할 수 있습니다.
             </div>
           ) : (
-            <>
-              {data?.folders.map((f: FolderRow) => (
+            <div className={view === "grid" ? "grid grid-cols-3 gap-1 p-3 sm:grid-cols-4 md:grid-cols-6" : ""}>
+              {sortRows(data?.folders || []).map((f: FolderRow) => (
                 <Row
                   key={`d-${f.id}`}
                   icon="📁"
                   name={f.name}
-                  meta={f.created_at?.slice(0, 10)}
+                  meta={formatDateTime(f.created_at)}
                   selected={selected.has(`d-${f.id}`)}
                   onToggle={() => toggleSelect(`d-${f.id}`)}
                   onOpen={() => setFolderId(f.id)}
-                  onRename={async () => {
-                    const name = window.prompt("새 폴더 이름", f.name);
-                    if (name) { await renameFolder(f.id, name); load(); }
+                  autoRename={justCreatedFolderId === f.id}
+                  onRenameCommit={async (newName) => {
+                    setJustCreatedFolderId(null);
+                    await renameFolder(f.id, newName);
+                    load();
                   }}
                   onDelete={async () => {
                     if (confirm(`"${f.name}" 폴더와 안의 내용을 모두 삭제하시겠습니까?`)) { await deleteFolder(f.id); load(); }
@@ -320,20 +423,21 @@ function StorageBrowser({ root, space, ownerId, title, canManagePermissions }: {
                   onDropItem={(item) => handleMoveTarget(item, f.id)}
                   isDropTarget
                   canWrite={canWrite}
+                  layout={view}
                 />
               ))}
-              {data?.files.map((f: FileRow) => (
+              {sortRows(data?.files || []).map((f: FileRow) => (
                 <Row
                   key={`f-${f.id}`}
                   icon={iconFor(f.filename)}
                   name={f.filename}
-                  meta={`${formatSize(f.size)} · ${f.created_at?.slice(0, 10)}`}
+                  meta={view === "grid" ? formatSize(f.size) : `${formatSize(f.size)} · ${formatDateTime(f.created_at)}`}
                   selected={selected.has(`f-${f.id}`)}
                   onToggle={() => toggleSelect(`f-${f.id}`)}
                   onOpen={() => window.open(downloadUrl(f.id), "_blank")}
-                  onRename={async () => {
-                    const name = window.prompt("새 파일 이름", f.filename);
-                    if (name) { await renameFile(f.id, name); load(); }
+                  onRenameCommit={async (newName) => {
+                    await renameFile(f.id, newName);
+                    load();
                   }}
                   onDelete={async () => {
                     if (confirm(`"${f.filename}" 파일을 삭제하시겠습니까?`)) { await deleteFile(f.id); load(); }
@@ -342,9 +446,10 @@ function StorageBrowser({ root, space, ownerId, title, canManagePermissions }: {
                   dragItem={{ kind: "file", id: f.id }}
                   isDropTarget={false}
                   canWrite={canWrite}
+                  layout={view}
                 />
               ))}
-            </>
+            </div>
           )}
         </div>
       </div>

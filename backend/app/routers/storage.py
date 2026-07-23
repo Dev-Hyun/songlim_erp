@@ -1,21 +1,21 @@
-import os
 import secrets
 from datetime import datetime, timezone
 from typing import Optional
+from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
-from fastapi.responses import FileResponse
+from fastapi.responses import Response
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.models import StaffProfile, StorageFile, StorageFolder, StorageFolderPermission, User
+from app.object_storage import copy_object, delete_object, get_object, put_object
 from app.routers.auth import require_staff
 
 router = APIRouter(prefix="/api/storage", tags=["storage"])
 
-UPLOAD_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "uploads", "storage")
 ROOTS = ("nas", "templates")
 
 
@@ -175,9 +175,7 @@ async def update_folder(folder_id: int, payload: FolderUpdateIn, db: AsyncSessio
 async def _delete_folder_recursive(db: AsyncSession, folder_id: int):
     files = (await db.execute(select(StorageFile).where(StorageFile.folder_id == folder_id))).scalars().all()
     for f in files:
-        path = os.path.join(UPLOAD_DIR, f.file_key)
-        if os.path.exists(path):
-            os.remove(path)
+        await delete_object(f.file_key)
         await db.delete(f)
     subfolders = (await db.execute(select(StorageFolder).where(StorageFolder.parent_id == folder_id))).scalars().all()
     for sub in subfolders:
@@ -213,11 +211,8 @@ async def _copy_folder_recursive(db: AsyncSession, folder: StorageFolder, target
 
     files = (await db.execute(select(StorageFile).where(StorageFile.folder_id == folder.id))).scalars().all()
     for f in files:
-        src = os.path.join(UPLOAD_DIR, f.file_key)
         new_key = f"{secrets.token_hex(8)}_{f.filename}"
-        if os.path.exists(src):
-            with open(src, "rb") as sf, open(os.path.join(UPLOAD_DIR, new_key), "wb") as df:
-                df.write(sf.read())
+        await copy_object(f.file_key, new_key)
         db.add(StorageFile(
             root=f.root, space=f.space, owner_id=f.owner_id, folder_id=new_folder.id,
             filename=f.filename, file_key=new_key, size=f.size, uploaded_by=user.id, created_at=_now(),
@@ -261,11 +256,9 @@ async def upload_file(
     folder = await _get_folder_or_404(db, folder_id) if folder_id else None
     await _check_access(folder, space, effective_owner, user, db, write=True)
 
-    os.makedirs(UPLOAD_DIR, exist_ok=True)
     content = await file.read()
     key = f"{secrets.token_hex(8)}_{file.filename}"
-    with open(os.path.join(UPLOAD_DIR, key), "wb") as f:
-        f.write(content)
+    await put_object(key, content)
     sf = StorageFile(
         root=root, space=space, owner_id=effective_owner, folder_id=folder_id,
         filename=file.filename, file_key=key, size=len(content), uploaded_by=user.id, created_at=_now(),
@@ -283,10 +276,14 @@ async def download_file(file_id: int, db: AsyncSession = Depends(get_db), user: 
         raise HTTPException(status_code=404, detail="파일을 찾을 수 없습니다")
     folder = await _get_folder_or_404(db, f.folder_id) if f.folder_id else None
     await _check_access(folder, f.space, f.owner_id, user, db, write=False)
-    path = os.path.join(UPLOAD_DIR, f.file_key)
-    if not os.path.exists(path):
+    data = await get_object(f.file_key)
+    if data is None:
         raise HTTPException(status_code=404, detail="파일이 존재하지 않습니다")
-    return FileResponse(path, filename=f.filename)
+    return Response(
+        content=data,
+        media_type="application/octet-stream",
+        headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quote(f.filename)}"},
+    )
 
 
 class FileUpdateIn(BaseModel):
@@ -325,11 +322,8 @@ async def copy_file(file_id: int, payload: CopyIn, db: AsyncSession = Depends(ge
     target = await _get_folder_or_404(db, target_id) if target_id else None
     await _check_access(target, f.space, f.owner_id, user, db, write=True)
 
-    src = os.path.join(UPLOAD_DIR, f.file_key)
     new_key = f"{secrets.token_hex(8)}_{f.filename}"
-    if os.path.exists(src):
-        with open(src, "rb") as sf, open(os.path.join(UPLOAD_DIR, new_key), "wb") as df:
-            df.write(sf.read())
+    await copy_object(f.file_key, new_key)
     new_file = StorageFile(
         root=f.root, space=f.space, owner_id=f.owner_id, folder_id=target_id,
         filename=f.filename, file_key=new_key, size=f.size, uploaded_by=user.id, created_at=_now(),
@@ -347,9 +341,7 @@ async def delete_file(file_id: int, db: AsyncSession = Depends(get_db), user: Us
         raise HTTPException(status_code=404, detail="파일을 찾을 수 없습니다")
     folder = await _get_folder_or_404(db, f.folder_id) if f.folder_id else None
     await _check_access(folder, f.space, f.owner_id, user, db, write=True)
-    path = os.path.join(UPLOAD_DIR, f.file_key)
-    if os.path.exists(path):
-        os.remove(path)
+    await delete_object(f.file_key)
     await db.delete(f)
     await db.commit()
     return {"ok": True}
@@ -368,9 +360,7 @@ async def bulk_delete(payload: BulkDeleteIn, db: AsyncSession = Depends(get_db),
             continue
         folder = await _get_folder_or_404(db, f.folder_id) if f.folder_id else None
         await _check_access(folder, f.space, f.owner_id, user, db, write=True)
-        path = os.path.join(UPLOAD_DIR, f.file_key)
-        if os.path.exists(path):
-            os.remove(path)
+        await delete_object(f.file_key)
         await db.delete(f)
     for fold_id in payload.folder_ids:
         folder = (await db.execute(select(StorageFolder).where(StorageFolder.id == fold_id))).scalar_one_or_none()

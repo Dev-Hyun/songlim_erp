@@ -42,11 +42,6 @@ export default function DeliveryDetailClient({ id }: { id: number }) {
   const d = detail.delivery;
   const isDemo = d.site_type === "demo";
 
-  async function toggleSiteType() {
-    await updateDelivery(id, { site_type: isDemo ? "delivery" : "demo" });
-    load();
-  }
-
   async function saveEdits() {
     await updateDelivery(id, {
       hospital_name: form.hospital_name,
@@ -107,12 +102,11 @@ export default function DeliveryDetailClient({ id }: { id: number }) {
           <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
             <h2 className="text-lg font-bold text-gray-800 dark:text-white/90">🔬 초음파 계약/납품 현황</h2>
             <div className="flex items-center gap-2">
-              <button
-                onClick={toggleSiteType}
+              <span
                 className={`rounded-full px-3 py-1.5 text-xs font-bold text-white ${isDemo ? "bg-brand-500" : "bg-success-500"}`}
               >
                 {isDemo ? "DEMO" : "납품 & 관리"}
-              </button>
+              </span>
               {editing ? (
                 <button onClick={saveEdits} className="rounded-full bg-brand-500 px-3 py-1.5 text-xs font-bold text-white">저장</button>
               ) : (
@@ -156,8 +150,9 @@ export default function DeliveryDetailClient({ id }: { id: number }) {
               {editing ? (
                 <select value={form.demo_result || ""} onChange={(e) => setForm({ ...form, demo_result: e.target.value })} className={inputClass}>
                   <option value="">선택 안 함</option>
-                  <option value="성공">성공</option>
+                  <option value="예정">예정</option>
                   <option value="진행중">진행중</option>
+                  <option value="성공">성공</option>
                   <option value="실패">실패</option>
                 </select>
               ) : (

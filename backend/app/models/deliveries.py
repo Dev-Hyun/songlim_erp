@@ -26,7 +26,7 @@ class Delivery(Base, TimestampMixin):
     warranty_start: Mapped[Optional[str]] = mapped_column(default=None)  # delivery 전용
     warranty_end: Mapped[Optional[str]] = mapped_column(default=None)  # delivery: W/A 종료 / demo: DEMO 종료일자
     maintenance: Mapped[Optional[str]] = mapped_column(default=None)  # delivery 전용: O | X
-    demo_result: Mapped[Optional[str]] = mapped_column(default=None)  # demo 전용: 성공 | 진행중 | 실패
+    demo_result: Mapped[Optional[str]] = mapped_column(default=None)  # demo 전용: 예정 | 진행중 | 성공 | 실패
 
     items: Mapped[list["DeliveryItem"]] = relationship(back_populates="delivery", cascade="all, delete-orphan")
     photos: Mapped[list["DeliveryPhoto"]] = relationship(back_populates="delivery", cascade="all, delete-orphan")

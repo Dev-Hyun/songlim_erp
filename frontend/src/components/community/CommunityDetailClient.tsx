@@ -48,6 +48,12 @@ export default function CommunityDetailClient({ id }: { id: number }) {
     return !html.replace(/<[^>]*>/g, "").trim() && !html.includes("<img");
   }
 
+  async function deletePost() {
+    if (!confirm("이 게시글을 삭제하시겠습니까?")) return;
+    await fetch(`${API}/api/tech-posts/${id}`, { method: "DELETE", credentials: "include" });
+    router.push("/community");
+  }
+
   async function submitComment() {
     if (isCommentEmpty(commentText)) return;
     await fetch(`${API}/api/tech-posts/${id}/comments`, {
@@ -65,9 +71,16 @@ export default function CommunityDetailClient({ id }: { id: number }) {
 
   return (
     <div className="space-y-4">
-      <button onClick={() => router.push("/community")} className="text-xs font-semibold text-gray-500 hover:text-brand-500">
-        ← 목록으로
-      </button>
+      <div className="flex items-center justify-between">
+        <button onClick={() => router.push("/community")} className="text-xs font-semibold text-gray-500 hover:text-brand-500">
+          ← 목록으로
+        </button>
+        {user?.role === "songrim" && (
+          <button onClick={deletePost} className="text-xs font-semibold text-error-500 hover:underline">
+            삭제
+          </button>
+        )}
+      </div>
       <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
         <h2 className="text-lg font-bold text-gray-800 dark:text-white/90">{post.title}</h2>
         <div className="mt-1 text-xs text-gray-400">

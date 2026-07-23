@@ -3,12 +3,12 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.html_sanitize import sanitize_html
-from app.models import CsComment, CsTicket, Notice, Suggestion, TechComment, TechPost, User
+from app.models import CsComment, CsTicket, HospitalProfile, Notice, Suggestion, TechComment, TechPost, User
 from app.routers.auth import get_current_user, require_staff, require_user
 
 router = APIRouter(prefix="/api", tags=["board"])
@@ -82,19 +82,27 @@ class CsCommentIn(BaseModel):
 @router.get("/cs")
 async def list_cs(db: AsyncSession = Depends(get_db), status: Optional[str] = None, user: User = Depends(require_user)):
     q = (
-        select(CsTicket, User.display_name, User.username)
+        select(CsTicket, User.display_name, User.username, User.hospital_profile_id)
         .join(User, User.id == CsTicket.created_by)
         .order_by(CsTicket.created_at.desc())
     )
-    # 병원 계정은 본인이 접수한 CS만 볼 수 있음
+    # 병원 계정은 본인이 접수한 CS만 볼 수 있음 (타 병원 CS는 보이면 안됨)
     if user.role == "hospital":
         q = q.where(CsTicket.created_by == user.id)
     if status:
         q = q.where(CsTicket.status == status)
     rows = (await db.execute(q)).all()
+    hospital_names: dict[int, str] = {}
+    if user.role == "songrim":
+        hp_ids = {hp_id for _, _, _, hp_id in rows if hp_id}
+        if hp_ids:
+            hp_rows = (await db.execute(select(HospitalProfile.id, HospitalProfile.hospital_name).where(HospitalProfile.id.in_(hp_ids)))).all()
+            hospital_names = {hid: name for hid, name in hp_rows}
     return [{"id": t.id, "title": t.title, "content": t.content, "status": t.status,
              "created_by": t.created_by, "created_by_name": display_name or username,
-             "created_at": t.created_at} for t, display_name, username in rows]
+             "hospital_name": hospital_names.get(hp_id) if user.role == "songrim" else None,
+             "is_mine": t.created_by == user.id,
+             "created_at": t.created_at} for t, display_name, username, hp_id in rows]
 
 
 @router.post("/cs")
@@ -121,9 +129,24 @@ async def get_cs(tid: int, db: AsyncSession = Depends(get_db), user: User = Depe
     comments = (await db.execute(select(CsComment).where(CsComment.ticket_id == tid).order_by(CsComment.created_at))).scalars().all()
     return {
         "ticket": {"id": t.id, "title": t.title, "content": t.content, "status": t.status,
-                   "created_by": t.created_by, "created_by_name": display_name or username, "created_at": t.created_at},
+                   "created_by": t.created_by, "created_by_name": display_name or username,
+                   "is_mine": t.created_by == user.id, "created_at": t.created_at},
         "comments": [{"id": c.id, "content": c.content, "created_by": c.created_by, "created_at": c.created_at} for c in comments],
     }
+
+
+@router.delete("/cs/{tid}")
+async def delete_cs(tid: int, db: AsyncSession = Depends(get_db), user: User = Depends(require_user)):
+    """삭제는 작성자 본인(병원 포함) + 관리자만 가능."""
+    t = (await db.execute(select(CsTicket).where(CsTicket.id == tid))).scalar_one_or_none()
+    if not t:
+        raise HTTPException(status_code=404, detail="티켓을 찾을 수 없습니다")
+    if t.created_by != user.id and not user.is_admin:
+        raise HTTPException(status_code=403, detail="권한이 없습니다")
+    await db.execute(delete(CsComment).where(CsComment.ticket_id == tid))
+    await db.delete(t)
+    await db.commit()
+    return {"ok": True}
 
 
 @router.patch("/cs/{tid}/status")
@@ -228,6 +251,17 @@ async def add_tech_comment(pid: int, payload: TechCommentIn, db: AsyncSession = 
     await db.commit()
     await db.refresh(c)
     return {"id": c.id}
+
+
+@router.delete("/tech-posts/{pid}")
+async def delete_tech_post(pid: int, db: AsyncSession = Depends(get_db), user: User = Depends(require_staff)):
+    p = (await db.execute(select(TechPost).where(TechPost.id == pid))).scalar_one_or_none()
+    if not p:
+        raise HTTPException(status_code=404, detail="게시글을 찾을 수 없습니다")
+    await db.execute(delete(TechComment).where(TechComment.post_id == pid))
+    await db.delete(p)
+    await db.commit()
+    return {"ok": True}
 
 
 # ────────────────────────────────────────────────────────
