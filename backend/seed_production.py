@@ -31,7 +31,7 @@ async def main():
         elif not username or not password:
             print("INITIAL_ADMIN_USERNAME / INITIAL_ADMIN_PASSWORD 환경변수가 없어 관리자 계정을 만들지 않았습니다")
         else:
-            now = datetime.now(timezone.utc).isoformat()
+            now = datetime.now(timezone.utc)
             user = User(
                 username=username, password_hash=hash_password(password),
                 display_name=display_name, role="songrim", is_admin=True,
