@@ -37,3 +37,6 @@ Thumbs.db
 # ── 로컬 전용 개발 기록 (원격에 push하지 않음) ──
 /PROGRESS.md
 /.claude/
+
+# ── NCP 인증키/인프라 메모 (절대 원격에 올리지 않음) ──
+/NCP/
