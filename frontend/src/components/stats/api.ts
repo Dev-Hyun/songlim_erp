@@ -28,7 +28,8 @@ export interface SummaryStats {
 }
 
 export async function fetchSummary(f: StatsFilter): Promise<SummaryStats> {
-  const res = await fetch(`${API}/api/stats/summary?${qs(f)}`);
+  const res = await fetch(`${API}/api/stats/summary?${qs(f)}`, { credentials: "include" });
+  if (!res.ok) throw new Error("통계 요약 조회 실패");
   return res.json();
 }
 
@@ -39,7 +40,8 @@ export interface ShareItem {
 }
 
 export async function fetchMarketShare(f: StatsFilter, by: "maker" | "model"): Promise<ShareItem[]> {
-  const res = await fetch(`${API}/api/stats/market-share?${qs(f, { by })}`);
+  const res = await fetch(`${API}/api/stats/market-share?${qs(f, { by })}`, { credentials: "include" });
+  if (!res.ok) throw new Error("점유율 조회 실패");
   return res.json();
 }
 
@@ -50,23 +52,27 @@ export interface TrendData {
 }
 
 export async function fetchYearlyTrend(f: StatsFilter, by: "maker" | "model"): Promise<TrendData> {
-  const res = await fetch(`${API}/api/stats/yearly-trend?${qs(f, { by, top_n: "8" })}`);
+  const res = await fetch(`${API}/api/stats/yearly-trend?${qs(f, { by, top_n: "8" })}`, { credentials: "include" });
+  if (!res.ok) throw new Error("연도별 추이 조회 실패");
   return res.json();
 }
 
 export async function fetchByRegion(category: EquipmentCategory, year: number): Promise<{ sido: string; count: number }[]> {
   const p = new URLSearchParams({ category, year: String(year) });
-  const res = await fetch(`${API}/api/stats/by-region?${p.toString()}`);
+  const res = await fetch(`${API}/api/stats/by-region?${p.toString()}`, { credentials: "include" });
+  if (!res.ok) throw new Error("시도별 분포 조회 실패");
   return res.json();
 }
 
 export async function fetchByType(category: EquipmentCategory, year: number): Promise<{ type: string; count: number }[]> {
   const p = new URLSearchParams({ category, year: String(year) });
-  const res = await fetch(`${API}/api/stats/by-type?${p.toString()}`);
+  const res = await fetch(`${API}/api/stats/by-type?${p.toString()}`, { credentials: "include" });
+  if (!res.ok) throw new Error("병원 종별 분포 조회 실패");
   return res.json();
 }
 
 export async function fetchSigunguList(sido: string): Promise<string[]> {
-  const res = await fetch(`${API}/api/regions/sigungu?sido=${encodeURIComponent(sido)}`);
+  const res = await fetch(`${API}/api/regions/sigungu?sido=${encodeURIComponent(sido)}`, { credentials: "include" });
+  if (!res.ok) throw new Error("시군구 목록 조회 실패");
   return res.json();
 }

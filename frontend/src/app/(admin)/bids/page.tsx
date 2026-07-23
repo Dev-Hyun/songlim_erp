@@ -31,7 +31,7 @@ export default function BidsPage() {
     const qs = new URLSearchParams();
     if (source) qs.set("source", source);
     if (search) qs.set("search", search);
-    fetch(`${API}/api/bids?${qs.toString()}`)
+    fetch(`${API}/api/bids?${qs.toString()}`, { credentials: "include" })
       .then((r) => r.json())
       .then((d) => setItems(d.items || []))
       .finally(() => setLoading(false));

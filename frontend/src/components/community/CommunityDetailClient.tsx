@@ -34,7 +34,7 @@ export default function CommunityDetailClient({ id }: { id: number }) {
   const router = useRouter();
 
   function load() {
-    fetch(`${API}/api/tech-posts/${id}`)
+    fetch(`${API}/api/tech-posts/${id}`, { credentials: "include" })
       .then((r) => r.json())
       .then((d) => {
         setPost(d.post);

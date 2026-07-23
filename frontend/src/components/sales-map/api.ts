@@ -28,25 +28,25 @@ export async function fetchHospitals(params: {
   qs.set("map_only", String(params.mapOnly));
   if (params.sort) qs.set("sort", params.sort);
 
-  const res = await fetch(`${API}/api/hospitals?${qs.toString()}`);
+  const res = await fetch(`${API}/api/hospitals?${qs.toString()}`, { credentials: "include" });
   if (!res.ok) throw new Error("병원 목록 조회 실패");
   return res.json();
 }
 
 export async function fetchHospitalDetail(id: number): Promise<HospitalDetail> {
-  const res = await fetch(`${API}/api/hospital/${id}`);
+  const res = await fetch(`${API}/api/hospital/${id}`, { credentials: "include" });
   if (!res.ok) throw new Error("병원 상세 조회 실패");
   return res.json();
 }
 
 export async function fetchSidoList(): Promise<string[]> {
-  const res = await fetch(`${API}/api/regions/sido`);
+  const res = await fetch(`${API}/api/regions/sido`, { credentials: "include" });
   if (!res.ok) throw new Error("시도 목록 조회 실패");
   return res.json();
 }
 
 export async function fetchSigunguList(sido: string): Promise<string[]> {
-  const res = await fetch(`${API}/api/regions/sigungu?sido=${encodeURIComponent(sido)}`);
+  const res = await fetch(`${API}/api/regions/sigungu?sido=${encodeURIComponent(sido)}`, { credentials: "include" });
   if (!res.ok) throw new Error("시군구 목록 조회 실패");
   return res.json();
 }
@@ -54,7 +54,7 @@ export async function fetchSigunguList(sido: string): Promise<string[]> {
 export async function fetchEquipmentCatalog(
   category: EquipmentCategory
 ): Promise<{ manufacturer: string | null; model: string | null }[]> {
-  const res = await fetch(`${API}/api/equipment/catalog?category=${category}`);
+  const res = await fetch(`${API}/api/equipment/catalog?category=${category}`, { credentials: "include" });
   if (!res.ok) throw new Error("장비 카탈로그 조회 실패");
   return res.json();
 }
@@ -70,6 +70,7 @@ export async function registerManualEquipment(payload: {
   const res = await fetch(`${API}/api/equipment/manual`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
+    credentials: "include",
     body: JSON.stringify(payload),
   });
   if (!res.ok) throw new Error("장비 등록 실패");
@@ -83,6 +84,7 @@ export async function updateManualEquipment(
   const res = await fetch(`${API}/api/equipment/manual/${equipmentId}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
+    credentials: "include",
     body: JSON.stringify(payload),
   });
   if (!res.ok) throw new Error("장비 수정 실패");
@@ -90,12 +92,12 @@ export async function updateManualEquipment(
 }
 
 export async function deleteManualEquipment(equipmentId: number): Promise<void> {
-  const res = await fetch(`${API}/api/equipment/manual/${equipmentId}`, { method: "DELETE" });
+  const res = await fetch(`${API}/api/equipment/manual/${equipmentId}`, { method: "DELETE", credentials: "include" });
   if (!res.ok) throw new Error("장비 삭제 실패");
 }
 
 export async function fetchSalesNotes(hospitalId: number): Promise<SalesNoteItem[]> {
-  const res = await fetch(`${API}/api/sales-notes?hospital_id=${hospitalId}`);
+  const res = await fetch(`${API}/api/sales-notes?hospital_id=${hospitalId}`, { credentials: "include" });
   if (!res.ok) throw new Error("영업노트 조회 실패");
   return res.json();
 }
