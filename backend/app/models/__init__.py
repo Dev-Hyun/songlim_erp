@@ -21,7 +21,7 @@ from .contracts import Contract, ContractItem, ContractPhoto, ContractComment
 from .deliveries import Delivery, DeliveryItem, DeliveryPhoto, DeliveryComment
 from .inventory import InvEquipment, InvSupply
 from .board import Notice, CsTicket, CsComment, TechPost, TechComment, Suggestion
-from .misc import MileageLog, Bid, NewsArticle, StorageFile
+from .misc import MileageLog, Bid, NewsArticle, StorageFile, StorageFolder
 from .calendar import CalendarEvent, CalendarEventAssignee, CalendarEventTeam, GoogleCalendarLink
 
 __all__ = [
@@ -62,6 +62,7 @@ __all__ = [
     "Bid",
     "NewsArticle",
     "StorageFile",
+    "StorageFolder",
     "CalendarEvent",
     "CalendarEventAssignee",
     "CalendarEventTeam",

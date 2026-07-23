@@ -10,7 +10,7 @@ export default function StoragePage() {
     <StaffOnly>
       <div>
         <PageBreadcrumb pageTitle="클라우드 NAS" />
-        <StorageClient folderPath="nas" title="클라우드 NAS" showSpaces />
+        <StorageClient root="nas" title="클라우드 NAS" showSpaces />
       </div>
     </StaffOnly>
   );

@@ -22,6 +22,7 @@ from app.routers import (
     misc,
     sales_map,
     stats,
+    storage,
     supply,
     uploads,
 )
@@ -53,6 +54,7 @@ app.include_router(google_calendar.router)
 app.include_router(admin.router)
 app.include_router(supply.router)
 app.include_router(uploads.router)
+app.include_router(storage.router)
 
 
 @app.get("/api/health")

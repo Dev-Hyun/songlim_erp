@@ -111,13 +111,13 @@ class PagePermission(Base):
 
 
 class StorageFolderPermission(Base):
-    """자료실 폴더 권한 (직급 단위만)"""
+    """공유 클라우드 폴더 권한 (직급 단위). 폴더에 대해 특정 직급의 행이 없으면 기본 전체 공개."""
     __tablename__ = "storage_folder_permissions"
     __table_args__ = (
         CheckConstraint("permission_level IN ('view','edit')", name="ck_storage_perm_level"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    folder_path: Mapped[str] = mapped_column()
+    folder_id: Mapped[int] = mapped_column(ForeignKey("storage_folders.id"))
     position: Mapped[str] = mapped_column()
     permission_level: Mapped[str] = mapped_column()

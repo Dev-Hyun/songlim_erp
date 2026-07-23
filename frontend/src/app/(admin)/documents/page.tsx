@@ -10,7 +10,7 @@ export default function DocumentsPage() {
     <StaffOnly>
       <div>
         <PageBreadcrumb pageTitle="사내 문서 서식" />
-        <StorageClient folderPath="templates" title="사내 문서 서식" />
+        <StorageClient root="templates" title="사내 문서 서식" />
       </div>
     </StaffOnly>
   );

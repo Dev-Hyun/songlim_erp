@@ -1,43 +1,16 @@
-import os
-import secrets
 from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
-from fastapi.responses import FileResponse
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.models import MileageLog, StaffProfile, StorageFile, StorageFolderPermission, User
+from app.models import MileageLog, StaffProfile, User
 from app.routers.auth import require_staff
 
 router = APIRouter(prefix="/api", tags=["misc"])
-
-UPLOAD_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "uploads", "storage")
-
-
-async def _check_folder_access(folder_path: str, user: User, db: AsyncSession, write: bool = False):
-    """개인 클라우드(nas/personal/{uid})는 본인/관리자만. 공유 클라우드는 storage_folder_permissions로 직급별 제어."""
-    if folder_path.startswith("nas/personal/"):
-        owner_id = folder_path.rsplit("/", 1)[-1]
-        if str(user.id) != owner_id and not user.is_admin:
-            raise HTTPException(status_code=403, detail="본인의 개인 클라우드만 접근할 수 있습니다")
-        return
-    if user.is_admin:
-        return
-    staff = (await db.execute(select(StaffProfile).where(StaffProfile.user_id == user.id))).scalar_one_or_none()
-    position = staff.position if staff else None
-    perm = (
-        await db.execute(
-            select(StorageFolderPermission).where(
-                StorageFolderPermission.folder_path == folder_path, StorageFolderPermission.position == position
-            )
-        )
-    ).scalar_one_or_none()
-    if perm and ((write and perm.permission_level != "edit") or (not write and perm.permission_level not in ("view", "edit"))):
-        raise HTTPException(status_code=403, detail="이 폴더에 대한 권한이 없습니다")
 
 
 # ────────────────────────────────────────────────────────
@@ -264,97 +237,3 @@ async def export_mileage(year: int = 0, month: int = 0, db: AsyncSession = Depen
 # ────────────────────────────────────────────────────────
 # 입찰정보/의료소식은 app/routers/bids_news.py 에서 자동수집(G2B/D2B, RSS/스크래핑) 방식으로 이전됨
 # ────────────────────────────────────────────────────────
-# 자료실 (클라우드 NAS / 사내 문서 서식) — folder_path로 두 메뉴 모두 커버
-# ────────────────────────────────────────────────────────
-@router.get("/storage")
-async def list_storage_files(db: AsyncSession = Depends(get_db), folder_path: str = "nas", user: User = Depends(require_staff)):
-    await _check_folder_access(folder_path, user, db, write=False)
-    rows = (
-        await db.execute(select(StorageFile).where(StorageFile.folder_path == folder_path).order_by(StorageFile.created_at.desc()))
-    ).scalars().all()
-    return [{"id": f.id, "filename": f.filename, "uploaded_by": f.uploaded_by, "created_at": f.created_at} for f in rows]
-
-
-@router.post("/storage")
-async def upload_storage_file(
-    folder_path: str = "nas",
-    file: UploadFile = File(...),
-    db: AsyncSession = Depends(get_db),
-    user: User = Depends(require_staff),
-):
-    await _check_folder_access(folder_path, user, db, write=True)
-    dir_path = os.path.join(UPLOAD_DIR, folder_path)
-    os.makedirs(dir_path, exist_ok=True)
-    token = secrets.token_hex(8)
-    key = f"{token}_{file.filename}"
-    with open(os.path.join(dir_path, key), "wb") as f:
-        f.write(await file.read())
-    sf = StorageFile(folder_path=folder_path, filename=file.filename, file_key=key, uploaded_by=user.id,
-                      created_at=datetime.now(timezone.utc).isoformat())
-    db.add(sf)
-    await db.commit()
-    await db.refresh(sf)
-    return {"id": sf.id}
-
-
-@router.get("/storage/{file_id}/download")
-async def download_storage_file(file_id: int, db: AsyncSession = Depends(get_db), user: User = Depends(require_staff)):
-    f = (await db.execute(select(StorageFile).where(StorageFile.id == file_id))).scalar_one_or_none()
-    if not f:
-        raise HTTPException(status_code=404, detail="파일을 찾을 수 없습니다")
-    path = os.path.join(UPLOAD_DIR, f.folder_path, f.file_key)
-    if not os.path.exists(path):
-        raise HTTPException(status_code=404, detail="파일이 존재하지 않습니다")
-    return FileResponse(path, filename=f.filename)
-
-
-@router.delete("/storage/{file_id}")
-async def delete_storage_file(file_id: int, db: AsyncSession = Depends(get_db), user: User = Depends(require_staff)):
-    f = (await db.execute(select(StorageFile).where(StorageFile.id == file_id))).scalar_one_or_none()
-    if not f:
-        raise HTTPException(status_code=404, detail="파일을 찾을 수 없습니다")
-    await _check_folder_access(f.folder_path, user, db, write=True)
-    path = os.path.join(UPLOAD_DIR, f.folder_path, f.file_key)
-    if os.path.exists(path):
-        os.remove(path)
-    await db.delete(f)
-    await db.commit()
-    return {"ok": True}
-
-
-class StorageFolderPermissionIn(BaseModel):
-    folder_path: str
-    position: str
-    permission_level: str  # view | edit
-
-
-@router.get("/storage/permissions")
-async def list_folder_permissions(db: AsyncSession = Depends(get_db), user: User = Depends(require_staff)):
-    if not user.is_admin:
-        raise HTTPException(status_code=403, detail="관리자만 접근 가능합니다")
-    rows = (await db.execute(select(StorageFolderPermission))).scalars().all()
-    return [{"id": p.id, "folder_path": p.folder_path, "position": p.position, "permission_level": p.permission_level} for p in rows]
-
-
-@router.post("/storage/permissions")
-async def create_folder_permission(payload: StorageFolderPermissionIn, db: AsyncSession = Depends(get_db), user: User = Depends(require_staff)):
-    if not user.is_admin:
-        raise HTTPException(status_code=403, detail="관리자만 접근 가능합니다")
-    if payload.permission_level not in ("view", "edit"):
-        raise HTTPException(status_code=400, detail="잘못된 권한값입니다")
-    p = StorageFolderPermission(**payload.model_dump())
-    db.add(p)
-    await db.commit()
-    await db.refresh(p)
-    return {"id": p.id}
-
-
-@router.delete("/storage/permissions/{perm_id}")
-async def delete_folder_permission(perm_id: int, db: AsyncSession = Depends(get_db), user: User = Depends(require_staff)):
-    if not user.is_admin:
-        raise HTTPException(status_code=403, detail="관리자만 접근 가능합니다")
-    p = (await db.execute(select(StorageFolderPermission).where(StorageFolderPermission.id == perm_id))).scalar_one_or_none()
-    if p:
-        await db.delete(p)
-        await db.commit()
-    return {"ok": True}

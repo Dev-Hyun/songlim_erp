@@ -54,14 +54,34 @@ class NewsArticle(Base):
     created_at: Mapped[str] = mapped_column()
 
 
-class StorageFile(Base):
-    """클라우드 NAS / 사내 문서 서식 자료실. folder_path 단위로 storage_folder_permissions와 연동."""
-    __tablename__ = "storage_files"
-    __table_args__ = (Index("idx_storage_folder", "folder_path"),)
+class StorageFolder(Base):
+    """클라우드 NAS(root='nas') / 사내 문서 서식(root='templates') 폴더 트리.
+    space='personal'인 경우 owner_id 본인 것만, 'shared'는 storage_folder_permissions로 직급별 제어."""
+    __tablename__ = "storage_folders"
+    __table_args__ = (Index("idx_storage_folder_parent", "root", "space", "owner_id", "parent_id"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    folder_path: Mapped[str] = mapped_column()
+    root: Mapped[str] = mapped_column()  # nas | templates
+    space: Mapped[str] = mapped_column(default="shared")  # shared | personal
+    owner_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), default=None)
+    parent_id: Mapped[Optional[int]] = mapped_column(ForeignKey("storage_folders.id"), default=None)
+    name: Mapped[str] = mapped_column()
+    created_by: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[str] = mapped_column()
+
+
+class StorageFile(Base):
+    """클라우드 NAS / 사내 문서 서식 자료실 파일. folder_id가 NULL이면 해당 root/space의 최상위."""
+    __tablename__ = "storage_files"
+    __table_args__ = (Index("idx_storage_file_folder", "root", "space", "owner_id", "folder_id"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    root: Mapped[str] = mapped_column()  # nas | templates
+    space: Mapped[str] = mapped_column(default="shared")  # shared | personal
+    owner_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), default=None)
+    folder_id: Mapped[Optional[int]] = mapped_column(ForeignKey("storage_folders.id"), default=None)
     filename: Mapped[str] = mapped_column()
     file_key: Mapped[str] = mapped_column()
+    size: Mapped[int] = mapped_column(default=0)
     uploaded_by: Mapped[int] = mapped_column(ForeignKey("users.id"))
     created_at: Mapped[str] = mapped_column()
