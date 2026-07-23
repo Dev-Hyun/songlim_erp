@@ -25,13 +25,15 @@ export default function MileagePage() {
   const [lastVehicle, setLastVehicle] = useState("");
   const [loading, setLoading] = useState(true);
   const [logDate, setLogDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [prevKm, setPrevKm] = useState("");
   const [finalKm, setFinalKm] = useState("");
   const [nonbizKm, setNonbizKm] = useState("");
   const [purpose, setPurpose] = useState("");
   const [vehicle, setVehicle] = useState("");
   const now = new Date();
-  const [exYear, setExYear] = useState(now.getFullYear());
-  const [exMonth, setExMonth] = useState(now.getMonth() + 1);
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
+  const [exFrom, setExFrom] = useState(monthStart);
+  const [exTo, setExTo] = useState(now.toISOString().slice(0, 10));
 
   function load() {
     setLoading(true);
@@ -64,11 +66,13 @@ export default function MileagePage() {
       body: JSON.stringify({
         log_date: logDate,
         final_km: Number(finalKm),
+        prev_km: prevKm ? Number(prevKm) : undefined,
         nonbiz_km: nonbizKm ? Number(nonbizKm) : 0,
         purpose,
         vehicle,
       }),
     });
+    setPrevKm("");
     setFinalKm("");
     setNonbizKm("");
     setPurpose("");
@@ -76,7 +80,10 @@ export default function MileagePage() {
   }
 
   function exportExcel() {
-    window.open(`${API}/api/mileage-logs/export?year=${exYear}&month=${exMonth}`, "_blank");
+    const qs = new URLSearchParams();
+    if (exFrom) qs.set("date_from", exFrom);
+    if (exTo) qs.set("date_to", exTo);
+    window.open(`${API}/api/mileage-logs/export?${qs.toString()}`, "_blank");
   }
 
   if (authLoading) return <div className="p-8 text-center text-sm text-gray-400">불러오는 중...</div>;
@@ -91,9 +98,10 @@ export default function MileagePage() {
         </div>
       ) : (
         <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-3 rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-white/[0.03] sm:grid-cols-6">
+          <div className="grid grid-cols-2 gap-3 rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-white/[0.03] sm:grid-cols-7">
             <input type="date" value={logDate} onChange={(e) => setLogDate(e.target.value)} className="rounded-lg border border-gray-300 px-2.5 py-1.5 text-sm dark:border-gray-700 dark:bg-gray-900" />
-            <input type="number" value={finalKm} onChange={(e) => setFinalKm(e.target.value)} placeholder={`주행후 km (전일 ${lastKm})`} className="rounded-lg border border-gray-300 px-2.5 py-1.5 text-sm dark:border-gray-700 dark:bg-gray-900" />
+            <input type="number" value={prevKm} onChange={(e) => setPrevKm(e.target.value)} placeholder={`주행전 km (기본 ${lastKm})`} className="rounded-lg border border-gray-300 px-2.5 py-1.5 text-sm dark:border-gray-700 dark:bg-gray-900" />
+            <input type="number" value={finalKm} onChange={(e) => setFinalKm(e.target.value)} placeholder="주행후 km" className="rounded-lg border border-gray-300 px-2.5 py-1.5 text-sm dark:border-gray-700 dark:bg-gray-900" />
             <input type="number" value={nonbizKm} onChange={(e) => setNonbizKm(e.target.value)} placeholder="비업무용 km(선택)" className="rounded-lg border border-gray-300 px-2.5 py-1.5 text-sm dark:border-gray-700 dark:bg-gray-900" />
             <input value={purpose} onChange={(e) => setPurpose(e.target.value)} placeholder="운행 목적" className="rounded-lg border border-gray-300 px-2.5 py-1.5 text-sm dark:border-gray-700 dark:bg-gray-900" />
             <input value={vehicle} onChange={(e) => setVehicle(e.target.value)} placeholder="차량번호" className="rounded-lg border border-gray-300 px-2.5 py-1.5 text-sm dark:border-gray-700 dark:bg-gray-900" />
@@ -102,17 +110,9 @@ export default function MileagePage() {
 
           <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-gray-200 bg-white p-3 text-sm dark:border-gray-800 dark:bg-white/[0.03]">
             <span className="text-xs font-semibold text-gray-500">국세청 운행기록부 내보내기:</span>
-            <select value={exYear} onChange={(e) => setExYear(Number(e.target.value))} className="rounded-lg border border-gray-300 px-2 py-1 text-xs dark:border-gray-700 dark:bg-gray-900">
-              {Array.from({ length: 5 }, (_, i) => now.getFullYear() - i).map((y) => (
-                <option key={y} value={y}>{y}년</option>
-              ))}
-            </select>
-            <select value={exMonth} onChange={(e) => setExMonth(Number(e.target.value))} className="rounded-lg border border-gray-300 px-2 py-1 text-xs dark:border-gray-700 dark:bg-gray-900">
-              <option value={0}>전체</option>
-              {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
-                <option key={m} value={m}>{m}월</option>
-              ))}
-            </select>
+            <input type="date" value={exFrom} onChange={(e) => setExFrom(e.target.value)} className="rounded-lg border border-gray-300 px-2 py-1 text-xs dark:border-gray-700 dark:bg-gray-900" />
+            <span className="text-xs text-gray-400">~</span>
+            <input type="date" value={exTo} onChange={(e) => setExTo(e.target.value)} className="rounded-lg border border-gray-300 px-2 py-1 text-xs dark:border-gray-700 dark:bg-gray-900" />
             <button onClick={exportExcel} className="rounded-full bg-success-500 px-3.5 py-1.5 text-xs font-bold text-white">📊 Excel 내보내기</button>
             {lastVehicle && <span className="ml-auto text-xs text-gray-400">저장된 차량번호: {lastVehicle}</span>}
           </div>

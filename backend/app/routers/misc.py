@@ -81,9 +81,9 @@ async def create_mileage_log(payload: MileageLogIn, db: AsyncSession = Depends(g
 
 
 @router.get("/mileage-logs/export")
-async def export_mileage(year: int = 0, month: int = 0, db: AsyncSession = Depends(get_db), user: User = Depends(require_staff)):
-    """국세청 업무용승용차 운행기록부 양식 Excel (레거시 /api/mileage/export 1:1 이식)."""
-    import calendar as _cal
+async def export_mileage(date_from: str = "", date_to: str = "", db: AsyncSession = Depends(get_db), user: User = Depends(require_staff)):
+    """국세청 업무용승용차 운행기록부 양식 Excel (레거시 /api/mileage/export 1:1 이식). 기간(date_from~date_to)
+    선택 내보내기 — 미지정 시 전체 기간."""
     import io
     from urllib.parse import quote
 
@@ -94,10 +94,10 @@ async def export_mileage(year: int = 0, month: int = 0, db: AsyncSession = Depen
     from openpyxl.worksheet.properties import PageSetupProperties
 
     q = select(MileageLog).where(MileageLog.user_id == user.id)
-    if year:
-        q = q.where(MileageLog.log_date.like(f"{year}-%"))
-    if month:
-        q = q.where(MileageLog.log_date.like(f"%-{str(month).zfill(2)}-%"))
+    if date_from:
+        q = q.where(MileageLog.log_date >= date_from)
+    if date_to:
+        q = q.where(MileageLog.log_date <= date_to)
     rows = (await db.execute(q.order_by(MileageLog.log_date))).scalars().all()
 
     staff = (await db.execute(select(StaffProfile).where(StaffProfile.user_id == user.id))).scalar_one_or_none()
@@ -105,11 +105,12 @@ async def export_mileage(year: int = 0, month: int = 0, db: AsyncSession = Depen
     driver = user.display_name or user.username or ""
     vehicle = rows[0].vehicle if rows else ""
 
-    if year and month:
-        last_day = _cal.monthrange(year, month)[1]
-        period = f"{year}-{month:02d}-01  ~  {year}-{month:02d}-{last_day:02d}"
-    elif year:
-        period = f"{year}-01-01  ~  {year}-12-31"
+    if date_from and date_to:
+        period = f"{date_from}  ~  {date_to}"
+    elif date_from:
+        period = f"{date_from}  ~"
+    elif date_to:
+        period = f"~  {date_to}"
     else:
         period = ""
 
