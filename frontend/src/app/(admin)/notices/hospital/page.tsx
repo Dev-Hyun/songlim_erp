@@ -9,10 +9,10 @@ export default function HospitalNoticesPage() {
 
   return (
     <div>
-      <PageBreadcrumb pageTitle="병원용 공지사항" />
+      <PageBreadcrumb pageTitle="병원 공지사항" />
       <SimpleBoard
         endpoint="/api/notices?notice_type=hospital"
-        title="병원용 공지사항"
+        title="병원 공지사항"
         canWrite={user?.role === "songrim"}
         createExtra={{ notice_type: "hospital" }}
       />

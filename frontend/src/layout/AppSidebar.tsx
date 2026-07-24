@@ -57,8 +57,8 @@ const navItems: NavItem[] = [
     icon: <ChatIcon />,
     name: "커뮤니티",
     subItems: [
-      { name: "병원용 공지사항", path: "/notices/hospital", pro: false },
-      { name: "사내용 공지사항", path: "/notices/internal", pro: false },
+      { name: "병원 공지사항", path: "/notices/hospital", pro: false },
+      { name: "회사 공지사항", path: "/notices/internal", pro: false },
       { name: "CS", path: "/cs", pro: false },
       { name: "의료소식", path: "/news", pro: false },
       { name: "입찰정보", path: "/bids", pro: false },
@@ -85,7 +85,7 @@ const navItems: NavItem[] = [
 
 // 병원 계정 전용 — 영업/사내 관리 메뉴는 노출하지 않고 이 6개만 보여준다
 const hospitalNavItems: NavItem[] = [
-  { icon: <InfoIcon />, name: "병원용 공지사항", path: "/notices/hospital" },
+  { icon: <InfoIcon />, name: "병원 공지사항", path: "/notices/hospital" },
   { icon: <MailIcon />, name: "의료소식", path: "/news" },
   { icon: <GroupIcon />, name: "공동구매", path: "/group-buy" },
   { icon: <BoxIconLine />, name: "중고기기", path: "/used-equipment" },

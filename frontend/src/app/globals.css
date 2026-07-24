@@ -502,42 +502,6 @@ span.flatpickr-weekday,
 .fc-dayGridMonth-view.fc-view.fc-daygrid {
   @apply min-w-[718px];
 }
-/* 모바일에서는 718px 최소폭을 강제하면 화면이 잘리므로(가로 스크롤 필요) 폭 제한을 풀어서
-   한 화면 안에 다 들어오게 함 */
-@media (max-width: 640px) {
-  .fc-dayGridMonth-view.fc-view.fc-daygrid {
-    min-width: 0;
-  }
-  .fc .fc-col-header-cell-cushion {
-    @apply !px-1 !py-2 text-[11px];
-  }
-  .fc .fc-daygrid-day {
-    @apply p-0.5;
-  }
-  .fc .fc-daygrid-day-number,
-  .fc .fc-daynum {
-    @apply !p-1.5 text-xs;
-  }
-  .fc .fc-toolbar.fc-header-toolbar {
-    @apply px-2 pt-3;
-  }
-  .fc-toolbar-title {
-    @apply !text-base;
-  }
-  .fc .fc-daygrid-day-frame {
-    @apply min-h-[52px];
-  }
-  .fc .fc-daygrid-event {
-    @apply !mx-0 px-1 py-0.5;
-  }
-  .fc .fc-event-title,
-  .fc .fc-event-time {
-    @apply truncate text-[10px] leading-tight;
-  }
-  .fc .fc-daygrid-event-dot {
-    @apply mr-1 h-2 w-2;
-  }
-}
 /* 여러날 이벤트가 주(행)를 넘어갈 때 하나로 이어진 바처럼 보이도록, 실제 시작/끝에만 둥근 모서리 적용 */
 .fc .fc-daygrid-event {
   border-radius: 0;
@@ -697,6 +661,44 @@ span.flatpickr-weekday,
 }
 .fc.fc-media-screen {
   @apply min-h-screen;
+}
+/* 모바일 전용 오버라이드. 이 블록의 선택자들은 위에서 선언한 기본(데스크톱) .fc-daygrid-day 등 규칙과
+   특이도가 같아서, Tailwind/Turbopack이 빌드 시 @media 블록을 소스 순서와 무관하게 재배치할 수 있다.
+   그래서 소스 위치가 아니라 !important로 확실히 이기도록 강제한다(모바일 캘린더에서 셀 여백이 줄지
+   않고 폭이 718px로 강제돼 가로 스크롤이 생기며 일정 글씨가 1글자만 보이던 버그의 원인). */
+@media (max-width: 640px) {
+  .fc-dayGridMonth-view.fc-view.fc-daygrid {
+    @apply !min-w-0;
+  }
+  .fc .fc-col-header-cell-cushion {
+    @apply !px-1 !py-2 text-[11px];
+  }
+  .fc .fc-daygrid-day {
+    @apply !p-0.5;
+  }
+  .fc .fc-daygrid-day-number,
+  .fc .fc-daynum {
+    @apply !p-1 text-xs;
+  }
+  .fc .fc-toolbar.fc-header-toolbar {
+    @apply px-2 pt-3;
+  }
+  .fc-toolbar-title {
+    @apply !text-base;
+  }
+  .fc .fc-daygrid-day-frame {
+    @apply min-h-[52px];
+  }
+  .fc .fc-daygrid-event {
+    @apply !mx-0 !px-1 !py-0.5;
+  }
+  .fc .fc-event-title,
+  .fc .fc-event-time {
+    @apply truncate text-[10px] leading-tight;
+  }
+  .fc .fc-daygrid-event-dot {
+    @apply mr-1 h-2 w-2;
+  }
 }
 
 .input-date-icon::-webkit-inner-spin-button,

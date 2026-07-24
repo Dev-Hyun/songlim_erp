@@ -20,10 +20,22 @@ function colorForEvent(id: number) {
   return EVENT_COLORS[id % EVENT_COLORS.length];
 }
 
+// dateStr(로컬 캘린더 날짜)에 순수하게 일수만 더하는 함수. new Date(str).toISOString()로 변환하면
+// 한국(UTC+9)처럼 UTC보다 앞선 시간대에서는 자정이 전날 UTC로 밀려 결과가 하루씩 어긋난다(다일 일정의
+// 마지막 날이 항상 누락되던 버그의 원인). UTC 기준으로만 계산해서 로컬 타임존 변환을 아예 거치지 않는다.
 function addDays(dateStr: string, days: number): string {
-  const d = new Date(dateStr + "T00:00:00");
-  d.setDate(d.getDate() + days);
-  return d.toISOString().slice(0, 10);
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d + days));
+  return dt.toISOString().slice(0, 10);
+}
+
+// FullCalendar가 넘겨주는 Date는 로컬 자정을 나타내므로, addDays와 같은 이유로 toISOString()이 아니라
+// 로컬 getter로 날짜 문자열을 만들어야 한다.
+function toDateKey(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
 }
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8010";
@@ -251,7 +263,7 @@ const Calendar: React.FC = () => {
             right: "",
           }}
           dayCellContent={(arg: DayCellContentArg) => {
-            const key = arg.date.toISOString().slice(0, 10);
+            const key = toDateKey(arg.date);
             const holiday = KOREAN_HOLIDAYS[key];
             return (
               <>
@@ -260,7 +272,7 @@ const Calendar: React.FC = () => {
               </>
             );
           }}
-          dayCellClassNames={(arg) => (KOREAN_HOLIDAYS[arg.date.toISOString().slice(0, 10)] ? ["fc-holiday-cell"] : [])}
+          dayCellClassNames={(arg) => (KOREAN_HOLIDAYS[toDateKey(arg.date)] ? ["fc-holiday-cell"] : [])}
           events={fcEvents}
           selectable={true}
           select={handleDateSelect}

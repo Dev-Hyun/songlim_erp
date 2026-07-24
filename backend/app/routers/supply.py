@@ -73,7 +73,7 @@ async def list_catalog(
         if it.category in restricted and it.category not in allowed:
             continue
         result.append({
-            "id": it.id, "name": it.name, "spec": it.spec, "category": it.category,
+            "id": it.id, "name": it.name, "spec": it.spec, "manufacturer": it.manufacturer, "category": it.category,
             "unit": it.unit,
             "price": overrides.get(it.id, it.unit_price), "base_price": it.unit_price,
             "has_special_price": it.id in overrides,

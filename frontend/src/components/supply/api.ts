@@ -4,6 +4,7 @@ export interface CatalogItem {
   id: number;
   name: string;
   spec: string | null;
+  manufacturer: string | null;
   category: string;
   unit: string;
   price: number;

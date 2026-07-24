@@ -34,7 +34,7 @@ async def list_notifications(db: AsyncSession = Depends(get_db), user: User = De
         await db.execute(select(Notice).where(Notice.notice_type == "hospital").order_by(Notice.created_at.desc()).limit(10))
     ).scalars().all()
     for n in notices:
-        items.append({"type": "notice", "label": "병원용 공지사항", "title": n.title, "created_at": _iso(n.created_at), "link": "/notices/hospital"})
+        items.append({"type": "notice", "label": "병원 공지사항", "title": n.title, "created_at": _iso(n.created_at), "link": "/notices/hospital"})
 
     news = (await db.execute(select(NewsArticle).order_by(NewsArticle.created_at.desc()).limit(10))).scalars().all()
     for a in news:

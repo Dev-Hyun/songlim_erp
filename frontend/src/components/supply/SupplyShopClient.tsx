@@ -191,7 +191,7 @@ export default function SupplyShopClient() {
         ) : filtered.length === 0 ? (
           <div className="p-10 text-center text-sm text-gray-400">해당 조건의 품목이 없습니다</div>
         ) : (
-          <div className="grid grid-cols-2 gap-3.5 sm:grid-cols-3 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3.5 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
             {filtered.map((it) => (
               <div
                 key={it.id}
@@ -214,7 +214,8 @@ export default function SupplyShopClient() {
                 </div>
                 <div className="mb-0.5 text-[10px] font-bold uppercase text-brand-500">{it.category}</div>
                 <div className="mb-1 min-h-[34px] text-[13px] font-semibold leading-snug text-gray-800 dark:text-white/90">{it.name}</div>
-                <div className="mb-2 text-[11px] text-gray-400">단위: {it.unit}</div>
+                <div className="text-[11px] text-gray-400">{it.manufacturer || "-"}</div>
+                <div className="mb-2 text-[11px] text-gray-400">{it.spec ? `${it.spec} · ` : ""}{it.unit}</div>
                 <div className="flex items-baseline gap-1.5">
                   <span className="text-base font-extrabold text-gray-900 dark:text-white">{it.price.toLocaleString()}원</span>
                   {it.has_special_price && it.base_price !== it.price && (
@@ -269,7 +270,9 @@ export default function SupplyShopClient() {
               </div>
               <div className="flex-1">
                 <h3 className="mb-1 text-2xl font-bold text-gray-900 dark:text-white">{detail.name}</h3>
-                <p className="mb-4 text-sm text-gray-400">단위: {detail.unit} · {detail.category}</p>
+                <p className="mb-4 text-sm text-gray-400">
+                  {detail.category}{detail.manufacturer && ` · ${detail.manufacturer}`} · {detail.spec ? `${detail.spec} · ` : ""}{detail.unit}
+                </p>
                 {detail.description && <p className="mb-4 text-sm text-gray-600 dark:text-gray-300">{detail.description}</p>}
                 <div className="flex items-baseline justify-between rounded-xl bg-brand-50 px-4 py-3.5 dark:bg-brand-500/10">
                   <span className="text-xs font-semibold text-gray-500">병원 적용가</span>

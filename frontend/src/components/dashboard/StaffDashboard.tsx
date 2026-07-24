@@ -148,7 +148,7 @@ export default function StaffDashboard() {
       </div>
 
       <div className="col-span-12 xl:col-span-6">
-        <ComponentCard title="사내 공지사항" className="h-[380px]">
+        <ComponentCard title="회사 공지사항" className="h-[380px]">
           {loading ? (
             <div className="py-6 text-center text-sm text-gray-400">불러오는 중...</div>
           ) : notices.length === 0 ? (

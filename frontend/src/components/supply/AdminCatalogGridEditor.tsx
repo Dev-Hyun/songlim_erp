@@ -30,12 +30,14 @@ const EMPTY_FORM: CatalogInput = {
 function Card({
   item,
   index,
+  draggable,
   onMove,
   onDrop,
   onOpen,
 }: {
   item: AdminCatalogItem;
   index: number;
+  draggable: boolean;
   onMove: (from: number, to: number) => void;
   onDrop: () => void;
   onOpen: () => void;
@@ -44,13 +46,15 @@ function Card({
   const [{ isDragging }, dragRef] = useDrag({
     type: ITEM_TYPE,
     item: { index },
+    canDrag: () => draggable,
     collect: (monitor) => ({ isDragging: monitor.isDragging() }),
     end: onDrop,
   });
   const [, dropRef] = useDrop({
     accept: ITEM_TYPE,
+    canDrop: () => draggable,
     hover: (dragged: { index: number }) => {
-      if (dragged.index === index) return;
+      if (!draggable || dragged.index === index) return;
       onMove(dragged.index, index);
       dragged.index = index;
     },
@@ -65,7 +69,9 @@ function Card({
         isDragging ? "opacity-30" : ""
       } ${!item.is_active ? "opacity-50" : ""}`}
     >
-      <div className="absolute left-2 top-2 cursor-grab text-gray-300" title="드래그해서 순서변경">⠿</div>
+      {draggable && (
+        <div className="absolute left-2 top-2 cursor-grab text-gray-300" title="드래그해서 순서변경">⠿</div>
+      )}
       <div className="mb-3 flex h-20 items-center justify-center overflow-hidden rounded-lg bg-brand-50 text-2xl dark:bg-brand-500/10">
         {item.image_key ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -77,7 +83,8 @@ function Card({
       {item.code && <div className="mb-0.5 text-[10px] text-gray-400">#{item.code}</div>}
       <div className="mb-0.5 text-[10px] font-bold uppercase text-brand-500">{item.category}</div>
       <div className="mb-1 min-h-[34px] text-[13px] font-semibold leading-snug text-gray-800 dark:text-white/90">{item.name}</div>
-      <div className="mb-2 text-[11px] text-gray-400">{item.manufacturer || "-"} · 단위: {item.unit}</div>
+      <div className="text-[11px] text-gray-400">{item.manufacturer || "-"}</div>
+      <div className="mb-2 text-[11px] text-gray-400">{item.spec ? `${item.spec} · ` : ""}{item.unit}</div>
       <div className="text-base font-extrabold text-gray-900 dark:text-white">{item.unit_price.toLocaleString()}원</div>
       {!item.is_active && <span className="mt-1.5 inline-block rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-bold text-gray-500 dark:bg-white/10">비노출</span>}
     </div>
@@ -91,6 +98,8 @@ export default function AdminCatalogGridEditor({ onClose }: { onClose: () => voi
   const [form, setForm] = useState<CatalogInput>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const imageInputRef = useRef<HTMLInputElement>(null);
+  const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
+  const [filteredItems, setFilteredItems] = useState<AdminCatalogItem[]>([]);
 
   function load() {
     setLoading(true);
@@ -98,8 +107,19 @@ export default function AdminCatalogGridEditor({ onClose }: { onClose: () => voi
   }
   useEffect(load, []);
 
+  const categories = Array.from(new Set(items.map((it) => it.category))).sort();
+
+  // 카테고리를 선택했을 때만 그 카테고리 안에서 드래그 순서 변경이 가능하도록 별도 상태로 분리 —
+  // "전체" 보기는 추가한 순서(id) 그대로 보여주고 재정렬 대상이 아니다.
+  useEffect(() => {
+    if (categoryFilter) setFilteredItems(items.filter((it) => it.category === categoryFilter));
+  }, [items, categoryFilter]);
+
+  const displayItems = categoryFilter ? filteredItems : [...items].sort((a, b) => a.id - b.id);
+
   function moveCard(from: number, to: number) {
-    setItems((prev) => {
+    if (!categoryFilter) return;
+    setFilteredItems((prev) => {
       const next = [...prev];
       const [moved] = next.splice(from, 1);
       next.splice(to, 0, moved);
@@ -108,7 +128,8 @@ export default function AdminCatalogGridEditor({ onClose }: { onClose: () => voi
   }
 
   async function persistOrder() {
-    await adminReorderCatalog(items.map((it) => it.id));
+    if (!categoryFilter) return;
+    await adminReorderCatalog(filteredItems.map((it) => it.id));
   }
 
   function openNew() {
@@ -169,6 +190,24 @@ export default function AdminCatalogGridEditor({ onClose }: { onClose: () => voi
       <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
         <DndProvider backend={HTML5Backend}>
           <div className="flex-1 overflow-y-auto p-5">
+            <div className="mb-4 flex flex-wrap items-center gap-1.5">
+              <button
+                onClick={() => setCategoryFilter(null)}
+                className={`rounded-full px-3 py-1.5 text-xs font-bold ${!categoryFilter ? "bg-brand-500 text-white" : "bg-gray-100 text-gray-500 dark:bg-white/10"}`}
+              >
+                전체
+              </button>
+              {categories.map((c) => (
+                <button
+                  key={c}
+                  onClick={() => setCategoryFilter(c)}
+                  className={`rounded-full px-3 py-1.5 text-xs font-bold ${categoryFilter === c ? "bg-brand-500 text-white" : "bg-gray-100 text-gray-500 dark:bg-white/10"}`}
+                >
+                  {c}
+                </button>
+              ))}
+              {categoryFilter && <span className="ml-1 text-[11px] text-gray-400">드래그해서 이 카테고리 안에서 순서 변경</span>}
+            </div>
             {loading ? (
               <div className="p-10 text-center text-sm text-gray-400">불러오는 중...</div>
             ) : (
@@ -182,8 +221,8 @@ export default function AdminCatalogGridEditor({ onClose }: { onClose: () => voi
                   <span className="text-2xl">+</span>
                   새 품목
                 </button>
-                {items.map((it, i) => (
-                  <Card key={it.id} item={it} index={i} onMove={moveCard} onDrop={persistOrder} onOpen={() => openEdit(it)} />
+                {displayItems.map((it, i) => (
+                  <Card key={it.id} item={it} index={i} draggable={!!categoryFilter} onMove={moveCard} onDrop={persistOrder} onOpen={() => openEdit(it)} />
                 ))}
               </div>
             )}
@@ -204,6 +243,10 @@ export default function AdminCatalogGridEditor({ onClose }: { onClose: () => voi
             )}
           </button>
           <input ref={imageInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
+          <p className="text-[11px] leading-relaxed text-gray-400">
+            권장 사진 규격: 정사각형 1000×1000px 이상 (예: 휴대폰 카메라로 품목을 가운데 두고 촬영 후 정사각형으로 자르기).
+            모바일·PC 카드에서 모두 잘리지 않고 선명하게 보입니다.
+          </p>
 
           <input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} placeholder="코드" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900" />
           <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="품목명" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900" />
