@@ -2,7 +2,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -69,6 +69,27 @@ async def create_event(payload: CalendarEventIn, db: AsyncSession = Depends(get_
         await db.commit()
 
     return {"id": e.id}
+
+
+@router.patch("/{eid}")
+async def update_event(eid: int, payload: CalendarEventIn, db: AsyncSession = Depends(get_db), user: User = Depends(require_staff)):
+    e = (await db.execute(select(CalendarEvent).where(CalendarEvent.id == eid))).scalar_one_or_none()
+    if not e:
+        raise HTTPException(status_code=404, detail="일정을 찾을 수 없습니다")
+    if e.created_by != user.id and not user.is_admin:
+        raise HTTPException(status_code=403, detail="권한이 없습니다")
+    e.title = payload.title
+    e.start_at = payload.start_at
+    e.end_at = payload.end_at
+    e.is_shared = payload.is_shared
+    await db.execute(delete(CalendarEventAssignee).where(CalendarEventAssignee.event_id == eid))
+    await db.execute(delete(CalendarEventTeam).where(CalendarEventTeam.event_id == eid))
+    for uid in payload.assignee_ids:
+        db.add(CalendarEventAssignee(event_id=eid, user_id=uid))
+    for team in payload.teams:
+        db.add(CalendarEventTeam(event_id=eid, team=team))
+    await db.commit()
+    return {"ok": True}
 
 
 @router.delete("/{eid}")

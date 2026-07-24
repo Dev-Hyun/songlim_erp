@@ -10,7 +10,9 @@ class SupplyCatalog(Base, TimestampMixin):
     __tablename__ = "supply_catalog"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    code: Mapped[Optional[str]] = mapped_column(default=None)  # 품목 코드(사내 관리번호)
     name: Mapped[str] = mapped_column()
+    manufacturer: Mapped[Optional[str]] = mapped_column(default=None)
     spec: Mapped[Optional[str]] = mapped_column(default=None)
     category: Mapped[str] = mapped_column(default="기타")
     unit: Mapped[str] = mapped_column(default="개")  # 자유 입력, 예: "100입/1box"

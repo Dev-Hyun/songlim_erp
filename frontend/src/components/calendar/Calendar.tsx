@@ -54,6 +54,7 @@ const TABS: { v: Tab; l: string }[] = [
 
 const Calendar: React.FC = () => {
   const [selectedEvent, setSelectedEvent] = useState<ApiEvent | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
   const [eventTitle, setEventTitle] = useState("");
   const [eventStartDate, setEventStartDate] = useState("");
   const [eventEndDate, setEventEndDate] = useState("");
@@ -137,6 +138,7 @@ const Calendar: React.FC = () => {
     const ev = events.find((e) => String(e.id) === clickInfo.event.id);
     if (!ev) return;
     setSelectedEvent(ev);
+    setIsEditing(false);
     setEventTitle(ev.title);
     setEventStartDate(ev.start_at);
     setEventEndDate(ev.end_at || ev.start_at);
@@ -145,21 +147,41 @@ const Calendar: React.FC = () => {
     openModal();
   };
 
-  async function handleAdd() {
+  const handleOpenNewEvent = () => {
+    resetModalFields();
+    openModal();
+  };
+
+  const handleCloseModal = () => {
+    closeModal();
+    resetModalFields();
+  };
+
+  async function handleSave() {
     if (!eventTitle.trim() || !eventStartDate) return;
-    await fetch(`${API}/api/calendar-events`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({
-        title: eventTitle,
-        start_at: eventStartDate,
-        end_at: eventEndDate,
-        is_shared: teams.length > 0,
-        teams,
-        assignee_ids: assigneeIds,
-      }),
+    const body = JSON.stringify({
+      title: eventTitle,
+      start_at: eventStartDate,
+      end_at: eventEndDate,
+      is_shared: teams.length > 0,
+      teams,
+      assignee_ids: assigneeIds,
     });
+    if (selectedEvent) {
+      await fetch(`${API}/api/calendar-events/${selectedEvent.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body,
+      });
+    } else {
+      await fetch(`${API}/api/calendar-events`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body,
+      });
+    }
     closeModal();
     resetModalFields();
     load();
@@ -180,6 +202,7 @@ const Calendar: React.FC = () => {
     setTeams([]);
     setAssigneeIds([]);
     setSelectedEvent(null);
+    setIsEditing(false);
   };
 
   function toggleTeam(t: string) {
@@ -245,87 +268,98 @@ const Calendar: React.FC = () => {
           customButtons={{
             addEventButton: {
               text: "+ 일정 추가",
-              click: openModal,
+              click: handleOpenNewEvent,
             },
           }}
         />
       </div>
-      <Modal isOpen={isOpen} onClose={closeModal} className="max-w-[600px] p-6 lg:p-10">
-        <div className="flex flex-col px-2 overflow-y-auto custom-scrollbar">
-          <h5 className="mb-6 font-semibold text-gray-800 text-theme-xl dark:text-white/90 lg:text-2xl">
-            {selectedEvent ? "일정 상세" : "새 일정"}
-          </h5>
-          <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">제목</label>
-            <input
-              value={eventTitle}
-              onChange={(e) => setEventTitle(e.target.value)}
-              disabled={!!selectedEvent}
-              className="h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
-            />
-          </div>
-          <div className="mt-4 flex gap-3">
-            <div className="flex-1">
-              <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">시작일</label>
-              <input type="date" value={eventStartDate} onChange={(e) => setEventStartDate(e.target.value)} disabled={!!selectedEvent}
-                className="h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90" />
-            </div>
-            <div className="flex-1">
-              <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">종료일</label>
-              <input type="date" value={eventEndDate} onChange={(e) => setEventEndDate(e.target.value)} disabled={!!selectedEvent}
-                className="h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90" />
-            </div>
-          </div>
+      <Modal isOpen={isOpen} onClose={handleCloseModal} className="max-w-[600px] p-6 lg:p-10">
+        {(() => {
+          const canManage = !selectedEvent || (!!user && user.id === selectedEvent.created_by) || !!user?.is_admin;
+          const fieldsDisabled = !!selectedEvent && !isEditing;
+          return (
+            <div className="flex flex-col px-2 overflow-y-auto custom-scrollbar">
+              <h5 className="mb-6 font-semibold text-gray-800 text-theme-xl dark:text-white/90 lg:text-2xl">
+                {selectedEvent ? (isEditing ? "일정 수정" : "일정 상세") : "새 일정"}
+              </h5>
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">제목</label>
+                <input
+                  value={eventTitle}
+                  onChange={(e) => setEventTitle(e.target.value)}
+                  disabled={fieldsDisabled}
+                  className="h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
+                />
+              </div>
+              <div className="mt-4 flex gap-3">
+                <div className="flex-1">
+                  <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">시작일</label>
+                  <input type="date" value={eventStartDate} onChange={(e) => setEventStartDate(e.target.value)} disabled={fieldsDisabled}
+                    className="h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90" />
+                </div>
+                <div className="flex-1">
+                  <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">종료일</label>
+                  <input type="date" value={eventEndDate} onChange={(e) => setEventEndDate(e.target.value)} disabled={fieldsDisabled}
+                    className="h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90" />
+                </div>
+              </div>
 
-          <div className="mt-4">
-            <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">팀 공유 (다중 선택)</label>
-            <div className="flex flex-wrap gap-1.5">
-              {teamOptions.map((t) => (
-                <button
-                  key={t}
-                  type="button"
-                  disabled={!!selectedEvent}
-                  onClick={() => toggleTeam(t)}
-                  className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
-                    teams.includes(t) ? "bg-brand-500 text-white" : "bg-gray-100 text-gray-500 dark:bg-white/10"
-                  }`}
-                >
-                  {t}
-                </button>
-              ))}
-            </div>
-          </div>
+              <div className="mt-4">
+                <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">팀 공유 (다중 선택)</label>
+                <div className="flex flex-wrap gap-1.5">
+                  {teamOptions.map((t) => (
+                    <button
+                      key={t}
+                      type="button"
+                      disabled={fieldsDisabled}
+                      onClick={() => toggleTeam(t)}
+                      className={`rounded-full px-2.5 py-1 text-xs font-semibold disabled:opacity-60 ${
+                        teams.includes(t) ? "bg-brand-500 text-white" : "bg-gray-100 text-gray-500 dark:bg-white/10"
+                      }`}
+                    >
+                      {t}
+                    </button>
+                  ))}
+                </div>
+              </div>
 
-          <div className="mt-4">
-            <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">팀원 초대 (다중 선택)</label>
-            <div className="flex max-h-28 flex-wrap gap-1.5 overflow-y-auto">
-              {staff.map((s) => (
-                <button
-                  key={s.id}
-                  type="button"
-                  disabled={!!selectedEvent}
-                  onClick={() => toggleAssignee(s.id)}
-                  className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
-                    assigneeIds.includes(s.id) ? "bg-brand-500 text-white" : "bg-gray-100 text-gray-500 dark:bg-white/10"
-                  }`}
-                >
-                  {s.display_name}
-                </button>
-              ))}
-            </div>
-          </div>
+              <div className="mt-4">
+                <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">팀원 초대 (다중 선택)</label>
+                <div className="flex max-h-28 flex-wrap gap-1.5 overflow-y-auto">
+                  {staff.map((s) => (
+                    <button
+                      key={s.id}
+                      type="button"
+                      disabled={fieldsDisabled}
+                      onClick={() => toggleAssignee(s.id)}
+                      className={`rounded-full px-2.5 py-1 text-xs font-semibold disabled:opacity-60 ${
+                        assigneeIds.includes(s.id) ? "bg-brand-500 text-white" : "bg-gray-100 text-gray-500 dark:bg-white/10"
+                      }`}
+                    >
+                      {s.display_name}
+                    </button>
+                  ))}
+                </div>
+              </div>
 
-          <div className="mt-6 flex items-center gap-3 sm:justify-end">
-            <button onClick={closeModal} className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 sm:w-auto">닫기</button>
-            {selectedEvent ? (
-              user && user.id === selectedEvent.created_by && (
-                <button onClick={handleDelete} className="w-full rounded-lg bg-error-500 px-4 py-2.5 text-sm font-medium text-white sm:w-auto">삭제</button>
-              )
-            ) : (
-              <button onClick={handleAdd} className="w-full rounded-lg bg-brand-500 px-4 py-2.5 text-sm font-medium text-white sm:w-auto">등록</button>
-            )}
-          </div>
-        </div>
+              <div className="mt-6 flex items-center gap-3 sm:justify-end">
+                <button onClick={handleCloseModal} className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 sm:w-auto">닫기</button>
+                {selectedEvent && !isEditing ? (
+                  canManage && (
+                    <>
+                      <button onClick={handleDelete} className="w-full rounded-lg bg-error-500 px-4 py-2.5 text-sm font-medium text-white sm:w-auto">삭제</button>
+                      <button onClick={() => setIsEditing(true)} className="w-full rounded-lg bg-brand-500 px-4 py-2.5 text-sm font-medium text-white sm:w-auto">수정</button>
+                    </>
+                  )
+                ) : (
+                  <button onClick={handleSave} className="w-full rounded-lg bg-brand-500 px-4 py-2.5 text-sm font-medium text-white sm:w-auto">
+                    {selectedEvent ? "수정 저장" : "등록"}
+                  </button>
+                )}
+              </div>
+            </div>
+          );
+        })()}
       </Modal>
     </div>
   );

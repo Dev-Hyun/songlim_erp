@@ -252,7 +252,9 @@ async def reorder_items(oid: int, db: AsyncSession = Depends(get_db), user: User
 # 관리자(송림 직원)측 — 카탈로그/카테고리권한/병원별 등급·가격오버라이드/발주관리
 # ────────────────────────────────────────────────────────
 class CatalogIn(BaseModel):
+    code: Optional[str] = None
     name: str
+    manufacturer: Optional[str] = None
     spec: Optional[str] = None
     category: str = "기타"
     unit: str = "개"  # 자유 입력, 예: "100입/1box"
@@ -265,7 +267,8 @@ class CatalogIn(BaseModel):
 
 def _serialize_catalog(c: SupplyCatalog) -> dict:
     return {
-        "id": c.id, "name": c.name, "spec": c.spec, "category": c.category,
+        "id": c.id, "code": c.code, "name": c.name, "manufacturer": c.manufacturer,
+        "spec": c.spec, "category": c.category,
         "unit": c.unit,
         "unit_price": c.unit_price, "description": c.description, "image_key": c.image_key,
         "sort_order": c.sort_order, "is_active": c.is_active,
@@ -307,7 +310,7 @@ async def admin_delete_catalog(cid: int, db: AsyncSession = Depends(get_db), _: 
     return {"ok": True}
 
 
-CATALOG_XLSX_HEADERS = ["품목명", "카테고리", "단위", "기본금액", "노출여부"]
+CATALOG_XLSX_HEADERS = ["코드", "품목명", "제조사", "카테고리", "단위", "기본금액", "노출여부"]
 
 
 @router.get("/admin/catalog/export")
@@ -324,8 +327,8 @@ async def admin_export_catalog(db: AsyncSession = Depends(get_db), _: User = Dep
     ws.title = "소모품 카탈로그"
     ws.append(CATALOG_XLSX_HEADERS)
     for c in rows:
-        ws.append([c.name, c.category, c.unit, c.unit_price, "O" if c.is_active else "X"])
-    for i, w in enumerate([28, 14, 16, 12, 10], start=1):
+        ws.append([c.code or "", c.name, c.manufacturer or "", c.category, c.unit, c.unit_price, "O" if c.is_active else "X"])
+    for i, w in enumerate([12, 28, 16, 14, 16, 12, 10], start=1):
         ws.column_dimensions[chr(64 + i)].width = w
 
     buf = io.BytesIO()
@@ -354,18 +357,20 @@ async def admin_import_catalog(file: UploadFile = File(...), db: AsyncSession = 
     added = 0
     skipped = 0
     for row in ws.iter_rows(min_row=2, values_only=True):
-        if not row or not row[0]:
+        if not row or len(row) < 2 or not row[1]:
             continue
-        name = str(row[0]).strip()
+        code = str(row[0]).strip() if row[0] else None
+        name = str(row[1]).strip()
         if not name or name in existing_names:
             skipped += 1
             continue
-        category = str(row[1]).strip() if len(row) > 1 and row[1] else "기타"
-        unit = str(row[2]).strip() if len(row) > 2 and row[2] else "개"
-        unit_price = int(row[3]) if len(row) > 3 and row[3] else 0
-        is_active = not (len(row) > 4 and str(row[4]).strip().upper() == "X")
+        manufacturer = str(row[2]).strip() if len(row) > 2 and row[2] else None
+        category = str(row[3]).strip() if len(row) > 3 and row[3] else "기타"
+        unit = str(row[4]).strip() if len(row) > 4 and row[4] else "개"
+        unit_price = int(row[5]) if len(row) > 5 and row[5] else 0
+        is_active = not (len(row) > 6 and str(row[6]).strip().upper() == "X")
         db.add(SupplyCatalog(
-            name=name, category=category, unit=unit,
+            code=code, name=name, manufacturer=manufacturer, category=category, unit=unit,
             unit_price=unit_price, is_active=is_active,
         ))
         existing_names.add(name)
@@ -374,66 +379,20 @@ async def admin_import_catalog(file: UploadFile = File(...), db: AsyncSession = 
     return {"added": added, "skipped": skipped}
 
 
-@router.get("/admin/catalog/g2b-search")
-async def admin_g2b_catalog_search(keyword: str, _: User = Depends(require_staff)):
-    """나라장터 종합쇼핑몰 품목정보(조달청 MAS 다수공급자계약)에서 키워드로 품목을 검색해 카탈로그
-    등록 후보로 보여준다. 이 API에는 카테고리 필터가 없어 전체 품목을 페이지 단위로 훑으며
-    품명(prdctSpecNm)에 키워드가 포함된 것만 골라낸다(입찰정보 G2B 필터와 동일한 방식).
-    가격은 정부 계약 참고단가이며 실제 판매가가 아니므로 등록 전 확인이 필요하다."""
-    import os
-    from urllib.parse import quote
+class CatalogReorderIn(BaseModel):
+    ordered_ids: list[int]
 
-    import requests
 
-    api_key = os.environ.get("G2B_API_KEY", "")
-    if not api_key:
-        raise HTTPException(status_code=503, detail="G2B_API_KEY가 설정되지 않았습니다")
-    if not keyword.strip():
-        raise HTTPException(status_code=400, detail="검색어를 입력하세요")
-
-    url = "https://apis.data.go.kr/1230000/at/ShoppingMallPrdctInfoService/getMASCntrctPrdctInfoList"
-    key = quote(api_key, safe="")
-    kw = keyword.strip()
-    results = []
-    seen = set()
-    try:
-        for page in range(1, 12):  # 전체 품목이 약 8천여건이라 1만건(=10페이지)까지 전수 스캔
-            resp = requests.get(
-                f"{url}?ServiceKey={key}&pageNo={page}&numOfRows=1000&type=json", timeout=20
-            )
-            resp.raise_for_status()
-            body = resp.json().get("response", {}).get("body", {})
-            items = body.get("items", [])
-            if not items:
-                break
-            if isinstance(items, dict):
-                items = [items]
-            for it in items:
-                spec = (it.get("prdctSpecNm") or "").strip()
-                if kw not in spec:
-                    continue
-                pid = it.get("prdctIdntNo") or spec
-                if pid in seen:
-                    continue
-                seen.add(pid)
-                results.append({
-                    "name": spec,
-                    "unit": (it.get("prdctUnit") or "").strip() or "개",
-                    "unit_price": int(float(it.get("cntrctPrceAmt") or 0)),
-                    "maker": (it.get("cntrctCorpNm") or "").strip(),
-                    "category": (it.get("prdctLrgclsfcNm") or "").strip(),
-                })
-                if len(results) >= 50:
-                    break
-            if len(results) >= 50:
-                break
-            total_count = int(body.get("totalCount", 0) or 0)
-            if page * 1000 >= total_count:
-                break
-    except requests.RequestException:
-        raise HTTPException(status_code=502, detail="공공데이터포털 API 호출에 실패했습니다")
-
-    return {"items": results}
+@router.post("/admin/catalog/reorder")
+async def admin_reorder_catalog(payload: CatalogReorderIn, db: AsyncSession = Depends(get_db), _: User = Depends(require_staff)):
+    """드래그앤드롭으로 정렬한 순서를 그대로 sort_order에 반영."""
+    rows = (await db.execute(select(SupplyCatalog).where(SupplyCatalog.id.in_(payload.ordered_ids)))).scalars().all()
+    by_id = {c.id: c for c in rows}
+    for i, cid in enumerate(payload.ordered_ids):
+        if cid in by_id:
+            by_id[cid].sort_order = i
+    await db.commit()
+    return {"ok": True}
 
 
 class CategoryAccessIn(BaseModel):

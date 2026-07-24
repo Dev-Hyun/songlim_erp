@@ -82,7 +82,9 @@ export const fetchReorderItems = (id: number): Promise<{ catalog_id: number; nam
 // ── 관리자측 ──
 export interface AdminCatalogItem {
   id: number;
+  code: string | null;
   name: string;
+  manufacturer: string | null;
   spec: string | null;
   category: string;
   unit: string;
@@ -97,7 +99,9 @@ export const adminFetchCatalog = (): Promise<AdminCatalogItem[]> =>
   fetch(`${API}/api/supply/admin/catalog`, { credentials: "include" }).then((r) => j(r));
 
 export interface CatalogInput {
+  code?: string;
   name: string;
+  manufacturer?: string;
   spec?: string;
   category: string;
   unit: string;
@@ -107,6 +111,9 @@ export interface CatalogInput {
   sort_order?: number;
   is_active?: boolean;
 }
+
+export const adminReorderCatalog = (orderedIds: number[]) =>
+  fetch(`${API}/api/supply/admin/catalog/reorder`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ ordered_ids: orderedIds }) }).then((r) => j(r));
 
 export const adminCreateCatalog = (payload: CatalogInput) =>
   fetch(`${API}/api/supply/admin/catalog`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify(payload) }).then((r) => j(r));
@@ -127,17 +134,6 @@ export async function adminImportCatalog(file: File): Promise<{ added: number; s
 
 export const adminDeleteCatalog = (id: number) =>
   fetch(`${API}/api/supply/admin/catalog/${id}`, { method: "DELETE", credentials: "include" }).then((r) => j(r));
-
-export interface G2BCatalogCandidate {
-  name: string;
-  unit: string;
-  unit_price: number;
-  maker: string;
-  category: string;
-}
-
-export const adminG2BCatalogSearch = (keyword: string): Promise<{ items: G2BCatalogCandidate[] }> =>
-  fetch(`${API}/api/supply/admin/catalog/g2b-search?keyword=${encodeURIComponent(keyword)}`, { credentials: "include" }).then((r) => j(r));
 
 export interface AdminHospital {
   id: number;

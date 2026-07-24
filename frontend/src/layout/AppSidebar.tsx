@@ -123,9 +123,14 @@ const othersItems: NavItem[] = [
 ];
 
 const AppSidebar: React.FC = () => {
-  const { isExpanded, isMobileOpen, isHovered, setIsHovered } = useSidebar();
+  const { isExpanded, isMobileOpen, isHovered, setIsHovered, toggleMobileSidebar } = useSidebar();
   const { user } = useAuth();
   const pathname = usePathname();
+
+  // 모바일에서 메뉴를 선택하면 사이드바를 자동으로 닫아 선택한 화면이 꽉 차게 보이도록 함
+  function handleNavClick() {
+    if (isMobileOpen) toggleMobileSidebar();
+  }
 
   const isHospital = user?.role === "hospital";
   // 병원 계정은 영업/사내 전용 메뉴 전체를 대체하는 별도의 6개 메뉴만 본다
@@ -178,6 +183,7 @@ const AppSidebar: React.FC = () => {
             nav.path && (
               <Link
                 href={nav.path}
+                onClick={handleNavClick}
                 className={`menu-item group ${
                   isActive(nav.path) ? "menu-item-active" : "menu-item-inactive"
                 }`}
@@ -215,6 +221,7 @@ const AppSidebar: React.FC = () => {
                   <li key={subItem.name}>
                     <Link
                       href={subItem.path}
+                      onClick={handleNavClick}
                       className={`menu-dropdown-item ${
                         isActive(subItem.path)
                           ? "menu-dropdown-item-active"

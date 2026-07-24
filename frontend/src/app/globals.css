@@ -524,12 +524,31 @@ span.flatpickr-weekday,
   .fc-toolbar-title {
     @apply !text-base;
   }
-  .event-fc-color {
-    @apply px-1.5 py-1;
+  .fc .fc-daygrid-day-frame {
+    @apply min-h-[52px];
   }
-  .event-fc-color .fc-event-title {
-    @apply text-[11px];
+  .fc .fc-daygrid-event {
+    @apply !mx-0 px-1 py-0.5;
   }
+  .fc .fc-event-title,
+  .fc .fc-event-time {
+    @apply truncate text-[10px] leading-tight;
+  }
+  .fc .fc-daygrid-event-dot {
+    @apply mr-1 h-2 w-2;
+  }
+}
+/* 여러날 이벤트가 주(행)를 넘어갈 때 하나로 이어진 바처럼 보이도록, 실제 시작/끝에만 둥근 모서리 적용 */
+.fc .fc-daygrid-event {
+  border-radius: 0;
+}
+.fc .fc-daygrid-event.fc-event-start {
+  border-top-left-radius: 6px;
+  border-bottom-left-radius: 6px;
+}
+.fc .fc-daygrid-event.fc-event-end {
+  border-top-right-radius: 6px;
+  border-bottom-right-radius: 6px;
 }
 /* 토요일/일요일/공휴일은 빨간 날짜로 표시 */
 .fc .fc-day-sat .fc-daynum,
