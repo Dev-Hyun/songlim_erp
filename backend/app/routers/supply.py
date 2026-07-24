@@ -397,7 +397,7 @@ async def admin_g2b_catalog_search(keyword: str, _: User = Depends(require_staff
     results = []
     seen = set()
     try:
-        for page in range(1, 6):  # 최대 5,000건까지만 훑음 (전체 품목이 아주 많아 무한정 페이징 방지)
+        for page in range(1, 12):  # 전체 품목이 약 8천여건이라 1만건(=10페이지)까지 전수 스캔
             resp = requests.get(
                 f"{url}?ServiceKey={key}&pageNo={page}&numOfRows=1000&type=json", timeout=20
             )
