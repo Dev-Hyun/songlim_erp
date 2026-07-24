@@ -256,6 +256,7 @@ export default function AdminOrdersClient() {
                   <tr className="border-b border-gray-200 text-left text-gray-400 dark:border-gray-800">
                     <th className="py-1.5">품목</th>
                     <th className="py-1.5 text-right">수량</th>
+                    <th className="py-1.5 text-left pl-3">단위</th>
                     <th className="py-1.5 text-right">단가</th>
                     <th className="py-1.5 text-right">소계</th>
                   </tr>
@@ -264,7 +265,8 @@ export default function AdminOrdersClient() {
                   {detail.items.map((it) => (
                     <tr key={it.id} className="border-b border-gray-100 dark:border-gray-800">
                       <td className="py-1.5">{it.name}</td>
-                      <td className="py-1.5 text-right">{it.qty}{it.pack_size > 1 ? `(${it.pack_size}입/${it.unit})` : it.unit}</td>
+                      <td className="py-1.5 text-right">{it.qty}</td>
+                      <td className="py-1.5 text-left pl-3 text-gray-500">{it.unit}</td>
                       <td className="py-1.5 text-right">{it.unit_price.toLocaleString()}원</td>
                       <td className="py-1.5 text-right font-semibold">{it.subtotal.toLocaleString()}원</td>
                     </tr>

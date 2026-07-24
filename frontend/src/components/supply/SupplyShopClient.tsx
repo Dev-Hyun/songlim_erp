@@ -214,9 +214,7 @@ export default function SupplyShopClient() {
                 </div>
                 <div className="mb-0.5 text-[10px] font-bold uppercase text-brand-500">{it.category}</div>
                 <div className="mb-1 min-h-[34px] text-[13px] font-semibold leading-snug text-gray-800 dark:text-white/90">{it.name}</div>
-                <div className="mb-2 text-[11px] text-gray-400">
-                  {it.pack_size > 1 ? `${it.pack_size}${it.unit}입 단위` : `단위: ${it.unit}`}
-                </div>
+                <div className="mb-2 text-[11px] text-gray-400">단위: {it.unit}</div>
                 <div className="flex items-baseline gap-1.5">
                   <span className="text-base font-extrabold text-gray-900 dark:text-white">{it.price.toLocaleString()}원</span>
                   {it.has_special_price && it.base_price !== it.price && (
@@ -271,9 +269,7 @@ export default function SupplyShopClient() {
               </div>
               <div className="flex-1">
                 <h3 className="mb-1 text-2xl font-bold text-gray-900 dark:text-white">{detail.name}</h3>
-                <p className="mb-4 text-sm text-gray-400">
-                  {detail.pack_size > 1 ? `${detail.pack_size}${detail.unit}입 단위로 주문 가능` : `단위: ${detail.unit}`} · {detail.category}
-                </p>
+                <p className="mb-4 text-sm text-gray-400">단위: {detail.unit} · {detail.category}</p>
                 {detail.description && <p className="mb-4 text-sm text-gray-600 dark:text-gray-300">{detail.description}</p>}
                 <div className="flex items-baseline justify-between rounded-xl bg-brand-50 px-4 py-3.5 dark:bg-brand-500/10">
                   <span className="text-xs font-semibold text-gray-500">병원 적용가</span>

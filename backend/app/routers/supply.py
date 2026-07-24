@@ -74,7 +74,7 @@ async def list_catalog(
             continue
         result.append({
             "id": it.id, "name": it.name, "spec": it.spec, "category": it.category,
-            "pack_size": it.pack_size, "unit": it.unit,
+            "unit": it.unit,
             "price": overrides.get(it.id, it.unit_price), "base_price": it.unit_price,
             "has_special_price": it.id in overrides,
             "description": it.description, "image_key": it.image_key,
@@ -169,7 +169,6 @@ async def create_order(payload: OrderCreateIn, db: AsyncSession = Depends(get_db
         subtotal += line_total
         order_items.append(SupplyOrderItem(
             catalog_id=catalog.id, name_snapshot=catalog.name, unit_snapshot=catalog.unit,
-            pack_size_snapshot=catalog.pack_size,
             unit_price_snapshot=price, qty=it.qty, subtotal=line_total,
         ))
 
@@ -207,7 +206,6 @@ def _serialize_order(o: SupplyOrder) -> dict:
         "created_at": o.created_at, "updated_at": o.updated_at,
         "items": [
             {"id": i.id, "catalog_id": i.catalog_id, "name": i.name_snapshot, "unit": i.unit_snapshot,
-             "pack_size": i.pack_size_snapshot,
              "unit_price": i.unit_price_snapshot, "qty": i.qty, "subtotal": i.subtotal}
             for i in o.items
         ],
@@ -257,8 +255,7 @@ class CatalogIn(BaseModel):
     name: str
     spec: Optional[str] = None
     category: str = "기타"
-    pack_size: int = 1
-    unit: str = "개"
+    unit: str = "개"  # 자유 입력, 예: "100입/1box"
     unit_price: int = 0
     description: Optional[str] = None
     image_key: Optional[str] = None
@@ -269,7 +266,7 @@ class CatalogIn(BaseModel):
 def _serialize_catalog(c: SupplyCatalog) -> dict:
     return {
         "id": c.id, "name": c.name, "spec": c.spec, "category": c.category,
-        "pack_size": c.pack_size, "unit": c.unit,
+        "unit": c.unit,
         "unit_price": c.unit_price, "description": c.description, "image_key": c.image_key,
         "sort_order": c.sort_order, "is_active": c.is_active,
     }
@@ -310,7 +307,7 @@ async def admin_delete_catalog(cid: int, db: AsyncSession = Depends(get_db), _: 
     return {"ok": True}
 
 
-CATALOG_XLSX_HEADERS = ["품목명", "규격", "카테고리", "개수단위", "단위", "기본금액", "설명", "노출여부"]
+CATALOG_XLSX_HEADERS = ["품목명", "카테고리", "단위", "기본금액", "노출여부"]
 
 
 @router.get("/admin/catalog/export")
@@ -327,8 +324,8 @@ async def admin_export_catalog(db: AsyncSession = Depends(get_db), _: User = Dep
     ws.title = "소모품 카탈로그"
     ws.append(CATALOG_XLSX_HEADERS)
     for c in rows:
-        ws.append([c.name, c.spec or "", c.category, c.pack_size, c.unit, c.unit_price, c.description or "", "O" if c.is_active else "X"])
-    for i, w in enumerate([28, 20, 14, 10, 8, 12, 30, 10], start=1):
+        ws.append([c.name, c.category, c.unit, c.unit_price, "O" if c.is_active else "X"])
+    for i, w in enumerate([28, 14, 16, 12, 10], start=1):
         ws.column_dimensions[chr(64 + i)].width = w
 
     buf = io.BytesIO()
@@ -363,21 +360,80 @@ async def admin_import_catalog(file: UploadFile = File(...), db: AsyncSession = 
         if not name or name in existing_names:
             skipped += 1
             continue
-        spec = str(row[1]).strip() if len(row) > 1 and row[1] else None
-        category = str(row[2]).strip() if len(row) > 2 and row[2] else "기타"
-        pack_size = int(row[3]) if len(row) > 3 and row[3] else 1
-        unit = str(row[4]).strip() if len(row) > 4 and row[4] else "개"
-        unit_price = int(row[5]) if len(row) > 5 and row[5] else 0
-        description = str(row[6]).strip() if len(row) > 6 and row[6] else None
-        is_active = not (len(row) > 7 and str(row[7]).strip().upper() == "X")
+        category = str(row[1]).strip() if len(row) > 1 and row[1] else "기타"
+        unit = str(row[2]).strip() if len(row) > 2 and row[2] else "개"
+        unit_price = int(row[3]) if len(row) > 3 and row[3] else 0
+        is_active = not (len(row) > 4 and str(row[4]).strip().upper() == "X")
         db.add(SupplyCatalog(
-            name=name, spec=spec, category=category, pack_size=pack_size, unit=unit,
-            unit_price=unit_price, description=description, is_active=is_active,
+            name=name, category=category, unit=unit,
+            unit_price=unit_price, is_active=is_active,
         ))
         existing_names.add(name)
         added += 1
     await db.commit()
     return {"added": added, "skipped": skipped}
+
+
+@router.get("/admin/catalog/g2b-search")
+async def admin_g2b_catalog_search(keyword: str, _: User = Depends(require_staff)):
+    """나라장터 종합쇼핑몰 품목정보(조달청 MAS 다수공급자계약)에서 키워드로 품목을 검색해 카탈로그
+    등록 후보로 보여준다. 이 API에는 카테고리 필터가 없어 전체 품목을 페이지 단위로 훑으며
+    품명(prdctSpecNm)에 키워드가 포함된 것만 골라낸다(입찰정보 G2B 필터와 동일한 방식).
+    가격은 정부 계약 참고단가이며 실제 판매가가 아니므로 등록 전 확인이 필요하다."""
+    import os
+    from urllib.parse import quote
+
+    import requests
+
+    api_key = os.environ.get("G2B_API_KEY", "")
+    if not api_key:
+        raise HTTPException(status_code=503, detail="G2B_API_KEY가 설정되지 않았습니다")
+    if not keyword.strip():
+        raise HTTPException(status_code=400, detail="검색어를 입력하세요")
+
+    url = "https://apis.data.go.kr/1230000/at/ShoppingMallPrdctInfoService/getMASCntrctPrdctInfoList"
+    key = quote(api_key, safe="")
+    kw = keyword.strip()
+    results = []
+    seen = set()
+    try:
+        for page in range(1, 6):  # 최대 5,000건까지만 훑음 (전체 품목이 아주 많아 무한정 페이징 방지)
+            resp = requests.get(
+                f"{url}?ServiceKey={key}&pageNo={page}&numOfRows=1000&type=json", timeout=20
+            )
+            resp.raise_for_status()
+            body = resp.json().get("response", {}).get("body", {})
+            items = body.get("items", [])
+            if not items:
+                break
+            if isinstance(items, dict):
+                items = [items]
+            for it in items:
+                spec = (it.get("prdctSpecNm") or "").strip()
+                if kw not in spec:
+                    continue
+                pid = it.get("prdctIdntNo") or spec
+                if pid in seen:
+                    continue
+                seen.add(pid)
+                results.append({
+                    "name": spec,
+                    "unit": (it.get("prdctUnit") or "").strip() or "개",
+                    "unit_price": int(float(it.get("cntrctPrceAmt") or 0)),
+                    "maker": (it.get("cntrctCorpNm") or "").strip(),
+                    "category": (it.get("prdctLrgclsfcNm") or "").strip(),
+                })
+                if len(results) >= 50:
+                    break
+            if len(results) >= 50:
+                break
+            total_count = int(body.get("totalCount", 0) or 0)
+            if page * 1000 >= total_count:
+                break
+    except requests.RequestException:
+        raise HTTPException(status_code=502, detail="공공데이터포털 API 호출에 실패했습니다")
+
+    return {"items": results}
 
 
 class CategoryAccessIn(BaseModel):
@@ -424,6 +480,12 @@ async def admin_get_hospital_detail(hid: int, db: AsyncSession = Depends(get_db)
     """회원가입시 입력한 병원 정보 전체 + (영업지도와 연동된 경우) 장비 보유 현황 + 영업노트."""
     hp = await _get_hospital_profile(db, hid)
 
+    contact_rows = (await db.execute(select(User).where(User.hospital_profile_id == hid))).scalars().all()
+    contacts = [
+        {"username": u.username, "display_name": u.display_name, "phone": u.phone, "email": u.email}
+        for u in contact_rows
+    ]
+
     matched = (await db.execute(select(Hospital).where(Hospital.hospital_profile_id == hid))).scalar_one_or_none()
     equipment = []
     notes = []
@@ -458,6 +520,7 @@ async def admin_get_hospital_detail(hid: int, db: AsyncSession = Depends(get_db)
         "business_reg_no": hp.business_reg_no,
         "ceo_name": hp.ceo_name,
         "ceo_phone": hp.ceo_phone,
+        "contacts": contacts,
         "discount_grade_code": hp.discount_grade_code,
         "gift_grade_code": hp.gift_grade_code,
         "matched_hospital_id": matched.id if matched else None,

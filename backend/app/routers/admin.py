@@ -26,13 +26,19 @@ async def list_users(db: AsyncSession = Depends(get_db), _: User = Depends(requi
     result = []
     for u in rows:
         staff = None
+        hospital_name = None
         if u.role == "songrim":
             staff = (await db.execute(select(StaffProfile).where(StaffProfile.user_id == u.id))).scalar_one_or_none()
+        elif u.hospital_profile_id:
+            hp = (await db.execute(select(HospitalProfile).where(HospitalProfile.id == u.hospital_profile_id))).scalar_one_or_none()
+            hospital_name = hp.hospital_name if hp else None
         result.append({
             "id": u.id, "username": u.username, "display_name": u.display_name, "role": u.role,
             "is_admin": u.is_admin, "is_approved": u.is_approved,
             "department": staff.department if staff else None,
             "position": staff.position if staff else None,
+            "hospital_name": hospital_name,
+            "phone": u.phone, "email": u.email,
         })
     return result
 

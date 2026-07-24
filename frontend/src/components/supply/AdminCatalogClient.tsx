@@ -4,12 +4,14 @@ import { useEffect, useRef, useState } from "react";
 import {
   AdminCatalogItem,
   CategoryAccessRow,
+  G2BCatalogCandidate,
   adminAddCategoryAccess,
   adminCatalogExportUrl,
   adminCreateCatalog,
   adminDeleteCatalog,
   adminFetchCatalog,
   adminFetchCategoryAccess,
+  adminG2BCatalogSearch,
   adminImportCatalog,
   adminRemoveCategoryAccess,
   adminUpdateCatalog,
@@ -24,8 +26,11 @@ export default function AdminCatalogClient() {
   const [access, setAccess] = useState<CategoryAccessRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [importing, setImporting] = useState(false);
-  const [form, setForm] = useState({ name: "", spec: "", category: "소모품", pack_size: "1", unit: "개", unit_price: "" });
+  const [form, setForm] = useState({ name: "", spec: "", category: "소모품", unit: "개", unit_price: "" });
   const [accessForm, setAccessForm] = useState({ category: "", hospital_type: "동물병원" });
+  const [g2bKeyword, setG2bKeyword] = useState("");
+  const [g2bResults, setG2bResults] = useState<G2BCatalogCandidate[] | null>(null);
+  const [g2bSearching, setG2bSearching] = useState(false);
   const importInputRef = useRef<HTMLInputElement>(null);
   const imageInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
 
@@ -39,8 +44,8 @@ export default function AdminCatalogClient() {
 
   async function createItem() {
     if (!form.name || !form.unit_price) return;
-    await adminCreateCatalog({ ...form, pack_size: Number(form.pack_size) || 1, unit_price: Number(form.unit_price) });
-    setForm({ name: "", spec: "", category: "소모품", pack_size: "1", unit: "개", unit_price: "" });
+    await adminCreateCatalog({ ...form, unit_price: Number(form.unit_price) });
+    setForm({ name: "", spec: "", category: "소모품", unit: "개", unit_price: "" });
     load();
   }
 
@@ -49,7 +54,7 @@ export default function AdminCatalogClient() {
     setItems((prev) => prev.map((i) => (i.id === item.id ? updated : i)));
     await adminUpdateCatalog(item.id, {
       name: updated.name, spec: updated.spec || undefined, category: updated.category,
-      pack_size: updated.pack_size, unit: updated.unit,
+      unit: updated.unit,
       unit_price: updated.unit_price, description: updated.description || undefined,
       image_key: updated.image_key || undefined, is_active: updated.is_active,
     });
@@ -82,6 +87,25 @@ export default function AdminCatalogClient() {
     }
   }
 
+  async function searchG2b() {
+    if (!g2bKeyword.trim()) return;
+    setG2bSearching(true);
+    setG2bResults(null);
+    try {
+      const res = await adminG2BCatalogSearch(g2bKeyword.trim());
+      setG2bResults(res.items);
+    } catch {
+      alert("공공데이터포털 검색에 실패했습니다");
+    } finally {
+      setG2bSearching(false);
+    }
+  }
+
+  async function addG2bCandidate(c: G2BCatalogCandidate) {
+    await adminCreateCatalog({ name: c.name, category: "기타", unit: c.unit, unit_price: c.unit_price });
+    load();
+  }
+
   async function handleImageUpload(item: AdminCatalogItem, e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     e.target.value = "";
@@ -100,19 +124,18 @@ export default function AdminCatalogClient() {
     <div className="space-y-4">
       <div className="rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-white/[0.03]">
         <h3 className="mb-3 text-sm font-bold text-gray-800 dark:text-white/90">품목 등록</h3>
-        <div className="grid grid-cols-6 gap-2">
+        <div className="grid grid-cols-5 gap-2">
           <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="품목명" className={inputCls} />
           <input value={form.spec} onChange={(e) => setForm({ ...form, spec: e.target.value })} placeholder="규격(선택)" className={inputCls} />
           <input value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} placeholder="카테고리" className={inputCls} />
-          <input type="number" value={form.pack_size} onChange={(e) => setForm({ ...form, pack_size: e.target.value })} placeholder="개수단위" className={inputCls} />
-          <input value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} placeholder="단위" className={inputCls} />
+          <input value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} placeholder="단위 (예: 100입/1box)" className={inputCls} />
           <div className="flex gap-1">
             <input type="number" value={form.unit_price} onChange={(e) => setForm({ ...form, unit_price: e.target.value })} placeholder="기본금액" className={inputCls} />
             <button onClick={createItem} className="shrink-0 rounded-lg bg-brand-500 px-3 text-xs font-bold text-white">추가</button>
           </div>
         </div>
         <p className="mt-2 text-[11px] text-gray-400">
-          개수단위: 예) 100개입 박스 단위로만 주문 가능한 품목은 100, 낱개 주문이면 1. 예: 주사기(정림) 3cc 23G는 개수단위 100 / 단위 ea / 기본금액 5,200원.
+          단위: 박스/묶음 단위로만 주문 가능한 품목은 개수까지 함께 적어주세요. 예: 주사기(정림) 3cc 23G는 단위 &quot;100입/1box&quot; / 기본금액 5,200원.
         </p>
       </div>
 
@@ -123,7 +146,6 @@ export default function AdminCatalogClient() {
               <th className="px-3 py-2">사진</th>
               <th className="px-3 py-2">품목명</th>
               <th className="px-3 py-2">카테고리</th>
-              <th className="px-3 py-2">개수단위</th>
               <th className="px-3 py-2">단위</th>
               <th className="px-3 py-2">기본금액</th>
               <th className="px-3 py-2">노출</th>
@@ -156,8 +178,7 @@ export default function AdminCatalogClient() {
                 </td>
                 <td className="px-3 py-1.5"><input defaultValue={it.name} onBlur={(e) => updateField(it, { name: e.target.value })} className={inputCls + " w-full"} /></td>
                 <td className="px-3 py-1.5"><input defaultValue={it.category} onBlur={(e) => updateField(it, { category: e.target.value })} className={inputCls + " w-24"} /></td>
-                <td className="px-3 py-1.5"><input type="number" defaultValue={it.pack_size} onBlur={(e) => updateField(it, { pack_size: Number(e.target.value) || 1 })} className={inputCls + " w-16"} /></td>
-                <td className="px-3 py-1.5"><input defaultValue={it.unit} onBlur={(e) => updateField(it, { unit: e.target.value })} className={inputCls + " w-16"} /></td>
+                <td className="px-3 py-1.5"><input defaultValue={it.unit} onBlur={(e) => updateField(it, { unit: e.target.value })} className={inputCls + " w-24"} /></td>
                 <td className="px-3 py-1.5"><input type="number" defaultValue={it.unit_price} onBlur={(e) => updateField(it, { unit_price: Number(e.target.value) })} className={inputCls + " w-24"} /></td>
                 <td className="px-3 py-1.5 text-center">
                   <button onClick={() => updateField(it, { is_active: !it.is_active })}>{it.is_active ? "✅" : "⬜"}</button>
@@ -165,7 +186,7 @@ export default function AdminCatalogClient() {
                 <td className="px-3 py-1.5 text-center"><button onClick={() => removeItem(it.id)} className="text-error-500">×</button></td>
               </tr>
             ))}
-            {items.length === 0 && <tr><td colSpan={8} className="p-6 text-center text-gray-400">등록된 품목이 없습니다</td></tr>}
+            {items.length === 0 && <tr><td colSpan={7} className="p-6 text-center text-gray-400">등록된 품목이 없습니다</td></tr>}
           </tbody>
         </table>
         <div className="flex justify-end gap-2 border-t border-gray-100 p-3 dark:border-gray-800">
@@ -184,6 +205,45 @@ export default function AdminCatalogClient() {
           </button>
           <input ref={importInputRef} type="file" accept=".xlsx" className="hidden" onChange={handleImportFile} />
         </div>
+      </div>
+
+      <div className="rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-white/[0.03]">
+        <h3 className="mb-1 text-sm font-bold text-gray-800 dark:text-white/90">공공데이터포털에서 품목 검색해서 추가</h3>
+        <p className="mb-3 text-[11px] text-gray-400">
+          나라장터 종합쇼핑몰(조달청)에 등록된 실제 품명/단위를 검색해 카탈로그에 바로 추가할 수 있습니다.
+          단, 여기 나오는 금액은 정부 계약 참고단가일 뿐 실제 판매가가 아니므로 추가 후 반드시 금액을 확인/수정하세요.
+        </p>
+        <div className="mb-3 flex gap-2">
+          <input
+            value={g2bKeyword}
+            onChange={(e) => setG2bKeyword(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && searchG2b()}
+            placeholder="예: 주사기, 멸균거즈"
+            className={inputCls + " flex-1"}
+          />
+          <button onClick={searchG2b} disabled={g2bSearching} className="rounded-lg bg-brand-500 px-4 text-xs font-bold text-white disabled:opacity-50">
+            {g2bSearching ? "검색 중..." : "검색"}
+          </button>
+        </div>
+        {g2bResults && (
+          <div className="max-h-72 overflow-y-auto rounded-lg border border-gray-100 dark:border-gray-800">
+            {g2bResults.length === 0 ? (
+              <div className="p-4 text-center text-xs text-gray-400">검색 결과가 없습니다</div>
+            ) : (
+              g2bResults.map((c, idx) => (
+                <div key={idx} className="flex items-center justify-between gap-2 border-b border-gray-100 px-3 py-2 text-xs last:border-0 dark:border-gray-800">
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate font-semibold text-gray-800 dark:text-white/90">{c.name}</div>
+                    <div className="text-[11px] text-gray-400">{c.maker} · 단위 {c.unit} · 참고단가 {c.unit_price.toLocaleString()}원</div>
+                  </div>
+                  <button onClick={() => addG2bCandidate(c)} className="shrink-0 rounded-lg border border-brand-300 px-2.5 py-1 text-[11px] font-bold text-brand-500 hover:bg-brand-50 dark:hover:bg-brand-500/10">
+                    + 카탈로그에 추가
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+        )}
       </div>
 
       <div className="rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-white/[0.03]">

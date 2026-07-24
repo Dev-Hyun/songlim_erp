@@ -15,6 +15,9 @@ interface UserRow {
   is_approved: boolean;
   department: string | null;
   position: string | null;
+  hospital_name: string | null;
+  phone: string | null;
+  email: string | null;
 }
 
 interface GradeRow {
@@ -140,8 +143,8 @@ export default function AdminPage() {
               <tr className="border-b border-gray-200 text-left text-xs text-gray-400 dark:border-gray-800">
                 <th className="py-1.5">아이디</th>
                 <th className="py-1.5">이름</th>
-                <th className="py-1.5">역할</th>
-                <th className="py-1.5">부서/직급</th>
+                <th className="py-1.5">구분</th>
+                <th className="py-1.5">부서/직급 · 병원명</th>
                 <th className="w-16" />
               </tr>
             </thead>
@@ -150,8 +153,12 @@ export default function AdminPage() {
                 <tr key={u.id} className="border-b border-gray-100 dark:border-gray-800">
                   <td className="py-1.5">{u.username}</td>
                   <td className="py-1.5">{u.display_name}</td>
-                  <td className="py-1.5">{u.role === "songrim" ? "송림" : "병원"}</td>
-                  <td className="py-1.5">{u.department ? `${u.department} · ${u.position}` : "-"}</td>
+                  <td className="py-1.5">
+                    <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${u.role === "songrim" ? "bg-brand-50 text-brand-600 dark:bg-brand-500/15 dark:text-brand-400" : "bg-success-50 text-success-600 dark:bg-success-500/15 dark:text-success-400"}`}>
+                      {u.role === "songrim" ? "송림직원" : "병원"}
+                    </span>
+                  </td>
+                  <td className="py-1.5">{u.role === "songrim" ? (u.department ? `${u.department} · ${u.position}` : "-") : (u.hospital_name || "-")}</td>
                   <td className="py-1.5">
                     <button onClick={() => approveUser(u.id)} className="rounded-full bg-brand-500 px-3 py-1 text-xs font-bold text-white">승인</button>
                   </td>
@@ -207,8 +214,9 @@ export default function AdminPage() {
             <tr className="border-b border-gray-200 text-left text-xs text-gray-400 dark:border-gray-800">
               <th className="py-1.5">아이디</th>
               <th className="py-1.5">이름</th>
-              <th className="py-1.5">역할</th>
-              <th className="py-1.5">부서/직급</th>
+              <th className="py-1.5">구분</th>
+              <th className="py-1.5">부서/직급 · 병원명</th>
+              <th className="py-1.5">연락처</th>
               <th className="py-1.5">승인상태</th>
               <th className="py-1.5">관리자</th>
               <th className="py-1.5">비밀번호</th>
@@ -220,8 +228,16 @@ export default function AdminPage() {
               <tr key={u.id} className="border-b border-gray-100 dark:border-gray-800">
                 <td className="py-1.5">{u.username}</td>
                 <td className="py-1.5">{u.display_name}</td>
-                <td className="py-1.5">{u.role === "songrim" ? "송림" : "병원"}</td>
-                <td className="py-1.5">{u.department ? `${u.department} · ${u.position}` : "-"}</td>
+                <td className="py-1.5">
+                  <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${u.role === "songrim" ? "bg-brand-50 text-brand-600 dark:bg-brand-500/15 dark:text-brand-400" : "bg-success-50 text-success-600 dark:bg-success-500/15 dark:text-success-400"}`}>
+                    {u.role === "songrim" ? "송림직원" : "병원"}
+                  </span>
+                </td>
+                <td className="py-1.5">{u.role === "songrim" ? (u.department ? `${u.department} · ${u.position}` : "-") : (u.hospital_name || "-")}</td>
+                <td className="py-1.5 text-xs text-gray-500 dark:text-gray-400">
+                  <div>{u.phone || "-"}</div>
+                  {u.email && <div className="text-[11px] text-gray-400">{u.email}</div>}
+                </td>
                 <td className="py-1.5">
                   {u.is_approved ? (
                     <span className="text-xs text-success-600 dark:text-success-400">승인됨</span>

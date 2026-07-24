@@ -5,7 +5,6 @@ export interface CatalogItem {
   name: string;
   spec: string | null;
   category: string;
-  pack_size: number;
   unit: string;
   price: number;
   base_price: number;
@@ -25,7 +24,6 @@ export interface OrderItem {
   catalog_id: number | null;
   name: string;
   unit: string;
-  pack_size: number;
   unit_price: number;
   qty: number;
   subtotal: number;
@@ -87,7 +85,6 @@ export interface AdminCatalogItem {
   name: string;
   spec: string | null;
   category: string;
-  pack_size: number;
   unit: string;
   unit_price: number;
   description: string | null;
@@ -103,7 +100,6 @@ export interface CatalogInput {
   name: string;
   spec?: string;
   category: string;
-  pack_size?: number;
   unit: string;
   unit_price: number;
   description?: string;
@@ -132,6 +128,17 @@ export async function adminImportCatalog(file: File): Promise<{ added: number; s
 export const adminDeleteCatalog = (id: number) =>
   fetch(`${API}/api/supply/admin/catalog/${id}`, { method: "DELETE", credentials: "include" }).then((r) => j(r));
 
+export interface G2BCatalogCandidate {
+  name: string;
+  unit: string;
+  unit_price: number;
+  maker: string;
+  category: string;
+}
+
+export const adminG2BCatalogSearch = (keyword: string): Promise<{ items: G2BCatalogCandidate[] }> =>
+  fetch(`${API}/api/supply/admin/catalog/g2b-search?keyword=${encodeURIComponent(keyword)}`, { credentials: "include" }).then((r) => j(r));
+
 export interface AdminHospital {
   id: number;
   hospital_name: string;
@@ -153,6 +160,7 @@ export interface HospitalDetail {
   business_reg_no: string | null;
   ceo_name: string | null;
   ceo_phone: string | null;
+  contacts: { username: string; display_name: string | null; phone: string | null; email: string | null }[];
   discount_grade_code: string | null;
   gift_grade_code: string | null;
   matched_hospital_id: number | null;

@@ -2,10 +2,6 @@ import { OrderItem, SupplyOrder } from "./api";
 
 const VAT_RATE = 0.1;
 
-function packUnitLabel(it: OrderItem) {
-  return it.pack_size > 1 ? `${it.pack_size}입/${it.unit}` : it.unit;
-}
-
 function formatDateTime(iso?: string) {
   if (!iso) return "-";
   return iso.replace("T", " ").slice(0, 16);
@@ -21,7 +17,7 @@ function renderInvoiceHtml(items: OrderItem[], meta: { hospitalLabel: string; da
       <tr>
         <td>${it.name}</td>
         <td style="text-align:right">${it.qty}</td>
-        <td style="text-align:center">${packUnitLabel(it)}</td>
+        <td style="text-align:center">${it.unit}</td>
         <td style="text-align:right">${supply.toLocaleString()}원</td>
         <td style="text-align:right">${vat.toLocaleString()}원</td>
         <td style="text-align:right">${total.toLocaleString()}원</td>
@@ -61,7 +57,7 @@ function renderInvoiceHtml(items: OrderItem[], meta: { hospitalLabel: string; da
         </div>
         <table>
           <thead>
-            <tr><th>품목</th><th style="text-align:right">수량</th><th style="text-align:center">개수단위/단위</th><th style="text-align:right">금액</th><th style="text-align:right">부가세</th><th style="text-align:right">총액</th></tr>
+            <tr><th>품목</th><th style="text-align:right">수량</th><th style="text-align:center">단위</th><th style="text-align:right">금액</th><th style="text-align:right">부가세</th><th style="text-align:right">총액</th></tr>
           </thead>
           <tbody>${rows}</tbody>
         </table>
