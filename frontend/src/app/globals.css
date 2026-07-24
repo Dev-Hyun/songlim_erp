@@ -502,6 +502,44 @@ span.flatpickr-weekday,
 .fc-dayGridMonth-view.fc-view.fc-daygrid {
   @apply min-w-[718px];
 }
+/* 모바일에서는 718px 최소폭을 강제하면 화면이 잘리므로(가로 스크롤 필요) 폭 제한을 풀어서
+   한 화면 안에 다 들어오게 함 */
+@media (max-width: 640px) {
+  .fc-dayGridMonth-view.fc-view.fc-daygrid {
+    min-width: 0;
+  }
+  .fc .fc-col-header-cell-cushion {
+    @apply !px-1 !py-2 text-[11px];
+  }
+  .fc .fc-daygrid-day {
+    @apply p-0.5;
+  }
+  .fc .fc-daygrid-day-number,
+  .fc .fc-daynum {
+    @apply !p-1.5 text-xs;
+  }
+  .fc .fc-toolbar.fc-header-toolbar {
+    @apply px-2 pt-3;
+  }
+  .fc-toolbar-title {
+    @apply !text-base;
+  }
+  .event-fc-color {
+    @apply px-1.5 py-1;
+  }
+  .event-fc-color .fc-event-title {
+    @apply text-[11px];
+  }
+}
+/* 토요일/일요일/공휴일은 빨간 날짜로 표시 */
+.fc .fc-day-sat .fc-daynum,
+.fc .fc-day-sun .fc-daynum,
+.fc .fc-holiday-cell .fc-daynum {
+  @apply text-error-500 dark:text-error-400;
+}
+.fc-holiday-label {
+  @apply mt-0.5 block truncate text-[9px] font-semibold text-error-500 dark:text-error-400;
+}
 .fc .fc-scrollgrid-section > * {
   border-right-width: 0;
   border-bottom-width: 0;
@@ -572,8 +610,12 @@ span.flatpickr-weekday,
 .fc .fc-daygrid-day.fc-day-today .fc-scrollgrid-sync-inner {
   @apply rounded-sm bg-gray-100 dark:bg-white/[0.03];
 }
-.fc .fc-daygrid-day-number {
+.fc .fc-daygrid-day-number,
+.fc .fc-daynum {
   @apply !p-3 text-sm font-medium text-gray-700 dark:text-gray-400;
+}
+.fc .fc-daynum {
+  @apply inline-block;
 }
 .fc .fc-daygrid-day-top {
   @apply !flex-row;

@@ -81,6 +81,62 @@ export function uploadFile(root: string, space: string, folderId: number | null,
   return fetch(`${API}/api/storage?${qs.toString()}`, { method: "POST", credentials: "include", body: form }).then((r) => j<{ id: number }>(r));
 }
 
+/** fetch()는 업로드 진행률을 알려주지 않아 XHR로 직접 구현. */
+export function uploadFileWithProgress(
+  root: string,
+  space: string,
+  folderId: number | null,
+  file: File,
+  ownerId: number | undefined,
+  onProgress: (pct: number) => void
+): Promise<{ id: number }> {
+  const qs = new URLSearchParams({ root, space });
+  if (folderId) qs.set("folder_id", String(folderId));
+  if (ownerId) qs.set("owner_id", String(ownerId));
+  const form = new FormData();
+  form.append("file", file);
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", `${API}/api/storage?${qs.toString()}`);
+    xhr.withCredentials = true;
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100));
+    };
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) resolve(JSON.parse(xhr.responseText));
+      else reject(new Error("업로드 실패"));
+    };
+    xhr.onerror = () => reject(new Error("업로드 실패"));
+    xhr.send(form);
+  });
+}
+
+/** 다운로드 진행률 표시 + 여러 파일 선택 다운로드용. Content-Length 대비 수신 바이트로 % 계산. */
+export async function downloadFileWithProgress(id: number, filename: string, onProgress: (pct: number) => void): Promise<void> {
+  const res = await fetch(`${API}/api/storage/${id}/download`, { credentials: "include" });
+  if (!res.ok || !res.body) throw new Error("다운로드 실패");
+  const total = Number(res.headers.get("Content-Length") || 0);
+  const reader = res.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let received = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    chunks.push(value);
+    received += value.length;
+    if (total) onProgress(Math.round((received / total) * 100));
+  }
+  const blob = new Blob(chunks as BlobPart[]);
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
 export function renameFile(id: number, filename: string) {
   return fetch(`${API}/api/storage/${id}`, {
     method: "PATCH",

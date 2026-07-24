@@ -2,16 +2,29 @@
 import React, { useState, useRef, useEffect, useMemo } from "react";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
-import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
 import {
   EventInput,
   DateSelectArg,
   EventClickArg,
+  DayCellContentArg,
 } from "@fullcalendar/core";
 import { useModal } from "@/hooks/useModal";
 import { Modal } from "@/components/ui/modal";
 import { useAuth } from "@/context/AuthContext";
+import { KOREAN_HOLIDAYS } from "./holidays";
+
+// 일정마다 다른 색을 쓰되 라이트/다크 모드 모두에서 흰 글씨와 대비가 충분한 팔레트만 사용
+const EVENT_COLORS = ["#465FFF", "#0BA5EC", "#12B76A", "#F79009", "#F04438", "#7A5AF8", "#EE46BC", "#0E9384"];
+function colorForEvent(id: number) {
+  return EVENT_COLORS[id % EVENT_COLORS.length];
+}
+
+function addDays(dateStr: string, days: number): string {
+  const d = new Date(dateStr + "T00:00:00");
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
+}
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8010";
 
@@ -32,7 +45,12 @@ interface StaffItem {
   department: string | null;
 }
 
-type Tab = "all" | "team" | "mine";
+type Tab = "all" | "기술팀" | "초음파임상팀";
+const TABS: { v: Tab; l: string }[] = [
+  { v: "all", l: "전체 캘린더" },
+  { v: "기술팀", l: "기술부 캘린더" },
+  { v: "초음파임상팀", l: "임상 캘린더" },
+];
 
 const Calendar: React.FC = () => {
   const [selectedEvent, setSelectedEvent] = useState<ApiEvent | null>(null);
@@ -44,7 +62,6 @@ const Calendar: React.FC = () => {
   const [events, setEvents] = useState<ApiEvent[]>([]);
   const [staff, setStaff] = useState<StaffItem[]>([]);
   const [tab, setTab] = useState<Tab>("all");
-  const [teamFilter, setTeamFilter] = useState("");
   const [googleConnected, setGoogleConnected] = useState(false);
   const calendarRef = useRef<FullCalendar>(null);
   const { isOpen, openModal, closeModal } = useModal();
@@ -88,24 +105,22 @@ const Calendar: React.FC = () => {
       .catch(() => setStaff([]));
   }, []);
 
-  const teamOptions = useMemo(
-    () => [...new Set(staff.map((s) => s.department).filter(Boolean))] as string[],
-    [staff]
-  );
+  // 팀 공유 선택지는 캘린더 탭과 동일하게 기술부/임상 둘로 고정
+  const teamOptions = TABS.filter((t) => t.v !== "all").map((t) => t.v);
 
   const filteredEvents = useMemo(() => {
     if (tab === "all") return events;
-    if (tab === "mine")
-      return events.filter((e) => e.created_by === user?.id || e.assignee_ids.includes(user?.id ?? -1));
-    if (tab === "team" && teamFilter) return events.filter((e) => e.teams.includes(teamFilter));
-    return events;
-  }, [events, tab, teamFilter, user]);
+    return events.filter((e) => e.teams.includes(tab));
+  }, [events, tab]);
 
   const fcEvents: EventInput[] = filteredEvents.map((e) => ({
     id: String(e.id),
     title: e.title,
     start: e.start_at,
-    end: e.end_at || undefined,
+    end: e.end_at ? addDays(e.end_at, 1) : undefined,
+    backgroundColor: colorForEvent(e.id),
+    borderColor: colorForEvent(e.id),
+    textColor: "#ffffff",
     allDay: true,
     extendedProps: { shared: e.is_shared, teams: e.teams },
   }));
@@ -113,7 +128,8 @@ const Calendar: React.FC = () => {
   const handleDateSelect = (selectInfo: DateSelectArg) => {
     resetModalFields();
     setEventStartDate(selectInfo.startStr);
-    setEventEndDate(selectInfo.endStr || selectInfo.startStr);
+    // FullCalendar의 select endStr은 배타적(다음날)이라 사람이 이해하는 "마지막 날"로 하루 빼서 저장
+    setEventEndDate(selectInfo.endStr ? addDays(selectInfo.endStr, -1) : selectInfo.startStr);
     openModal();
   };
 
@@ -178,32 +194,16 @@ const Calendar: React.FC = () => {
     <div className="rounded-2xl border  border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
       <div className="flex flex-wrap items-center gap-2 border-b border-gray-200 px-4 py-3 dark:border-gray-800">
         <div className="flex gap-1 rounded-full bg-gray-100 p-1 dark:bg-white/[0.04]">
-          {[
-            { v: "all", l: "전체 캘린더" },
-            { v: "team", l: "팀별 캘린더" },
-            { v: "mine", l: "나의 캘린더" },
-          ].map((t) => (
+          {TABS.map((t) => (
             <button
               key={t.v}
-              onClick={() => setTab(t.v as Tab)}
+              onClick={() => setTab(t.v)}
               className={`rounded-full px-3 py-1.5 text-xs font-bold ${tab === t.v ? "bg-brand-500 text-white" : "text-gray-500"}`}
             >
               {t.l}
             </button>
           ))}
         </div>
-        {tab === "team" && (
-          <select
-            value={teamFilter}
-            onChange={(e) => setTeamFilter(e.target.value)}
-            className="rounded-lg border border-gray-300 bg-white px-2.5 py-1.5 text-xs dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300"
-          >
-            <option value="">팀 선택</option>
-            {teamOptions.map((t) => (
-              <option key={t} value={t}>{t}</option>
-            ))}
-          </select>
-        )}
         {user?.role === "songrim" && (
           <button
             onClick={googleConnected ? handleGoogleDisconnect : handleGoogleConnect}
@@ -220,13 +220,24 @@ const Calendar: React.FC = () => {
       <div className="custom-calendar">
         <FullCalendar
           ref={calendarRef}
-          plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
+          plugins={[dayGridPlugin, interactionPlugin]}
           initialView="dayGridMonth"
           headerToolbar={{
             left: "prev,next addEventButton",
             center: "title",
-            right: "dayGridMonth,timeGridWeek,timeGridDay",
+            right: "",
           }}
+          dayCellContent={(arg: DayCellContentArg) => {
+            const key = arg.date.toISOString().slice(0, 10);
+            const holiday = KOREAN_HOLIDAYS[key];
+            return (
+              <>
+                <span className="fc-daynum">{arg.dayNumberText.replace("일", "")}</span>
+                {holiday && <span className="fc-holiday-label">{holiday}</span>}
+              </>
+            );
+          }}
+          dayCellClassNames={(arg) => (KOREAN_HOLIDAYS[arg.date.toISOString().slice(0, 10)] ? ["fc-holiday-cell"] : [])}
           events={fcEvents}
           selectable={true}
           select={handleDateSelect}
@@ -269,7 +280,6 @@ const Calendar: React.FC = () => {
           <div className="mt-4">
             <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">팀 공유 (다중 선택)</label>
             <div className="flex flex-wrap gap-1.5">
-              {teamOptions.length === 0 && <span className="text-xs text-gray-400">등록된 부서가 없습니다</span>}
               {teamOptions.map((t) => (
                 <button
                   key={t}

@@ -144,6 +144,7 @@ export default function HospitalDetailPanel({ detail, loading, category, onClose
         <div className="mt-1 text-xs text-white/75">
           {hospital.sido} {hospital.sigungu} · {hospital.type}
         </div>
+        {hospital.address && <div className="mt-0.5 text-xs text-white/75">{hospital.address}</div>}
       </div>
 
       <div className="flex gap-1 border-b border-gray-200 px-4 pt-3 dark:border-gray-800">

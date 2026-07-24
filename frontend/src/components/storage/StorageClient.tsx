@@ -16,12 +16,13 @@ import {
   createFolder,
   deleteFile,
   deleteFolder,
+  downloadFileWithProgress,
   downloadUrl,
   moveFile,
   moveFolder,
   renameFile,
   renameFolder,
-  uploadFile,
+  uploadFileWithProgress,
 } from "./api";
 import StoragePermissionsModal from "./StoragePermissionsModal";
 
@@ -246,6 +247,7 @@ function StorageBrowser({ root, space, ownerId, title, canManagePermissions }: {
   const [sortKey, setSortKey] = useState<SortKey>("name");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [justCreatedFolderId, setJustCreatedFolderId] = useState<number | null>(null);
+  const [transfer, setTransfer] = useState<{ label: string; pct: number } | null>(null);
 
   const canWrite = space === "personal" ? true : !!user; // 백엔드가 실제 권한을 최종 검증함
 
@@ -261,12 +263,20 @@ function StorageBrowser({ root, space, ownerId, title, canManagePermissions }: {
 
   useEffect(() => setSelected(new Set()), [folderId, space]);
 
+  async function uploadFiles(files: File[]) {
+    for (let i = 0; i < files.length; i++) {
+      const f = files[i];
+      const label = files.length > 1 ? `업로드 중 (${i + 1}/${files.length}) · ${f.name}` : `업로드 중 · ${f.name}`;
+      setTransfer({ label, pct: 0 });
+      await uploadFileWithProgress(root, space, folderId, f, ownerId, (pct) => setTransfer({ label, pct }));
+    }
+    setTransfer(null);
+    load();
+  }
+
   const onDrop = useCallback(
-    async (acceptedFiles: File[]) => {
-      for (const f of acceptedFiles) {
-        await uploadFile(root, space, folderId, f, ownerId);
-      }
-      load();
+    (acceptedFiles: File[]) => {
+      uploadFiles(acceptedFiles);
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [root, space, folderId, ownerId]
@@ -308,6 +318,18 @@ function StorageBrowser({ root, space, ownerId, title, canManagePermissions }: {
     load();
   }
 
+  async function handleBulkDownload() {
+    const fileRows = (data?.files || []).filter((f) => selected.has(`f-${f.id}`));
+    if (fileRows.length === 0) return;
+    for (let i = 0; i < fileRows.length; i++) {
+      const f = fileRows[i];
+      const label = fileRows.length > 1 ? `다운로드 중 (${i + 1}/${fileRows.length}) · ${f.filename}` : `다운로드 중 · ${f.filename}`;
+      setTransfer({ label, pct: 0 });
+      await downloadFileWithProgress(f.id, f.filename, (pct) => setTransfer({ label, pct }));
+    }
+    setTransfer(null);
+  }
+
   async function handleBulkDelete() {
     if (selected.size === 0) return;
     if (!confirm(`선택한 ${selected.size}개 항목을 삭제하시겠습니까?`)) return;
@@ -325,7 +347,7 @@ function StorageBrowser({ root, space, ownerId, title, canManagePermissions }: {
   return (
     <div {...getRootProps()} className="space-y-3">
       <input {...getInputProps()} />
-      <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-white/[0.03]">
+      <div className="space-y-2 rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-white/[0.03]">
         <div className="flex min-w-0 flex-wrap items-center gap-1 text-sm">
           <h2 className="mr-2 shrink-0 text-base font-bold text-gray-800 dark:text-white/90">{title}</h2>
           <BreadcrumbCrumb label="🏠" targetFolderId={null} onOpen={() => setFolderId(null)} onDropItem={handleMoveTarget} canWrite={canWrite} />
@@ -336,54 +358,70 @@ function StorageBrowser({ root, space, ownerId, title, canManagePermissions }: {
             </span>
           ))}
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        {/* 모바일에서 버튼이 여러 줄로 밀려 보이지 않도록 한 줄로 가로 스크롤 처리 */}
+        <div className="-mx-1 flex flex-nowrap items-center gap-2 overflow-x-auto px-1 pb-1 sm:flex-wrap sm:overflow-visible sm:pb-0">
           {selected.size > 0 && (
-            <button onClick={handleBulkDelete} className="rounded-full bg-error-500 px-3 py-1.5 text-xs font-bold text-white">
-              선택 {selected.size}개 삭제
-            </button>
+            <>
+              <button onClick={handleBulkDownload} className="shrink-0 rounded-full bg-brand-500 px-3 py-1.5 text-xs font-bold text-white">
+                선택 {selected.size}개 다운로드
+              </button>
+              <button onClick={handleBulkDelete} className="shrink-0 rounded-full bg-error-500 px-3 py-1.5 text-xs font-bold text-white">
+                선택 {selected.size}개 삭제
+              </button>
+            </>
           )}
           <select
             value={sortKey}
             onChange={(e) => setSortKey(e.target.value as SortKey)}
-            className="rounded-full border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-gray-600 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300"
+            className="shrink-0 rounded-full border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-gray-600 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300"
           >
             <option value="name">이름순</option>
             <option value="date">날짜순</option>
           </select>
           <button
             onClick={() => setSortDir((d) => (d === "asc" ? "desc" : "asc"))}
-            className="rounded-full border border-gray-300 px-2.5 py-1.5 text-xs font-bold text-gray-600 dark:border-gray-700 dark:text-gray-300"
+            className="shrink-0 rounded-full border border-gray-300 px-2.5 py-1.5 text-xs font-bold text-gray-600 dark:border-gray-700 dark:text-gray-300"
             title="정렬 방향"
           >
             {sortDir === "asc" ? "▲" : "▼"}
           </button>
-          <div className="flex gap-1 rounded-full bg-gray-100 p-1 dark:bg-white/[0.04]">
+          <div className="flex shrink-0 gap-1 rounded-full bg-gray-100 p-1 dark:bg-white/[0.04]">
             <button onClick={() => setView("list")} className={`rounded-full px-2.5 py-1 text-xs font-bold ${view === "list" ? "bg-white shadow dark:bg-gray-700" : "text-gray-500"}`}>☰ 목록</button>
             <button onClick={() => setView("grid")} className={`rounded-full px-2.5 py-1 text-xs font-bold ${view === "grid" ? "bg-white shadow dark:bg-gray-700" : "text-gray-500"}`}>▦ 아이콘</button>
           </div>
           {canManagePermissions && (
-            <button onClick={() => setShowPerms(true)} className="rounded-full border border-gray-300 px-3 py-1.5 text-xs font-bold text-gray-600 dark:border-gray-700 dark:text-gray-300">
+            <button onClick={() => setShowPerms(true)} className="shrink-0 rounded-full border border-gray-300 px-3 py-1.5 text-xs font-bold text-gray-600 dark:border-gray-700 dark:text-gray-300">
               폴더 권한 관리
             </button>
           )}
-          <button onClick={handleNewFolder} className="rounded-full border border-gray-300 px-3 py-1.5 text-xs font-bold text-gray-600 dark:border-gray-700 dark:text-gray-300">
+          <button onClick={handleNewFolder} className="shrink-0 rounded-full border border-gray-300 px-3 py-1.5 text-xs font-bold text-gray-600 dark:border-gray-700 dark:text-gray-300">
             + 새 폴더
           </button>
-          <label className="cursor-pointer rounded-full bg-brand-500 px-4 py-1.5 text-xs font-bold text-white">
+          <label className="shrink-0 cursor-pointer rounded-full bg-brand-500 px-4 py-1.5 text-xs font-bold text-white">
             + 파일 업로드
             <input
               type="file"
               multiple
               className="hidden"
-              onChange={async (e) => {
+              onChange={(e) => {
                 const files = Array.from(e.target.files || []);
-                for (const f of files) await uploadFile(root, space, folderId, f, ownerId);
                 e.target.value = "";
-                load();
+                uploadFiles(files);
               }}
             />
           </label>
         </div>
+        {transfer && (
+          <div className="pt-1">
+            <div className="mb-1 flex items-center justify-between text-[11px] text-gray-500 dark:text-gray-400">
+              <span className="truncate">{transfer.label}</span>
+              <span className="shrink-0 font-semibold">{transfer.pct}%</span>
+            </div>
+            <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-white/10">
+              <div className="h-full rounded-full bg-brand-500 transition-all" style={{ width: `${transfer.pct}%` }} />
+            </div>
+          </div>
+        )}
       </div>
 
       <div
