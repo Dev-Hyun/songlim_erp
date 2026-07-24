@@ -63,7 +63,7 @@ export default function AdminCatalogClient() {
         <div className="flex items-center justify-between border-b border-gray-100 p-4 dark:border-gray-800">
           <h3 className="text-sm font-bold text-gray-800 dark:text-white/90">소모품 카탈로그</h3>
           <button onClick={() => setShowEditor(true)} className="rounded-full bg-brand-500 px-4 py-1.5 text-xs font-bold text-white">
-            품목 추가 및 수정
+            소모품 품목 관리자 사이트
           </button>
         </div>
         <table className="w-full text-xs">

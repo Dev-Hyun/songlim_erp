@@ -79,6 +79,8 @@ class SupplyOrderItem(Base):
     order_id: Mapped[int] = mapped_column(ForeignKey("supply_orders.id", ondelete="CASCADE"))
     catalog_id: Mapped[Optional[int]] = mapped_column(ForeignKey("supply_catalog.id"), default=None)
     name_snapshot: Mapped[str] = mapped_column()
+    manufacturer_snapshot: Mapped[Optional[str]] = mapped_column(default=None)
+    spec_snapshot: Mapped[Optional[str]] = mapped_column(default=None)
     unit_snapshot: Mapped[str] = mapped_column(default="개")
     unit_price_snapshot: Mapped[int] = mapped_column(default=0)
     qty: Mapped[int] = mapped_column(default=1)

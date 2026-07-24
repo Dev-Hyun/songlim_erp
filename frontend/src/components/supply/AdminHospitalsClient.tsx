@@ -34,6 +34,7 @@ export default function AdminHospitalsClient() {
   const [ovForm, setOvForm] = useState({ catalog_id: "", override_price: "" });
   const [ovSearch, setOvSearch] = useState("");
   const [eqCategory, setEqCategory] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
 
   function load() {
     setLoading(true);
@@ -83,9 +84,23 @@ export default function AdminHospitalsClient() {
 
   if (loading) return <div className="p-8 text-center text-sm text-gray-400">불러오는 중...</div>;
 
+  const q = search.trim().toLowerCase();
+  const visibleHospitals = q
+    ? hospitals.filter((h) => `${h.hospital_name} ${h.hospital_type}`.toLowerCase().includes(q))
+    : hospitals;
+
   return (
     <div className="space-y-2">
-      {hospitals.map((h) => (
+      <div className="relative">
+        <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">🔍</span>
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="병원명 또는 병원종별로 검색"
+          className="w-full rounded-xl border border-gray-300 bg-white py-2.5 pl-9 pr-3 text-sm dark:border-gray-700 dark:bg-gray-900"
+        />
+      </div>
+      {visibleHospitals.map((h) => (
         <div key={h.id} className="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
           <button onClick={() => openHospital(h.id)} className="flex w-full items-center justify-between px-4 py-3 text-left">
             <div>
@@ -255,6 +270,9 @@ export default function AdminHospitalsClient() {
         </div>
       ))}
       {hospitals.length === 0 && <div className="p-8 text-center text-sm text-gray-400">등록된 병원 계정이 없습니다</div>}
+      {hospitals.length > 0 && visibleHospitals.length === 0 && (
+        <div className="p-8 text-center text-sm text-gray-400">&quot;{search}&quot; 검색 결과가 없습니다</div>
+      )}
     </div>
   );
 }

@@ -80,11 +80,16 @@ function Card({
           ICONS[item.category] || "📦"
         )}
       </div>
-      {item.code && <div className="mb-0.5 text-[10px] text-gray-400">#{item.code}</div>}
-      <div className="mb-0.5 text-[10px] font-bold uppercase text-brand-500">{item.category}</div>
-      <div className="mb-1 min-h-[34px] text-[13px] font-semibold leading-snug text-gray-800 dark:text-white/90">{item.name}</div>
-      <div className="text-[11px] text-gray-400">{item.manufacturer || "-"}</div>
-      <div className="mb-2 text-[11px] text-gray-400">{item.spec ? `${item.spec} · ` : ""}{item.unit}</div>
+      <div className="mb-1 flex items-center gap-1.5">
+        <span className="rounded-full bg-brand-50 px-1.5 py-0.5 text-[10px] font-bold text-brand-600 dark:bg-brand-500/15 dark:text-brand-400">{item.category}</span>
+        {item.code && <span className="text-[10px] text-gray-400">#{item.code}</span>}
+      </div>
+      <div className="mb-1.5 line-clamp-2 min-h-[34px] text-[13px] font-semibold leading-snug text-gray-800 dark:text-white/90">{item.name}</div>
+      <dl className="mb-2 space-y-0.5 text-[11px]">
+        <div className="flex gap-1"><dt className="w-9 shrink-0 text-gray-400">제조사</dt><dd className="truncate font-medium text-gray-600 dark:text-gray-300">{item.manufacturer || "-"}</dd></div>
+        <div className="flex gap-1"><dt className="w-9 shrink-0 text-gray-400">규격</dt><dd className="truncate font-medium text-gray-600 dark:text-gray-300">{item.spec || "-"}</dd></div>
+        <div className="flex gap-1"><dt className="w-9 shrink-0 text-gray-400">단위</dt><dd className="truncate font-medium text-gray-600 dark:text-gray-300">{item.unit}</dd></div>
+      </dl>
       <div className="text-base font-extrabold text-gray-900 dark:text-white">{item.unit_price.toLocaleString()}원</div>
       {!item.is_active && <span className="mt-1.5 inline-block rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-bold text-gray-500 dark:bg-white/10">비노출</span>}
     </div>
@@ -100,6 +105,7 @@ export default function AdminCatalogGridEditor({ onClose }: { onClose: () => voi
   const imageInputRef = useRef<HTMLInputElement>(null);
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const [filteredItems, setFilteredItems] = useState<AdminCatalogItem[]>([]);
+  const [search, setSearch] = useState("");
 
   function load() {
     setLoading(true);
@@ -115,7 +121,13 @@ export default function AdminCatalogGridEditor({ onClose }: { onClose: () => voi
     if (categoryFilter) setFilteredItems(items.filter((it) => it.category === categoryFilter));
   }, [items, categoryFilter]);
 
-  const displayItems = categoryFilter ? filteredItems : [...items].sort((a, b) => a.id - b.id);
+  const q = search.trim().toLowerCase();
+  const baseItems = categoryFilter ? filteredItems : [...items].sort((a, b) => a.id - b.id);
+  // 검색 중에는 카테고리와 무관하게 전체에서 찾고, 드래그 재정렬은 비활성화한다
+  const displayItems = q
+    ? [...items].filter((it) => `${it.name} ${it.manufacturer || ""} ${it.code || ""}`.toLowerCase().includes(q))
+    : baseItems;
+  const canDrag = !!categoryFilter && !q;
 
   function moveCard(from: number, to: number) {
     if (!categoryFilter) return;
@@ -180,10 +192,19 @@ export default function AdminCatalogGridEditor({ onClose }: { onClose: () => voi
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-white dark:bg-gray-900">
-      <div className="flex shrink-0 items-center justify-between border-b border-gray-200 px-5 py-3.5 dark:border-gray-800">
-        <h2 className="text-base font-bold text-gray-800 dark:text-white/90">품목 추가 및 수정</h2>
-        <button onClick={onClose} className="rounded-full border border-gray-300 px-3 py-1.5 text-xs font-bold text-gray-600 dark:border-gray-700 dark:text-gray-300">
+    <div className="fixed inset-0 z-[100000] flex flex-col bg-white dark:bg-gray-900">
+      <div className="flex shrink-0 items-center justify-between gap-3 border-b border-gray-200 px-5 py-3.5 dark:border-gray-800">
+        <h2 className="shrink-0 text-base font-bold text-gray-800 dark:text-white/90">소모품 품목 관리자 사이트</h2>
+        <div className="relative min-w-0 flex-1 max-w-xs">
+          <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">🔍</span>
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="품목명·제조사·코드 검색"
+            className="w-full rounded-lg border border-gray-300 bg-white py-2 pl-9 pr-3 text-xs dark:border-gray-700 dark:bg-gray-900"
+          />
+        </div>
+        <button onClick={onClose} className="shrink-0 rounded-full border border-gray-300 px-3 py-1.5 text-xs font-bold text-gray-600 dark:border-gray-700 dark:text-gray-300">
           닫기
         </button>
       </div>
@@ -206,7 +227,8 @@ export default function AdminCatalogGridEditor({ onClose }: { onClose: () => voi
                   {c}
                 </button>
               ))}
-              {categoryFilter && <span className="ml-1 text-[11px] text-gray-400">드래그해서 이 카테고리 안에서 순서 변경</span>}
+              {canDrag && <span className="ml-1 text-[11px] text-gray-400">드래그해서 이 카테고리 안에서 순서 변경</span>}
+              {q && <span className="ml-1 text-[11px] text-gray-400">&quot;{search}&quot; 검색 결과 {displayItems.length}건</span>}
             </div>
             {loading ? (
               <div className="p-10 text-center text-sm text-gray-400">불러오는 중...</div>
@@ -222,14 +244,14 @@ export default function AdminCatalogGridEditor({ onClose }: { onClose: () => voi
                   새 품목
                 </button>
                 {displayItems.map((it, i) => (
-                  <Card key={it.id} item={it} index={i} draggable={!!categoryFilter} onMove={moveCard} onDrop={persistOrder} onOpen={() => openEdit(it)} />
+                  <Card key={it.id} item={it} index={i} draggable={canDrag} onMove={moveCard} onDrop={persistOrder} onOpen={() => openEdit(it)} />
                 ))}
               </div>
             )}
           </div>
         </DndProvider>
 
-        <div className="w-full shrink-0 space-y-3 border-t border-gray-200 p-5 dark:border-gray-800 lg:w-80 lg:border-l lg:border-t-0">
+        <div className="w-full shrink-0 space-y-3 overflow-y-auto border-t border-gray-200 p-5 dark:border-gray-800 lg:w-80 lg:border-l lg:border-t-0">
           <h3 className="text-sm font-bold text-gray-800 dark:text-white/90">{editing ? `수정: ${editing.name}` : "새 품목 추가"}</h3>
           <button
             onClick={() => imageInputRef.current?.click()}

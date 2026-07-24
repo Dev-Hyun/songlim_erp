@@ -252,12 +252,14 @@ export default function AdminOrdersClient() {
                 </select>
               </div>
               <div className="overflow-x-auto">
-              <table className="w-full min-w-[420px] text-xs">
+              <table className="w-full min-w-[560px] text-xs">
                 <thead>
                   <tr className="border-b border-gray-200 text-left text-gray-400 dark:border-gray-800">
                     <th className="py-1.5">품목</th>
+                    <th className="py-1.5 pl-3">제조사</th>
+                    <th className="py-1.5 pl-3">규격</th>
+                    <th className="py-1.5 pl-3">단위</th>
                     <th className="py-1.5 text-right">수량</th>
-                    <th className="py-1.5 text-left pl-3">단위</th>
                     <th className="py-1.5 text-right">단가</th>
                     <th className="py-1.5 text-right">소계</th>
                   </tr>
@@ -265,9 +267,11 @@ export default function AdminOrdersClient() {
                 <tbody>
                   {detail.items.map((it) => (
                     <tr key={it.id} className="border-b border-gray-100 dark:border-gray-800">
-                      <td className="py-1.5">{it.name}</td>
+                      <td className="py-1.5 font-medium text-gray-700 dark:text-gray-200">{it.name}</td>
+                      <td className="py-1.5 pl-3 text-gray-500">{it.manufacturer || "-"}</td>
+                      <td className="py-1.5 pl-3 text-gray-500">{it.spec || "-"}</td>
+                      <td className="py-1.5 pl-3 text-gray-500">{it.unit}</td>
                       <td className="py-1.5 text-right">{it.qty}</td>
-                      <td className="py-1.5 text-left pl-3 text-gray-500">{it.unit}</td>
                       <td className="py-1.5 text-right">{it.unit_price.toLocaleString()}원</td>
                       <td className="py-1.5 text-right font-semibold">{it.subtotal.toLocaleString()}원</td>
                     </tr>

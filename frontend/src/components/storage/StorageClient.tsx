@@ -25,19 +25,9 @@ import {
   uploadFileWithProgress,
 } from "./api";
 import StoragePermissionsModal from "./StoragePermissionsModal";
+import { FileTypeIcon, FolderGlyph } from "./FileTypeIcon";
 
 const ITEM_TYPE = "storage-node";
-
-const ICONS: Record<string, string> = {
-  pdf: "📕", doc: "📘", docx: "📘", xls: "📗", xlsx: "📗", ppt: "📙", pptx: "📙",
-  png: "🖼️", jpg: "🖼️", jpeg: "🖼️", gif: "🖼️", zip: "🗜️", rar: "🗜️",
-  hwp: "📄", txt: "📄", mp4: "🎬", mov: "🎬",
-};
-
-function iconFor(filename: string) {
-  const ext = filename.split(".").pop()?.toLowerCase() || "";
-  return ICONS[ext] || "📄";
-}
 
 function formatSize(bytes: number) {
   if (bytes < 1024) return `${bytes}B`;
@@ -69,7 +59,7 @@ function Row({
   autoRename,
   onRenameCommit,
 }: {
-  icon: string;
+  icon: React.ReactNode;
   name: string;
   meta: string;
   selected: boolean;
@@ -168,7 +158,7 @@ function Row({
           className="absolute left-2 top-2 h-3.5 w-3.5"
         />
         {menu && <div className="absolute right-1 top-1" onClick={(e) => e.stopPropagation()}>{menu}</div>}
-        <span className="mb-1.5 text-4xl">{icon}</span>
+        <span className="mb-1.5 flex h-12 w-12 items-center justify-center">{icon}</span>
         <div className="flex w-full items-center justify-center px-1 text-xs font-medium text-gray-800 dark:text-white/90">{nameNode}</div>
         <span className="mt-0.5 text-[10px] text-gray-400">{meta}</span>
       </div>
@@ -192,7 +182,7 @@ function Row({
           disabled={!onOpen || renaming}
           className="flex min-w-0 flex-1 items-center gap-2 text-left text-sm font-medium text-gray-800 hover:text-brand-500 disabled:hover:text-gray-800 dark:text-white/90"
         >
-          <span className="shrink-0 text-lg">{icon}</span>
+          <span className="flex h-6 w-6 shrink-0 items-center justify-center">{icon}</span>
           {nameNode}
         </button>
       </div>
@@ -441,7 +431,7 @@ function StorageBrowser({ root, space, ownerId, title, canManagePermissions }: {
               {sortRows(data?.folders || []).map((f: FolderRow) => (
                 <Row
                   key={`d-${f.id}`}
-                  icon="📁"
+                  icon={<FolderGlyph className={view === "grid" ? "h-11 w-11" : "h-6 w-6"} />}
                   name={f.name}
                   meta={formatDateTime(f.created_at)}
                   selected={selected.has(`d-${f.id}`)}
@@ -467,7 +457,7 @@ function StorageBrowser({ root, space, ownerId, title, canManagePermissions }: {
               {sortRows(data?.files || []).map((f: FileRow) => (
                 <Row
                   key={`f-${f.id}`}
-                  icon={iconFor(f.filename)}
+                  icon={<FileTypeIcon filename={f.filename} className={view === "grid" ? "h-11 w-11" : "h-6 w-6"} />}
                   name={f.filename}
                   meta={view === "grid" ? formatSize(f.size) : `${formatSize(f.size)} · ${formatDateTime(f.created_at)}`}
                   selected={selected.has(`f-${f.id}`)}

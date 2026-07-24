@@ -16,8 +16,10 @@ function renderInvoiceHtml(items: OrderItem[], meta: { hospitalLabel: string; da
       return `
       <tr>
         <td>${it.name}</td>
-        <td style="text-align:right">${it.qty}</td>
+        <td>${it.manufacturer || "-"}</td>
+        <td>${it.spec || "-"}</td>
         <td style="text-align:center">${it.unit}</td>
+        <td style="text-align:right">${it.qty}</td>
         <td style="text-align:right">${supply.toLocaleString()}원</td>
         <td style="text-align:right">${vat.toLocaleString()}원</td>
         <td style="text-align:right">${total.toLocaleString()}원</td>
@@ -57,7 +59,7 @@ function renderInvoiceHtml(items: OrderItem[], meta: { hospitalLabel: string; da
         </div>
         <table>
           <thead>
-            <tr><th>품목</th><th style="text-align:right">수량</th><th style="text-align:center">단위</th><th style="text-align:right">금액</th><th style="text-align:right">부가세</th><th style="text-align:right">총액</th></tr>
+            <tr><th>품목</th><th>제조사</th><th>규격</th><th style="text-align:center">단위</th><th style="text-align:right">수량</th><th style="text-align:right">금액</th><th style="text-align:right">부가세</th><th style="text-align:right">총액</th></tr>
           </thead>
           <tbody>${rows}</tbody>
         </table>

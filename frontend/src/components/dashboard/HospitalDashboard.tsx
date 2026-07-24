@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import ComponentCard from "@/components/common/ComponentCard";
+import DashboardListCard from "@/components/dashboard/DashboardListCard";
 import { fetchMyOrders, SupplyOrder } from "@/components/supply/api";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8010";
@@ -142,91 +143,55 @@ export default function HospitalDashboard() {
       </div>
 
       <div className="col-span-12 xl:col-span-6">
-        <ComponentCard title="병원 공지사항" className="h-[430px]">
-          {loading ? (
-            <div className="py-6 text-center text-sm text-gray-400">불러오는 중...</div>
-          ) : notices.length === 0 ? (
-            <div className="py-6 text-center text-sm text-gray-400">등록된 공지가 없습니다</div>
-          ) : (
-            <ul className="space-y-3">
-              {notices.slice(0, 5).map((n) => (
-                <li key={n.id} className="flex items-center justify-between text-sm">
-                  <span className="truncate font-medium text-gray-700 dark:text-gray-200">{n.title}</span>
-                  <span className="ml-3 shrink-0 text-xs text-gray-400">{timeAgo(n.created_at)}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-          <Link href="/notices/hospital" className="mt-4 block text-center text-xs font-semibold text-brand-500 hover:underline">
-            전체 공지사항 보기 →
-          </Link>
-        </ComponentCard>
+        <DashboardListCard title="병원 공지사항" href="/notices/hospital" footerLabel="전체 공지사항 보기" loading={loading} isEmpty={notices.length === 0} emptyText="등록된 공지가 없습니다">
+          <ul className="space-y-3">
+            {notices.slice(0, 5).map((n) => (
+              <li key={n.id} className="flex items-center justify-between text-sm">
+                <span className="truncate font-medium text-gray-700 dark:text-gray-200">{n.title}</span>
+                <span className="ml-3 shrink-0 text-xs text-gray-400">{timeAgo(n.created_at)}</span>
+              </li>
+            ))}
+          </ul>
+        </DashboardListCard>
       </div>
 
       <div className="col-span-12 xl:col-span-6">
-        <ComponentCard title="의료소식" className="h-[430px]">
-          {loading ? (
-            <div className="py-6 text-center text-sm text-gray-400">불러오는 중...</div>
-          ) : news.length === 0 ? (
-            <div className="py-6 text-center text-sm text-gray-400">등록된 소식이 없습니다</div>
-          ) : (
-            <ul className="space-y-3">
-              {news.slice(0, 5).map((n) => (
-                <li key={n.id} className="flex items-center justify-between text-sm">
-                  <span className="truncate font-medium text-gray-700 dark:text-gray-200">{n.title}</span>
-                  <span className="ml-3 shrink-0 text-xs text-gray-400">{n.source}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-          <Link href="/news" className="mt-4 block text-center text-xs font-semibold text-brand-500 hover:underline">
-            전체 의료소식 보기 →
-          </Link>
-        </ComponentCard>
+        <DashboardListCard title="의료소식" href="/news" footerLabel="전체 의료소식 보기" loading={loading} isEmpty={news.length === 0} emptyText="등록된 소식이 없습니다">
+          <ul className="space-y-3">
+            {news.slice(0, 5).map((n) => (
+              <li key={n.id} className="flex items-center justify-between text-sm">
+                <span className="truncate font-medium text-gray-700 dark:text-gray-200">{n.title}</span>
+                <span className="ml-3 shrink-0 text-xs text-gray-400">{n.source}</span>
+              </li>
+            ))}
+          </ul>
+        </DashboardListCard>
       </div>
 
       <div className="col-span-12 xl:col-span-6">
-        <ComponentCard title="공동구매" className="h-[430px]">
-          {loading ? (
-            <div className="py-6 text-center text-sm text-gray-400">불러오는 중...</div>
-          ) : groupBuy.length === 0 ? (
-            <div className="py-6 text-center text-sm text-gray-400">등록된 공동구매가 없습니다</div>
-          ) : (
-            <ul className="space-y-3">
-              {groupBuy.slice(0, 5).map((p) => (
-                <li key={p.id} className="flex items-center justify-between text-sm">
-                  <span className="truncate font-medium text-gray-700 dark:text-gray-200">{p.title}</span>
-                  <span className="ml-3 shrink-0 text-xs text-gray-400">{timeAgo(p.created_at)}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-          <Link href="/group-buy" className="mt-4 block text-center text-xs font-semibold text-brand-500 hover:underline">
-            전체 공동구매 보기 →
-          </Link>
-        </ComponentCard>
+        <DashboardListCard title="공동구매" href="/group-buy" footerLabel="전체 공동구매 보기" loading={loading} isEmpty={groupBuy.length === 0} emptyText="등록된 공동구매가 없습니다">
+          <ul className="space-y-3">
+            {groupBuy.slice(0, 5).map((p) => (
+              <li key={p.id} className="flex items-center justify-between text-sm">
+                <span className="truncate font-medium text-gray-700 dark:text-gray-200">{p.title}</span>
+                <span className="ml-3 shrink-0 text-xs text-gray-400">{timeAgo(p.created_at)}</span>
+              </li>
+            ))}
+          </ul>
+        </DashboardListCard>
       </div>
 
       <div className="col-span-12 xl:col-span-6">
-        <ComponentCard title="중고기기" className="h-[430px]">
-          {loading ? (
-            <div className="py-6 text-center text-sm text-gray-400">불러오는 중...</div>
-          ) : usedEquipment.length === 0 ? (
-            <div className="py-6 text-center text-sm text-gray-400">등록된 중고기기가 없습니다</div>
-          ) : (
-            <ul className="space-y-3">
-              {usedEquipment.slice(0, 5).map((p) => (
-                <li key={p.id} className="flex items-center justify-between text-sm">
-                  <span className="truncate font-medium text-gray-700 dark:text-gray-200">{p.title}</span>
-                  <span className="ml-3 shrink-0 text-xs text-gray-400">{timeAgo(p.created_at)}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-          <Link href="/used-equipment" className="mt-4 block text-center text-xs font-semibold text-brand-500 hover:underline">
-            전체 중고기기 보기 →
-          </Link>
-        </ComponentCard>
+        <DashboardListCard title="중고기기" href="/used-equipment" footerLabel="전체 중고기기 보기" loading={loading} isEmpty={usedEquipment.length === 0} emptyText="등록된 중고기기가 없습니다">
+          <ul className="space-y-3">
+            {usedEquipment.slice(0, 5).map((p) => (
+              <li key={p.id} className="flex items-center justify-between text-sm">
+                <span className="truncate font-medium text-gray-700 dark:text-gray-200">{p.title}</span>
+                <span className="ml-3 shrink-0 text-xs text-gray-400">{timeAgo(p.created_at)}</span>
+              </li>
+            ))}
+          </ul>
+        </DashboardListCard>
       </div>
     </div>
   );

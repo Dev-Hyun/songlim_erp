@@ -86,6 +86,25 @@ export default function SupplyShopClient() {
     setCart((prev) => ({ ...prev, [item.id]: { item, qty: (prev[item.id]?.qty || 0) + qty } }));
   }
 
+  function setQty(id: number, qty: number) {
+    setCart((prev) => {
+      if (qty <= 0) {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      }
+      return { ...prev, [id]: { ...prev[id], qty } };
+    });
+  }
+
+  function removeFromCart(id: number) {
+    setCart((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+  }
+
   async function toggleFavorite(item: CatalogItem, e: React.MouseEvent) {
     e.stopPropagation();
     if (item.is_favorite) await removeFavorite(item.id);
@@ -134,48 +153,49 @@ export default function SupplyShopClient() {
   }
 
   return (
-    <div className="flex gap-0 overflow-hidden rounded-2xl border border-gray-200 dark:border-gray-800">
-      <aside className="w-52 shrink-0 border-r border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-white/[0.03]">
+    <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
+      <aside className="shrink-0 rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-white/[0.03] lg:w-48">
         <div className="mb-1 text-[11px] font-bold uppercase tracking-wide text-gray-400">카테고리</div>
-        <button
-          onClick={() => setCategory(null)}
-          className={`mb-1 flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-left text-xs font-semibold ${
-            !category && !favoritesOnly ? "bg-brand-50 text-brand-500 dark:bg-brand-500/10" : "text-gray-600 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-white/5"
-          }`}
-        >
-          <span>전체 품목</span>
-          <span className="text-[10px] text-gray-400">{categories.reduce((s, c) => s + c.count, 0)}</span>
-        </button>
-        {categories.map((c) => (
+        <div className="flex flex-wrap gap-1.5 lg:block">
           <button
-            key={c.category}
-            onClick={() => { setCategory(c.category); setFavoritesOnly(false); }}
-            className={`mb-1 flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-left text-xs font-semibold ${
-              category === c.category ? "bg-brand-50 text-brand-500 dark:bg-brand-500/10" : "text-gray-600 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-white/5"
+            onClick={() => { setCategory(null); setFavoritesOnly(false); }}
+            className={`mb-1 flex w-auto items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-left text-xs font-semibold lg:w-full ${
+              !category && !favoritesOnly ? "bg-brand-50 text-brand-500 dark:bg-brand-500/10" : "text-gray-600 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-white/5"
             }`}
           >
-            <span>{ICONS[c.category] || "📦"} {c.category}</span>
-            <span className="text-[10px] text-gray-400">{c.count}</span>
+            <span>전체 품목</span>
+            <span className="text-[10px] text-gray-400">{categories.reduce((s, c) => s + c.count, 0)}</span>
           </button>
-        ))}
-        <div className="mb-1 mt-4 text-[11px] font-bold uppercase tracking-wide text-gray-400">내 즐겨찾기</div>
-        <button
-          onClick={() => { setFavoritesOnly(true); setCategory(null); }}
-          className={`flex w-full items-center gap-1.5 rounded-lg px-2.5 py-2 text-left text-xs font-semibold ${
-            favoritesOnly ? "bg-brand-50 text-brand-500 dark:bg-brand-500/10" : "text-gray-600 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-white/5"
-          }`}
-        >
-          ⭐ 즐겨찾기
-        </button>
+          {categories.map((c) => (
+            <button
+              key={c.category}
+              onClick={() => { setCategory(c.category); setFavoritesOnly(false); }}
+              className={`mb-1 flex w-auto items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-left text-xs font-semibold lg:w-full ${
+                category === c.category ? "bg-brand-50 text-brand-500 dark:bg-brand-500/10" : "text-gray-600 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-white/5"
+              }`}
+            >
+              <span>{ICONS[c.category] || "📦"} {c.category}</span>
+              <span className="text-[10px] text-gray-400">{c.count}</span>
+            </button>
+          ))}
+          <button
+            onClick={() => { setFavoritesOnly(true); setCategory(null); }}
+            className={`flex w-auto items-center gap-1.5 rounded-lg px-2.5 py-2 text-left text-xs font-semibold lg:mt-2 lg:w-full ${
+              favoritesOnly ? "bg-brand-50 text-brand-500 dark:bg-brand-500/10" : "text-gray-600 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-white/5"
+            }`}
+          >
+            ⭐ 즐겨찾기
+          </button>
+        </div>
       </aside>
 
-      <main className="flex-1 bg-gray-50 p-5 pb-24 dark:bg-white/[0.01]">
-        <div className="mb-4 flex items-center justify-between gap-3">
+      <main className="min-w-0 flex-1 rounded-2xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-white/[0.01]">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="🔍 상품명으로 검색"
-            className="w-72 rounded-full border border-gray-300 bg-white px-4 py-2 text-xs dark:border-gray-700 dark:bg-gray-900"
+            className="w-full rounded-full border border-gray-300 bg-white px-4 py-2 text-xs dark:border-gray-700 dark:bg-gray-900 sm:w-72"
           />
           <button
             onClick={loadPreviousOrder}
@@ -191,12 +211,12 @@ export default function SupplyShopClient() {
         ) : filtered.length === 0 ? (
           <div className="p-10 text-center text-sm text-gray-400">해당 조건의 품목이 없습니다</div>
         ) : (
-          <div className="grid grid-cols-2 gap-3.5 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
+          <div className="grid grid-cols-2 gap-3.5 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
             {filtered.map((it) => (
               <div
                 key={it.id}
                 onClick={() => openDetail(it)}
-                className="relative cursor-pointer rounded-2xl border border-gray-200 bg-white p-3.5 transition hover:-translate-y-0.5 hover:border-brand-300 dark:border-gray-800 dark:bg-white/[0.03]"
+                className="relative flex cursor-pointer flex-col rounded-2xl border border-gray-200 bg-white p-3.5 transition hover:-translate-y-0.5 hover:border-brand-300 dark:border-gray-800 dark:bg-white/[0.03]"
               >
                 <button
                   onClick={(e) => toggleFavorite(it, e)}
@@ -213,40 +233,82 @@ export default function SupplyShopClient() {
                   )}
                 </div>
                 <div className="mb-0.5 text-[10px] font-bold uppercase text-brand-500">{it.category}</div>
-                <div className="mb-1 min-h-[34px] text-[13px] font-semibold leading-snug text-gray-800 dark:text-white/90">{it.name}</div>
-                <div className="text-[11px] text-gray-400">{it.manufacturer || "-"}</div>
+                <div className="mb-1 line-clamp-2 min-h-[34px] text-[13px] font-semibold leading-snug text-gray-800 dark:text-white/90">{it.name}</div>
+                <div className="text-[11px] font-medium text-gray-500 dark:text-gray-400">{it.manufacturer || "제조사 미상"}</div>
                 <div className="mb-2 text-[11px] text-gray-400">{it.spec ? `${it.spec} · ` : ""}{it.unit}</div>
-                <div className="flex items-baseline gap-1.5">
-                  <span className="text-base font-extrabold text-gray-900 dark:text-white">{it.price.toLocaleString()}원</span>
-                  {it.has_special_price && it.base_price !== it.price && (
-                    <span className="text-[11px] text-gray-400 line-through">{it.base_price.toLocaleString()}원</span>
-                  )}
+                <div className="mt-auto">
+                  <div className="flex flex-wrap items-baseline gap-1">
+                    <span className="whitespace-nowrap text-base font-extrabold text-gray-900 dark:text-white">{it.price.toLocaleString()}원</span>
+                    {it.has_special_price && it.base_price !== it.price && (
+                      <span className="text-[10px] text-gray-400 line-through">{it.base_price.toLocaleString()}</span>
+                    )}
+                    {it.has_special_price && (
+                      <span className="rounded-full bg-success-50 px-1.5 py-0.5 text-[9px] font-bold text-success-600 dark:bg-success-500/15 dark:text-success-400">
+                        병원 전용가
+                      </span>
+                    )}
+                  </div>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); addToCart(it, 1); }}
+                    className="mt-2 w-full rounded-lg bg-brand-500 py-1.5 text-xs font-bold text-white hover:bg-brand-600"
+                    title="장바구니 담기"
+                  >
+                    담기
+                  </button>
                 </div>
-                {it.has_special_price && (
-                  <span className="mt-1.5 inline-block rounded-full bg-success-50 px-2 py-0.5 text-[10px] font-bold text-success-600 dark:bg-success-500/15 dark:text-success-400">
-                    병원 전용 단가
-                  </span>
-                )}
               </div>
             ))}
           </div>
         )}
       </main>
 
-      {/* 하단 주문요약 바 */}
-      <div className="fixed bottom-0 left-0 right-0 z-20 flex items-center gap-5 border-t border-gray-200 bg-white px-6 py-3.5 shadow-[0_-8px_24px_rgba(16,24,40,0.08)] dark:border-gray-800 dark:bg-gray-900 md:left-[290px]">
-        <div className="ml-auto text-right">
-          <div className="text-[11px] text-gray-400">담은 품목 <b className="text-gray-700 dark:text-gray-200">{cartCount}</b>개</div>
-          <div className="text-lg font-extrabold text-gray-900 dark:text-white">{cartTotal.toLocaleString()}원</div>
+      {/* 장바구니 (우측 고정 패널) */}
+      <aside className="shrink-0 rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03] lg:sticky lg:top-24 lg:w-80">
+        <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3 dark:border-gray-800">
+          <h3 className="text-sm font-bold text-gray-800 dark:text-white/90">🛒 발주 목록</h3>
+          <span className="rounded-full bg-brand-50 px-2 py-0.5 text-[11px] font-bold text-brand-600 dark:bg-brand-500/15 dark:text-brand-400">{cartCount}개</span>
         </div>
-        <button
-          onClick={submitOrder}
-          disabled={submitting || cartLines.length === 0}
-          className="rounded-lg bg-brand-500 px-5 py-3 text-sm font-bold text-white disabled:opacity-40"
-        >
-          {submitting ? "발주 처리 중..." : "발주서 작성 →"}
-        </button>
-      </div>
+        <div className="max-h-[420px] overflow-y-auto">
+          {cartLines.length === 0 ? (
+            <div className="px-4 py-10 text-center text-xs text-gray-400">담은 소모품이 없습니다.<br />품목의 &quot;담기&quot;를 눌러 추가하세요.</div>
+          ) : (
+            <ul className="divide-y divide-gray-100 dark:divide-gray-800">
+              {cartLines.map((l) => (
+                <li key={l.item.id} className="px-4 py-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <div className="truncate text-xs font-semibold text-gray-800 dark:text-white/90">{l.item.name}</div>
+                      <div className="truncate text-[10px] text-gray-400">{l.item.manufacturer || "제조사 미상"} · {l.item.spec ? `${l.item.spec} · ` : ""}{l.item.unit}</div>
+                    </div>
+                    <button onClick={() => removeFromCart(l.item.id)} className="shrink-0 text-xs text-gray-300 hover:text-error-500">✕</button>
+                  </div>
+                  <div className="mt-2 flex items-center justify-between">
+                    <div className="flex items-center overflow-hidden rounded-lg border border-gray-300 dark:border-gray-700">
+                      <button onClick={() => setQty(l.item.id, l.qty - 1)} className="h-7 w-7 bg-gray-50 text-xs dark:bg-white/5">−</button>
+                      <span className="w-8 text-center text-xs font-bold">{l.qty}</span>
+                      <button onClick={() => setQty(l.item.id, l.qty + 1)} className="h-7 w-7 bg-gray-50 text-xs dark:bg-white/5">+</button>
+                    </div>
+                    <span className="text-xs font-bold text-gray-800 dark:text-white/90">{(l.item.price * l.qty).toLocaleString()}원</span>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+        <div className="border-t border-gray-100 p-4 dark:border-gray-800">
+          <div className="mb-3 flex items-center justify-between">
+            <span className="text-xs text-gray-400">합계</span>
+            <span className="text-lg font-extrabold text-gray-900 dark:text-white">{cartTotal.toLocaleString()}원</span>
+          </div>
+          <button
+            onClick={submitOrder}
+            disabled={submitting || cartLines.length === 0}
+            className="w-full rounded-lg bg-brand-500 py-3 text-sm font-bold text-white hover:bg-brand-600 disabled:opacity-40"
+          >
+            {submitting ? "주문 처리 중..." : "주문하기"}
+          </button>
+        </div>
+      </aside>
 
       {/* 상세 (전체화면) */}
       {detail && (
@@ -269,10 +331,13 @@ export default function SupplyShopClient() {
                 )}
               </div>
               <div className="flex-1">
-                <h3 className="mb-1 text-2xl font-bold text-gray-900 dark:text-white">{detail.name}</h3>
-                <p className="mb-4 text-sm text-gray-400">
-                  {detail.category}{detail.manufacturer && ` · ${detail.manufacturer}`} · {detail.spec ? `${detail.spec} · ` : ""}{detail.unit}
-                </p>
+                <h3 className="mb-2 text-2xl font-bold text-gray-900 dark:text-white">{detail.name}</h3>
+                <dl className="mb-4 space-y-1 text-sm">
+                  <div className="flex gap-2"><dt className="w-16 shrink-0 text-gray-400">제조사</dt><dd className="font-medium text-gray-700 dark:text-gray-200">{detail.manufacturer || "-"}</dd></div>
+                  <div className="flex gap-2"><dt className="w-16 shrink-0 text-gray-400">규격</dt><dd className="font-medium text-gray-700 dark:text-gray-200">{detail.spec || "-"}</dd></div>
+                  <div className="flex gap-2"><dt className="w-16 shrink-0 text-gray-400">단위</dt><dd className="font-medium text-gray-700 dark:text-gray-200">{detail.unit}</dd></div>
+                  <div className="flex gap-2"><dt className="w-16 shrink-0 text-gray-400">카테고리</dt><dd className="font-medium text-gray-700 dark:text-gray-200">{detail.category}</dd></div>
+                </dl>
                 {detail.description && <p className="mb-4 text-sm text-gray-600 dark:text-gray-300">{detail.description}</p>}
                 <div className="flex items-baseline justify-between rounded-xl bg-brand-50 px-4 py-3.5 dark:bg-brand-500/10">
                   <span className="text-xs font-semibold text-gray-500">병원 적용가</span>

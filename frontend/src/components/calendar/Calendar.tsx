@@ -64,6 +64,14 @@ const TABS: { v: Tab; l: string }[] = [
   { v: "초음파임상팀", l: "임상 캘린더" },
 ];
 
+// 팀 공유 선택지. "전체공유"는 특수값 — 이 일정은 모든 팀 캘린더에 노출된다.
+const ALL_TEAMS_VALUE = "전체공유";
+const TEAM_OPTIONS: { v: string; l: string }[] = [
+  { v: ALL_TEAMS_VALUE, l: "전체 공유" },
+  { v: "기술팀", l: "기술팀" },
+  { v: "초음파임상팀", l: "초음파임상팀" },
+];
+
 const Calendar: React.FC = () => {
   const [selectedEvent, setSelectedEvent] = useState<ApiEvent | null>(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -118,12 +126,10 @@ const Calendar: React.FC = () => {
       .catch(() => setStaff([]));
   }, []);
 
-  // 팀 공유 선택지는 캘린더 탭과 동일하게 기술부/임상 둘로 고정
-  const teamOptions = TABS.filter((t) => t.v !== "all").map((t) => t.v);
-
   const filteredEvents = useMemo(() => {
     if (tab === "all") return events;
-    return events.filter((e) => e.teams.includes(tab));
+    // "전체공유"로 표시된 일정은 어떤 팀 탭에서도 보이게 한다
+    return events.filter((e) => e.teams.includes(tab) || e.teams.includes(ALL_TEAMS_VALUE));
   }, [events, tab]);
 
   const fcEvents: EventInput[] = filteredEvents.map((e) => ({
@@ -225,6 +231,11 @@ const Calendar: React.FC = () => {
     setAssigneeIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   }
 
+  const allStaffSelected = staff.length > 0 && staff.every((s) => assigneeIds.includes(s.id));
+  function toggleAllAssignees() {
+    setAssigneeIds(allStaffSelected ? [] : staff.map((s) => s.id));
+  }
+
   return (
     <div className="rounded-2xl border  border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
       <div className="flex flex-wrap items-center gap-2 border-b border-gray-200 px-4 py-3 dark:border-gray-800">
@@ -317,26 +328,38 @@ const Calendar: React.FC = () => {
               </div>
 
               <div className="mt-4">
-                <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">팀 공유 (다중 선택)</label>
+                <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">팀 공유</label>
                 <div className="flex flex-wrap gap-1.5">
-                  {teamOptions.map((t) => (
+                  {TEAM_OPTIONS.map((t) => (
                     <button
-                      key={t}
+                      key={t.v}
                       type="button"
                       disabled={fieldsDisabled}
-                      onClick={() => toggleTeam(t)}
+                      onClick={() => toggleTeam(t.v)}
                       className={`rounded-full px-2.5 py-1 text-xs font-semibold disabled:opacity-60 ${
-                        teams.includes(t) ? "bg-brand-500 text-white" : "bg-gray-100 text-gray-500 dark:bg-white/10"
+                        teams.includes(t.v) ? "bg-brand-500 text-white" : "bg-gray-100 text-gray-500 dark:bg-white/10"
                       }`}
                     >
-                      {t}
+                      {t.l}
                     </button>
                   ))}
                 </div>
               </div>
 
               <div className="mt-4">
-                <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">팀원 초대 (다중 선택)</label>
+                <div className="mb-1.5 flex items-center justify-between">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-400">팀원 초대</label>
+                  <button
+                    type="button"
+                    disabled={fieldsDisabled || staff.length === 0}
+                    onClick={toggleAllAssignees}
+                    className={`rounded-full px-2.5 py-1 text-xs font-bold disabled:opacity-60 ${
+                      allStaffSelected ? "bg-brand-500 text-white" : "bg-gray-100 text-gray-600 dark:bg-white/10 dark:text-gray-300"
+                    }`}
+                  >
+                    {allStaffSelected ? "전체 해제" : "전체 선택 (ALL)"}
+                  </button>
+                </div>
                 <div className="flex max-h-28 flex-wrap gap-1.5 overflow-y-auto">
                   {staff.map((s) => (
                     <button

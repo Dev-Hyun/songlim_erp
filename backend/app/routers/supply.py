@@ -168,7 +168,9 @@ async def create_order(payload: OrderCreateIn, db: AsyncSession = Depends(get_db
         line_total = price * it.qty
         subtotal += line_total
         order_items.append(SupplyOrderItem(
-            catalog_id=catalog.id, name_snapshot=catalog.name, unit_snapshot=catalog.unit,
+            catalog_id=catalog.id, name_snapshot=catalog.name,
+            manufacturer_snapshot=catalog.manufacturer, spec_snapshot=catalog.spec,
+            unit_snapshot=catalog.unit,
             unit_price_snapshot=price, qty=it.qty, subtotal=line_total,
         ))
 
@@ -205,7 +207,9 @@ def _serialize_order(o: SupplyOrder) -> dict:
         "gift_note": o.gift_note, "tax_invoice_status": o.tax_invoice_status,
         "created_at": o.created_at, "updated_at": o.updated_at,
         "items": [
-            {"id": i.id, "catalog_id": i.catalog_id, "name": i.name_snapshot, "unit": i.unit_snapshot,
+            {"id": i.id, "catalog_id": i.catalog_id, "name": i.name_snapshot,
+             "manufacturer": i.manufacturer_snapshot, "spec": i.spec_snapshot,
+             "unit": i.unit_snapshot,
              "unit_price": i.unit_price_snapshot, "qty": i.qty, "subtotal": i.subtotal}
             for i in o.items
         ],

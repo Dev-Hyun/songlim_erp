@@ -24,6 +24,8 @@ export interface OrderItem {
   id: number;
   catalog_id: number | null;
   name: string;
+  manufacturer: string | null;
+  spec: string | null;
   unit: string;
   unit_price: number;
   qty: number;

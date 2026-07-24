@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
-import ComponentCard from "@/components/common/ComponentCard";
+import DashboardListCard from "@/components/dashboard/DashboardListCard";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8010";
 
@@ -36,6 +36,8 @@ interface CalendarEvent {
   title: string;
   start_at: string;
   is_shared: boolean;
+  created_by: number;
+  assignee_ids: number[];
 }
 
 const CONTRACT_BADGE: Record<string, string> = {
@@ -98,13 +100,16 @@ export default function StaffDashboard() {
   }, []);
 
   const todayStr = new Date().toISOString().slice(0, 10);
+  const myId = user?.id;
+  // 홈의 "다가오는 일정"은 내가 초대된(또는 내가 만든) 일정만 노출
+  const myEvents = events.filter((e) => e.created_by === myId || (e.assignee_ids || []).includes(myId ?? -1));
   const inProgressContracts = contracts.filter((c) => c.status === "진행중");
   const openCs = csTickets.filter((t) => t.status !== "처리완료");
-  const upcomingEvents = events
+  const upcomingEvents = myEvents
     .filter((e) => e.start_at >= todayStr)
     .sort((a, b) => a.start_at.localeCompare(b.start_at))
-    .slice(0, 4);
-  const todayCount = events.filter((e) => e.start_at.slice(0, 10) === todayStr).length;
+    .slice(0, 5);
+  const todayCount = myEvents.filter((e) => e.start_at.slice(0, 10) === todayStr).length;
 
   const greetName = user?.display_name || user?.username || "";
 
@@ -126,101 +131,65 @@ export default function StaffDashboard() {
       </div>
 
       <div className="col-span-12 xl:col-span-6">
-        <ComponentCard title="다가오는 일정" className="h-[380px]">
-          {loading ? (
-            <div className="py-6 text-center text-sm text-gray-400">불러오는 중...</div>
-          ) : upcomingEvents.length === 0 ? (
-            <div className="py-6 text-center text-sm text-gray-400">예정된 일정이 없습니다</div>
-          ) : (
-            <ul className="space-y-3">
-              {upcomingEvents.map((e) => (
-                <li key={e.id} className="flex items-center justify-between text-sm">
-                  <span className="font-medium text-gray-700 dark:text-gray-200">{e.title}</span>
-                  <span className="text-xs text-gray-400">{e.start_at.replace("T", " ").slice(0, 16)}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-          <Link href="/calendar" className="mt-4 block text-center text-xs font-semibold text-brand-500 hover:underline">
-            전체 캘린더 보기 →
-          </Link>
-        </ComponentCard>
+        <DashboardListCard title="다가오는 일정" href="/calendar" footerLabel="전체 캘린더 보기" loading={loading} isEmpty={upcomingEvents.length === 0} emptyText="예정된 일정이 없습니다">
+          <ul className="space-y-3">
+            {upcomingEvents.map((e) => (
+              <li key={e.id} className="flex items-center justify-between text-sm">
+                <span className="truncate font-medium text-gray-700 dark:text-gray-200">{e.title}</span>
+                <span className="ml-3 shrink-0 text-xs text-gray-400">{e.start_at.replace("T", " ").slice(0, 16)}</span>
+              </li>
+            ))}
+          </ul>
+        </DashboardListCard>
       </div>
 
       <div className="col-span-12 xl:col-span-6">
-        <ComponentCard title="회사 공지사항" className="h-[380px]">
-          {loading ? (
-            <div className="py-6 text-center text-sm text-gray-400">불러오는 중...</div>
-          ) : notices.length === 0 ? (
-            <div className="py-6 text-center text-sm text-gray-400">등록된 공지가 없습니다</div>
-          ) : (
-            <ul className="space-y-3">
-              {notices.slice(0, 4).map((n) => (
-                <li key={n.id} className="flex items-center justify-between text-sm">
-                  <span className="truncate font-medium text-gray-700 dark:text-gray-200">{n.title}</span>
-                  <span className="ml-3 shrink-0 text-xs text-gray-400">{timeAgo(n.created_at)}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-          <Link href="/notices/internal" className="mt-4 block text-center text-xs font-semibold text-brand-500 hover:underline">
-            전체 공지사항 보기 →
-          </Link>
-        </ComponentCard>
+        <DashboardListCard title="회사 공지사항" href="/notices/internal" footerLabel="전체 공지사항 보기" loading={loading} isEmpty={notices.length === 0} emptyText="등록된 공지가 없습니다">
+          <ul className="space-y-3">
+            {notices.slice(0, 5).map((n) => (
+              <li key={n.id} className="flex items-center justify-between text-sm">
+                <span className="truncate font-medium text-gray-700 dark:text-gray-200">{n.title}</span>
+                <span className="ml-3 shrink-0 text-xs text-gray-400">{timeAgo(n.created_at)}</span>
+              </li>
+            ))}
+          </ul>
+        </DashboardListCard>
       </div>
 
       <div className="col-span-12 xl:col-span-6">
-        <ComponentCard title="최근 계약 진행 현황" className="h-[380px]">
-          {loading ? (
-            <div className="py-6 text-center text-sm text-gray-400">불러오는 중...</div>
-          ) : contracts.length === 0 ? (
-            <div className="py-6 text-center text-sm text-gray-400">등록된 계약이 없습니다</div>
-          ) : (
-            <ul className="space-y-3">
-              {contracts.slice(0, 4).map((c) => (
-                <li key={c.id} className="flex items-center justify-between text-sm">
-                  <div className="min-w-0">
-                    <div className="truncate font-medium text-gray-700 dark:text-gray-200">{c.title}</div>
-                    <div className="text-xs text-gray-400">{c.buyer_hospital || "-"}</div>
-                  </div>
-                  <span className={`ml-3 shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold ${CONTRACT_BADGE[c.status] || ""}`}>
-                    {c.status}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-          <Link href="/contracts" className="mt-4 block text-center text-xs font-semibold text-brand-500 hover:underline">
-            전체 계약 보기 →
-          </Link>
-        </ComponentCard>
+        <DashboardListCard title="최근 계약 진행 현황" href="/contracts" footerLabel="전체 계약 보기" loading={loading} isEmpty={contracts.length === 0} emptyText="등록된 계약이 없습니다">
+          <ul className="space-y-3">
+            {contracts.slice(0, 5).map((c) => (
+              <li key={c.id} className="flex items-center justify-between text-sm">
+                <div className="min-w-0">
+                  <div className="truncate font-medium text-gray-700 dark:text-gray-200">{c.title}</div>
+                  <div className="text-xs text-gray-400">{c.buyer_hospital || "-"}</div>
+                </div>
+                <span className={`ml-3 shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold ${CONTRACT_BADGE[c.status] || ""}`}>
+                  {c.status}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </DashboardListCard>
       </div>
 
       <div className="col-span-12 xl:col-span-6">
-        <ComponentCard title="최근 CS 접수" className="h-[380px]">
-          {loading ? (
-            <div className="py-6 text-center text-sm text-gray-400">불러오는 중...</div>
-          ) : csTickets.length === 0 ? (
-            <div className="py-6 text-center text-sm text-gray-400">접수된 CS가 없습니다</div>
-          ) : (
-            <ul className="space-y-3">
-              {csTickets.slice(0, 4).map((t) => (
-                <li key={t.id} className="flex items-center justify-between text-sm">
-                  <div className="min-w-0">
-                    <div className="truncate font-medium text-gray-700 dark:text-gray-200">{t.title}</div>
-                    <div className="text-xs text-gray-400">{t.created_by_name}</div>
-                  </div>
-                  <span className={`ml-3 shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold ${CS_BADGE[t.status] || ""}`}>
-                    {t.status}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-          <Link href="/cs" className="mt-4 block text-center text-xs font-semibold text-brand-500 hover:underline">
-            전체 CS 보기 →
-          </Link>
-        </ComponentCard>
+        <DashboardListCard title="최근 CS 접수" href="/cs" footerLabel="전체 CS 보기" loading={loading} isEmpty={csTickets.length === 0} emptyText="접수된 CS가 없습니다">
+          <ul className="space-y-3">
+            {csTickets.slice(0, 5).map((t) => (
+              <li key={t.id} className="flex items-center justify-between text-sm">
+                <div className="min-w-0">
+                  <div className="truncate font-medium text-gray-700 dark:text-gray-200">{t.title}</div>
+                  <div className="text-xs text-gray-400">{t.created_by_name}</div>
+                </div>
+                <span className={`ml-3 shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold ${CS_BADGE[t.status] || ""}`}>
+                  {t.status}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </DashboardListCard>
       </div>
     </div>
   );

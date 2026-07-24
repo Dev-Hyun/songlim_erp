@@ -5,7 +5,17 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.models import CsComment, CsTicket, NewsArticle, Notice, TechPost, User
+from app.models import (
+    CalendarEvent,
+    CalendarEventAssignee,
+    CsComment,
+    CsTicket,
+    NewsArticle,
+    Notice,
+    Suggestion,
+    TechPost,
+    User,
+)
 from app.routers.auth import require_user
 
 router = APIRouter(prefix="/api/notifications", tags=["notifications"])
@@ -20,12 +30,52 @@ def _iso(v) -> str:
     return v or ""
 
 
+async def _staff_notifications(db: AsyncSession, user: User) -> dict:
+    """송림 직원 전용 — 회사 공지사항/커뮤니티/건의사항 신규 글 + 본인이 초대된 캘린더 일정."""
+    seen_at = user.notifications_seen_at or "1970-01-01"
+    items = []
+
+    notices = (
+        await db.execute(select(Notice).where(Notice.notice_type == "internal").order_by(Notice.created_at.desc()).limit(10))
+    ).scalars().all()
+    for n in notices:
+        items.append({"type": "notice", "label": "회사 공지사항", "title": n.title, "created_at": _iso(n.created_at), "link": "/notices/internal"})
+
+    community = (
+        await db.execute(select(TechPost).where(TechPost.category == "general").order_by(TechPost.created_at.desc()).limit(10))
+    ).scalars().all()
+    for p in community:
+        items.append({"type": "community", "label": "커뮤니티", "title": p.title, "created_at": _iso(p.created_at), "link": "/community"})
+
+    suggestions = (
+        await db.execute(select(Suggestion).order_by(Suggestion.created_at.desc()).limit(10))
+    ).scalars().all()
+    for s in suggestions:
+        items.append({"type": "suggestion", "label": "건의사항", "title": s.title, "created_at": _iso(s.created_at), "link": "/suggestions"})
+
+    invited = (
+        await db.execute(
+            select(CalendarEvent)
+            .join(CalendarEventAssignee, CalendarEventAssignee.event_id == CalendarEvent.id)
+            .where(CalendarEventAssignee.user_id == user.id)
+            .order_by(CalendarEvent.start_at.desc())
+            .limit(10)
+        )
+    ).scalars().all()
+    for e in invited:
+        items.append({"type": "calendar", "label": "캘린더 일정", "title": f"{e.title} 일정에 초대되었습니다", "created_at": _iso(e.start_at), "link": "/calendar"})
+
+    items.sort(key=lambda x: x["created_at"] or "", reverse=True)
+    unread_count = sum(1 for it in items if (it["created_at"] or "") > seen_at)
+    return {"unread_count": unread_count, "items": items[:20]}
+
+
 @router.get("")
 async def list_notifications(db: AsyncSession = Depends(get_db), user: User = Depends(require_user)):
-    """병원 계정 전용 — 병원용 공지사항/의료소식/공동구매/중고기기 신규 글, 내 CS 티켓에 달린 답변을 모아서 보여준다.
-    직원 계정은 대상이 아니라 빈 목록을 반환한다."""
+    """병원 계정: 병원 공지사항/의료소식/공동구매/중고기기 신규 글 + 내 CS 답변.
+    송림 직원: 회사 공지사항/커뮤니티/건의사항 신규 글 + 본인이 초대된 캘린더 일정."""
     if user.role != "hospital":
-        return {"unread_count": 0, "items": []}
+        return await _staff_notifications(db, user)
 
     seen_at = user.notifications_seen_at or "1970-01-01"
     items = []

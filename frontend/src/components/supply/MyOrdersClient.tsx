@@ -82,10 +82,13 @@ export default function MyOrdersClient() {
               {expanded === o.id && (
                 <div className="bg-gray-50 px-4 pb-4 dark:bg-white/[0.015]">
                   <div className="overflow-x-auto">
-                  <table className="w-full min-w-[360px] text-xs">
+                  <table className="w-full min-w-[520px] text-xs">
                     <thead>
                       <tr className="text-left text-gray-400">
                         <th className="py-1.5">품목</th>
+                        <th className="py-1.5">제조사</th>
+                        <th className="py-1.5">규격</th>
+                        <th className="py-1.5">단위</th>
                         <th className="py-1.5 text-right">단가</th>
                         <th className="py-1.5 text-right">수량</th>
                         <th className="py-1.5 text-right">소계</th>
@@ -94,9 +97,12 @@ export default function MyOrdersClient() {
                     <tbody>
                       {o.items.map((it) => (
                         <tr key={it.id} className="border-t border-gray-200 dark:border-gray-800">
-                          <td className="py-1.5">{it.name}</td>
+                          <td className="py-1.5 font-medium text-gray-700 dark:text-gray-200">{it.name}</td>
+                          <td className="py-1.5 text-gray-500">{it.manufacturer || "-"}</td>
+                          <td className="py-1.5 text-gray-500">{it.spec || "-"}</td>
+                          <td className="py-1.5 text-gray-500">{it.unit}</td>
                           <td className="py-1.5 text-right">{it.unit_price.toLocaleString()}원</td>
-                          <td className="py-1.5 text-right">{it.qty}{it.unit}</td>
+                          <td className="py-1.5 text-right">{it.qty}</td>
                           <td className="py-1.5 text-right font-semibold">{it.subtotal.toLocaleString()}원</td>
                         </tr>
                       ))}
