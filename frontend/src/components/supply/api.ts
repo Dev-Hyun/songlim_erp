@@ -40,6 +40,7 @@ export interface SupplyOrder {
   discount_rate_applied: number | null;
   gift_note: string | null;
   tax_invoice_status: string;
+  order_request: string | null;
   created_at: string;
   updated_at: string;
   items: OrderItem[];
@@ -65,8 +66,8 @@ export const addFavorite = (catalog_id: number) =>
 export const removeFavorite = (catalog_id: number) =>
   fetch(`${API}/api/supply/favorites/${catalog_id}`, { method: "DELETE", credentials: "include" }).then((r) => j(r));
 
-export const createOrder = (items: { catalog_id: number; qty: number }[]): Promise<{ id: number; total_amount: number }> =>
-  fetch(`${API}/api/supply/orders`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ items }) }).then((r) => j(r));
+export const createOrder = (items: { catalog_id: number; qty: number }[], orderRequest?: string): Promise<{ id: number; total_amount: number }> =>
+  fetch(`${API}/api/supply/orders`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ items, order_request: orderRequest || null }) }).then((r) => j(r));
 
 export const fetchMyOrders = (params?: { status?: string; date_from?: string; date_to?: string }): Promise<SupplyOrder[]> => {
   const qs = new URLSearchParams();

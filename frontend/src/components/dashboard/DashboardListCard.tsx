@@ -24,7 +24,7 @@ export default function DashboardListCard({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex h-[400px] flex-col rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
+    <div className="flex h-[290px] flex-col rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
       <div className="border-b border-gray-100 px-5 py-4 dark:border-gray-800">
         <h3 className="text-base font-semibold text-gray-800 dark:text-white/90">{title}</h3>
       </div>

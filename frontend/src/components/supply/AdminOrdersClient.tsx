@@ -251,6 +251,12 @@ export default function AdminOrdersClient() {
                   {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
                 </select>
               </div>
+              {detail.order_request && (
+                <div className="mb-3 rounded-lg border border-brand-300 bg-brand-50 p-4 dark:border-brand-500/40 dark:bg-brand-500/10">
+                  <div className="text-xs font-bold text-brand-600 dark:text-brand-400">📌 병원 요청사항</div>
+                  <div className="mt-1 whitespace-pre-wrap text-lg font-bold text-gray-900 dark:text-white">{detail.order_request}</div>
+                </div>
+              )}
               <div className="overflow-x-auto">
               <table className="w-full min-w-[560px] text-xs">
                 <thead>

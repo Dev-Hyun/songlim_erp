@@ -7,7 +7,7 @@ function formatDateTime(iso?: string) {
   return iso.replace("T", " ").slice(0, 16);
 }
 
-function renderInvoiceHtml(items: OrderItem[], meta: { hospitalLabel: string; dateLabel: string; statusLabel: string }) {
+function renderInvoiceHtml(items: OrderItem[], meta: { hospitalLabel: string; dateLabel: string; statusLabel: string; orderRequest?: string | null }) {
   const rows = items
     .map((it) => {
       const supply = it.subtotal;
@@ -48,6 +48,9 @@ function renderInvoiceHtml(items: OrderItem[], meta: { hospitalLabel: string; da
           .totals { margin-top: 16px; margin-left: auto; width: 260px; font-size: 13px; }
           .totals div { display: flex; justify-content: space-between; padding: 4px 0; }
           .totals .grand { font-size: 17px; font-weight: bold; border-top: 2px solid #111; margin-top: 4px; padding-top: 8px; }
+          .request { margin: 14px 0; padding: 12px 14px; border: 2px solid #465fff; border-radius: 8px; background: #f5f7ff; }
+          .request .label { font-size: 12px; font-weight: bold; color: #465fff; }
+          .request .body { font-size: 18px; font-weight: bold; margin-top: 4px; white-space: pre-wrap; }
         </style>
       </head>
       <body>
@@ -57,6 +60,7 @@ function renderInvoiceHtml(items: OrderItem[], meta: { hospitalLabel: string; da
           <div>병원명: ${meta.hospitalLabel}</div>
           <div>상태: ${meta.statusLabel}</div>
         </div>
+        ${meta.orderRequest ? `<div class="request"><div class="label">📌 병원 요청사항</div><div class="body">${meta.orderRequest.replace(/</g, "&lt;")}</div></div>` : ""}
         <table>
           <thead>
             <tr><th>품목</th><th>제조사</th><th>규격</th><th style="text-align:center">단위</th><th style="text-align:right">수량</th><th style="text-align:right">금액</th><th style="text-align:right">부가세</th><th style="text-align:right">총액</th></tr>
@@ -87,6 +91,7 @@ export function printOrder(order: SupplyOrder, hospitalName?: string) {
     hospitalLabel: hospitalName || order.hospital_name || "-",
     dateLabel: formatDateTime(order.created_at),
     statusLabel: order.status,
+    orderRequest: order.order_request,
   });
   openAndPrint(html);
 }
@@ -102,10 +107,12 @@ export function printOrders(orders: SupplyOrder[], hospitalName?: string) {
   const hospitalNames = Array.from(new Set(orders.map((o) => hospitalName || o.hospital_name || "-")));
   const dateLabels = orders.map((o) => formatDateTime(o.created_at)).join(", ");
   const statuses = Array.from(new Set(orders.map((o) => o.status)));
+  const requests = orders.map((o) => o.order_request).filter(Boolean).join("\n---\n");
   const html = renderInvoiceHtml(items, {
     hospitalLabel: hospitalNames.join(", "),
     dateLabel: dateLabels,
     statusLabel: statuses.join(", "),
+    orderRequest: requests || null,
   });
   openAndPrint(html);
 }

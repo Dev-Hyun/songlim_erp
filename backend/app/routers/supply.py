@@ -143,6 +143,7 @@ class OrderItemIn(BaseModel):
 
 class OrderCreateIn(BaseModel):
     items: list[OrderItemIn]
+    order_request: Optional[str] = None
 
 
 @router.post("/orders")
@@ -190,6 +191,7 @@ async def create_order(payload: OrderCreateIn, db: AsyncSession = Depends(get_db
     order = SupplyOrder(
         hospital_profile_id=hp.id, ordered_by=user.id, total_amount=total,
         discount_rate_applied=discount_rate, gift_note=gift_note,
+        order_request=(payload.order_request or None),
     )
     order.items = order_items
     db.add(order)
@@ -205,6 +207,7 @@ def _serialize_order(o: SupplyOrder) -> dict:
         "id": o.id, "status": o.status, "tracking_number": o.tracking_number,
         "total_amount": o.total_amount, "discount_rate_applied": o.discount_rate_applied,
         "gift_note": o.gift_note, "tax_invoice_status": o.tax_invoice_status,
+        "order_request": o.order_request,
         "created_at": o.created_at, "updated_at": o.updated_at,
         "items": [
             {"id": i.id, "catalog_id": i.catalog_id, "name": i.name_snapshot,

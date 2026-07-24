@@ -109,6 +109,12 @@ export default function MyOrdersClient() {
                     </tbody>
                   </table>
                   </div>
+                  {o.order_request && (
+                    <div className="mt-3 rounded-lg border border-brand-200 bg-brand-50 p-3 dark:border-brand-500/30 dark:bg-brand-500/10">
+                      <div className="text-[11px] font-bold text-brand-600 dark:text-brand-400">요청사항</div>
+                      <div className="mt-0.5 whitespace-pre-wrap text-sm font-medium text-gray-800 dark:text-white/90">{o.order_request}</div>
+                    </div>
+                  )}
                   {o.gift_note && <div className="mt-2 text-[11px] text-success-600 dark:text-success-400">🎁 {o.gift_note}</div>}
                   <div className="mt-3 flex gap-2">
                     <button

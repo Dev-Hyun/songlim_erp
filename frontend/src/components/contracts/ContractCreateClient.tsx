@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { createContract } from "./api";
+import { createContract, ocrContract } from "./api";
 
 interface ItemRow {
   name: string;
@@ -15,6 +15,33 @@ export default function ContractCreateClient() {
   const [form, setForm] = useState<Record<string, string>>({});
   const [items, setItems] = useState<ItemRow[]>([{ name: "", qty: "", note: "" }]);
   const [saving, setSaving] = useState(false);
+  const [ocrLoading, setOcrLoading] = useState(false);
+  const [ocrRaw, setOcrRaw] = useState<string | null>(null);
+  const ocrInputRef = useRef<HTMLInputElement>(null);
+
+  async function handleOcr(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setOcrLoading(true);
+    setOcrRaw(null);
+    try {
+      const { parsed, raw_text } = await ocrContract(file);
+      // 인식된 값만 폼에 채우고(빈 값은 유지), 숫자 금액은 문자열로 보관
+      setForm((prev) => {
+        const next = { ...prev };
+        for (const [k, v] of Object.entries(parsed)) {
+          if (v !== undefined && v !== null && v !== "") next[k] = String(v);
+        }
+        return next;
+      });
+      setOcrRaw(raw_text || "");
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "OCR 처리에 실패했습니다");
+    } finally {
+      setOcrLoading(false);
+    }
+  }
 
   const set = (key: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
     setForm({ ...form, [key]: e.target.value });
@@ -60,7 +87,24 @@ export default function ContractCreateClient() {
   return (
     <div className="mx-auto max-w-3xl">
       <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
-        <h2 className="mb-4 text-lg font-bold text-gray-800 dark:text-white/90">📄 새 계약 건 등록</h2>
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-lg font-bold text-gray-800 dark:text-white/90">📄 새 계약 건 등록</h2>
+          <button
+            onClick={() => ocrInputRef.current?.click()}
+            disabled={ocrLoading}
+            className="rounded-full bg-brand-500 px-4 py-2 text-xs font-bold text-white hover:bg-brand-600 disabled:opacity-50"
+          >
+            {ocrLoading ? "인식 중..." : "📷 계약서 사진으로 자동입력"}
+          </button>
+          <input ref={ocrInputRef} type="file" accept="image/*" className="hidden" onChange={handleOcr} />
+        </div>
+
+        {ocrRaw !== null && (
+          <details className="mb-4 rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs dark:border-gray-800 dark:bg-white/[0.02]">
+            <summary className="cursor-pointer font-semibold text-gray-500">인식된 원문 텍스트 (자동입력이 빈 칸은 여기서 확인·복사)</summary>
+            <pre className="mt-2 max-h-48 overflow-auto whitespace-pre-wrap text-gray-600 dark:text-gray-300">{ocrRaw || "인식된 텍스트가 없습니다"}</pre>
+          </details>
+        )}
 
         <div className="mb-2 text-xs font-bold uppercase text-gray-400">🏥 매수자 정보</div>
         <div className="grid grid-cols-2 gap-3">

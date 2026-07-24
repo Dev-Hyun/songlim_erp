@@ -35,6 +35,22 @@ export async function createContract(payload: ContractCreatePayload): Promise<{ 
   return res.json();
 }
 
+export interface ContractOcrResult {
+  parsed: Partial<ContractCreatePayload>;
+  raw_text: string;
+}
+
+export async function ocrContract(file: File): Promise<ContractOcrResult> {
+  const form = new FormData();
+  form.append("file", file);
+  const res = await fetch(`${API}/api/contracts/ocr`, { method: "POST", credentials: "include", body: form });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: "OCR 실패" }));
+    throw new Error(err.detail || "OCR 실패");
+  }
+  return res.json();
+}
+
 export async function fetchContractDetail(id: number): Promise<ContractDetail> {
   const res = await fetch(`${API}/api/contracts/${id}`, { credentials: "include" });
   return res.json();

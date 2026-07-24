@@ -66,6 +66,7 @@ class SupplyOrder(Base, TimestampMixin):
     gift_note: Mapped[Optional[str]] = mapped_column(default=None)
     tax_invoice_status: Mapped[str] = mapped_column(default="미발행")  # 미발행|발행요청|발행완료
     staff_note: Mapped[Optional[str]] = mapped_column(default=None)
+    order_request: Mapped[Optional[str]] = mapped_column(default=None)  # 병원이 발주 시 남기는 요청사항(배송희망일/포장 등)
 
     items: Mapped[list["SupplyOrderItem"]] = relationship(back_populates="order", cascade="all, delete-orphan")
 

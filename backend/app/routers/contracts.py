@@ -186,6 +186,22 @@ async def delete_comment(cid: int, comment_id: int, db: AsyncSession = Depends(g
     return {"ok": True}
 
 
+@router.post("/ocr")
+async def ocr_contract(file: UploadFile = File(...), _: User = Depends(require_staff)):
+    """계약서 사진을 클로바 OCR로 인식해 계약 폼 프리필 값을 반환. 직원 전용."""
+    from app import clova_ocr
+
+    if not clova_ocr.is_configured():
+        raise HTTPException(status_code=503, detail="OCR이 아직 설정되지 않았습니다 (CLOVA_OCR_INVOKE_URL/SECRET 미설정)")
+    ext = os.path.splitext(file.filename or "")[1].lower().lstrip(".") or "jpg"
+    content = await file.read()
+    try:
+        fields = clova_ocr.run_ocr(content, ext)
+    except Exception as e:  # noqa: BLE001 — 네트워크/타임아웃 등 원인을 그대로 사용자에게 안내
+        raise HTTPException(status_code=502, detail=f"OCR 호출 실패: {type(e).__name__} — 서버가 클로바 OCR 엔드포인트에 접근 가능한지 확인이 필요합니다")
+    return clova_ocr.parse_contract(fields)
+
+
 @router.post("/{cid}/photos")
 async def upload_photo(cid: int, file: UploadFile = File(...), db: AsyncSession = Depends(get_db), user: User = Depends(require_staff)):
     dir_path = os.path.join(UPLOAD_DIR, str(cid))

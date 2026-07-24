@@ -40,6 +40,7 @@ export default function SupplyShopClient() {
   const [detailQty, setDetailQty] = useState(1);
   const [submitting, setSubmitting] = useState(false);
   const [loadingPrev, setLoadingPrev] = useState(false);
+  const [orderRequest, setOrderRequest] = useState("");
 
   function load() {
     setLoading(true);
@@ -143,8 +144,9 @@ export default function SupplyShopClient() {
     if (cartLines.length === 0) return;
     setSubmitting(true);
     try {
-      const res = await createOrder(cartLines.map((l) => ({ catalog_id: l.item.id, qty: l.qty })));
+      const res = await createOrder(cartLines.map((l) => ({ catalog_id: l.item.id, qty: l.qty })), orderRequest.trim() || undefined);
       setCart({});
+      setOrderRequest("");
       alert(`발주가 접수되었습니다 (발주번호 #${res.id}, 총액 ${res.total_amount.toLocaleString()}원)`);
       router.push("/my/supply-orders");
     } finally {
@@ -296,6 +298,14 @@ export default function SupplyShopClient() {
           )}
         </div>
         <div className="border-t border-gray-100 p-4 dark:border-gray-800">
+          <label className="mb-1 block text-xs font-semibold text-gray-500 dark:text-gray-300">요청사항</label>
+          <textarea
+            value={orderRequest}
+            onChange={(e) => setOrderRequest(e.target.value)}
+            rows={3}
+            placeholder="예: 배송희망일, 상품/포장 관련 요청 등"
+            className="mb-3 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs dark:border-gray-700 dark:bg-gray-900"
+          />
           <div className="mb-3 flex items-center justify-between">
             <span className="text-xs text-gray-400">합계</span>
             <span className="text-lg font-extrabold text-gray-900 dark:text-white">{cartTotal.toLocaleString()}원</span>
