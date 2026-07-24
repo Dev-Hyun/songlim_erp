@@ -1,5 +1,5 @@
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Response
@@ -7,6 +7,7 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.audit import log_action
 from app.database import get_db
 from app.models import Hospital, HospitalProfile, Session, StaffProfile, User
 from app.security import hash_password, new_session_token, verify_password
@@ -16,6 +17,10 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 COOKIE_NAME = "session_token"
 # 배포 도메인이 HTTPS로 확정되면 .env에서 COOKIE_SECURE=true 로 전환
 COOKIE_SECURE = os.environ.get("COOKIE_SECURE", "false").lower() == "true"
+
+# 브루트포스 방어 — 특정 계정 대상 연속 로그인 실패 시 일시 잠금
+MAX_FAILED_LOGIN_ATTEMPTS = 5
+LOGIN_LOCKOUT_MINUTES = 15
 
 
 async def get_current_user(
@@ -154,10 +159,30 @@ async def register_hospital(payload: HospitalRegisterIn, response: Response, db:
 @router.post("/login")
 async def login(payload: LoginIn, response: Response, db: AsyncSession = Depends(get_db)):
     user = (await db.execute(select(User).where(User.username == payload.username))).scalar_one_or_none()
+
+    if user and user.locked_until:
+        locked_until_dt = datetime.fromisoformat(user.locked_until)
+        if datetime.now(timezone.utc) < locked_until_dt:
+            remaining_min = max(1, int((locked_until_dt - datetime.now(timezone.utc)).total_seconds() // 60) + 1)
+            raise HTTPException(status_code=429, detail=f"로그인 시도가 너무 많아 계정이 잠겼습니다. {remaining_min}분 후 다시 시도해주세요.")
+        # 잠금 시간이 지났으면 카운터 초기화하고 이번 시도부터 다시 셈
+        user.failed_login_count = 0
+        user.locked_until = None
+
     if not user or not verify_password(payload.password, user.password_hash):
+        if user:
+            user.failed_login_count += 1
+            if user.failed_login_count >= MAX_FAILED_LOGIN_ATTEMPTS:
+                user.locked_until = (datetime.now(timezone.utc) + timedelta(minutes=LOGIN_LOCKOUT_MINUTES)).isoformat()
+            log_action(db, None, "login_failed", "user", user.id, detail=f"username={payload.username}, 실패 {user.failed_login_count}회")
+            await db.commit()
         raise HTTPException(status_code=401, detail="아이디 또는 비밀번호가 올바르지 않습니다")
     if not user.is_approved:
         raise HTTPException(status_code=403, detail="관리자 승인 대기 중인 계정입니다. 승인 후 다시 시도해주세요.")
+
+    user.failed_login_count = 0
+    user.locked_until = None
+    log_action(db, user, "login_success")
     await _create_session(db, response, user)
     return {"id": user.id, "username": user.username, "role": user.role}
 

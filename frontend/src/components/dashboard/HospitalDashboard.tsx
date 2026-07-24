@@ -90,6 +90,14 @@ export default function HospitalDashboard() {
       .finally(() => setOrdersLoading(false));
   }, []);
 
+  const now = new Date();
+  const thisMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const lastMonthKey = `${lastMonthDate.getFullYear()}-${String(lastMonthDate.getMonth() + 1).padStart(2, "0")}`;
+  const thisMonthTotal = orders.filter((o) => o.created_at?.slice(0, 7) === thisMonthKey).reduce((s, o) => s + o.total_amount, 0);
+  const lastMonthTotal = orders.filter((o) => o.created_at?.slice(0, 7) === lastMonthKey).reduce((s, o) => s + o.total_amount, 0);
+  const diffPct = lastMonthTotal > 0 ? Math.round(((thisMonthTotal - lastMonthTotal) / lastMonthTotal) * 100) : null;
+
   return (
     <div className="grid grid-cols-12 gap-4 md:gap-6">
       <div className="col-span-12">
@@ -110,6 +118,27 @@ export default function HospitalDashboard() {
           </Link>
         ))}
       </div>
+
+      {!ordersLoading && (
+        <div className="col-span-12 flex flex-col justify-between rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] sm:flex-row sm:items-center">
+          <div>
+            <span className="text-xs font-semibold text-gray-400">이번 달 발주액</span>
+            <div className="mt-1 text-2xl font-extrabold text-gray-800 dark:text-white">{thisMonthTotal.toLocaleString()}원</div>
+          </div>
+          <div className="mt-2 text-xs text-gray-400 sm:mt-0 sm:text-right">
+            {diffPct === null ? (
+              <span>전월 발주 내역이 없어 비교할 수 없습니다</span>
+            ) : (
+              <span>
+                전월 대비{" "}
+                <span className={`font-bold ${diffPct >= 0 ? "text-success-600 dark:text-success-400" : "text-error-500"}`}>
+                  {diffPct >= 0 ? "▲" : "▼"} {Math.abs(diffPct)}%
+                </span>
+              </span>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="col-span-12">
         <ComponentCard title="내 발주내역 상태">

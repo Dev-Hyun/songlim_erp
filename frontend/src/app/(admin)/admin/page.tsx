@@ -29,10 +29,30 @@ interface GradeRow {
   sort_order: number;
 }
 
+interface AuditLogRow {
+  id: number;
+  actor_name: string | null;
+  action: string;
+  target_type: string | null;
+  target_id: string | null;
+  detail: string | null;
+  created_at: string;
+}
+
+const AUDIT_ACTION_LABEL: Record<string, string> = {
+  login_success: "로그인 성공",
+  login_failed: "로그인 실패",
+  role_change: "권한 변경",
+  order_status_change: "발주 상태 변경",
+  price_change: "단가/등급 변경",
+  post_delete: "게시글 삭제",
+};
+
 export default function AdminPage() {
   const { user, loading: authLoading } = useAuth();
   const [users, setUsers] = useState<UserRow[]>([]);
   const [grades, setGrades] = useState<GradeRow[]>([]);
+  const [auditLogs, setAuditLogs] = useState<AuditLogRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [newGrade, setNewGrade] = useState({ grade_code: "", grade_type: "discount", label: "", discount_rate: "" });
 
@@ -41,8 +61,9 @@ export default function AdminPage() {
     Promise.all([
       fetch(`${API}/api/admin/users`, { credentials: "include" }).then((r) => (r.ok ? r.json() : [])),
       fetch(`${API}/api/admin/grades`, { credentials: "include" }).then((r) => (r.ok ? r.json() : [])),
+      fetch(`${API}/api/admin/audit-logs`, { credentials: "include" }).then((r) => (r.ok ? r.json() : [])),
     ])
-      .then(([u, g]) => { setUsers(u); setGrades(g); })
+      .then(([u, g, a]) => { setUsers(u); setGrades(g); setAuditLogs(a); })
       .finally(() => setLoading(false));
   }
 
@@ -273,6 +294,43 @@ export default function AdminPage() {
           </tbody>
         </table>
         </div>
+      </div>
+
+      <div className="rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-white/[0.03]">
+        <h2 className="mb-1 text-base font-bold text-gray-800 dark:text-white/90">감사 로그</h2>
+        <p className="mb-3 text-xs text-gray-400">로그인·권한변경·발주상태변경·단가/등급변경·게시글삭제 최근 100건</p>
+        {auditLogs.length === 0 ? (
+          <div className="py-4 text-center text-sm text-gray-400">기록이 없습니다</div>
+        ) : (
+          <div className="max-h-96 overflow-x-auto overflow-y-auto">
+          <table className="w-full min-w-[640px] text-sm">
+            <thead>
+              <tr className="border-b border-gray-200 text-left text-xs text-gray-400 dark:border-gray-800">
+                <th className="py-1.5">시각</th>
+                <th className="py-1.5">수행자</th>
+                <th className="py-1.5">액션</th>
+                <th className="py-1.5">대상</th>
+                <th className="py-1.5">내용</th>
+              </tr>
+            </thead>
+            <tbody>
+              {auditLogs.map((a) => (
+                <tr key={a.id} className="border-b border-gray-100 dark:border-gray-800">
+                  <td className="py-1.5 text-xs text-gray-400">{a.created_at?.replace("T", " ").slice(0, 19)}</td>
+                  <td className="py-1.5">{a.actor_name || "-"}</td>
+                  <td className="py-1.5">
+                    <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${a.action === "login_failed" ? "bg-error-50 text-error-600 dark:bg-error-500/15 dark:text-error-400" : "bg-gray-100 text-gray-600 dark:bg-white/10 dark:text-gray-300"}`}>
+                      {AUDIT_ACTION_LABEL[a.action] || a.action}
+                    </span>
+                  </td>
+                  <td className="py-1.5 text-xs text-gray-500 dark:text-gray-400">{a.target_type ? `${a.target_type} #${a.target_id}` : "-"}</td>
+                  <td className="py-1.5 text-xs text-gray-500 dark:text-gray-400">{a.detail || "-"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -9,6 +9,7 @@ backend/data.db-shm
 backend/data.db-wal
 backend/data.db.bak_*
 backend/uploads/
+backend/backups/
 
 # ── 로그 ──
 *.log
@@ -36,6 +37,8 @@ Thumbs.db
 
 # ── 로컬 전용 개발 기록 (원격에 push하지 않음) ──
 /PROGRESS.md
+/New.md
+/0725review.md
 /.claude/
 
 # ── NCP 인증키/인프라 메모 (절대 원격에 올리지 않음) ──

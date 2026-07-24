@@ -10,6 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
+from app.image_utils import optimize_image
 from app.models import Contract, ContractComment, ContractItem, ContractPhoto, User
 from app.routers.auth import require_staff
 
@@ -204,12 +205,18 @@ async def ocr_contract(file: UploadFile = File(...), _: User = Depends(require_s
 
 @router.post("/{cid}/photos")
 async def upload_photo(cid: int, file: UploadFile = File(...), db: AsyncSession = Depends(get_db), user: User = Depends(require_staff)):
+    """계약 관련 사진 첨부. 용량 절감을 위해 1600px 이내로 리사이즈하고 WebP로 변환한다."""
     dir_path = os.path.join(UPLOAD_DIR, str(cid))
     os.makedirs(dir_path, exist_ok=True)
     token = secrets.token_hex(8)
-    filename = f"{token}_{file.filename}"
+    orig_ext = os.path.splitext(file.filename or "")[1].lower()
+    base_name = os.path.splitext(file.filename or "photo")[0]
+    raw = await file.read()
+    optimized, new_ext = optimize_image(raw, orig_ext)
+    ext = f".{new_ext}" if new_ext else orig_ext
+    filename = f"{token}_{base_name}{ext}"
     with open(os.path.join(dir_path, filename), "wb") as f:
-        f.write(await file.read())
+        f.write(optimized)
 
     photo = ContractPhoto(contract_id=cid, image_key=filename, created_at=datetime.now(timezone.utc).isoformat())
     db.add(photo)

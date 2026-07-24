@@ -23,6 +23,7 @@ from .inventory import InvEquipment, InvSupply
 from .board import Notice, CsTicket, CsComment, TechPost, TechComment, Suggestion
 from .misc import MileageLog, Bid, NewsArticle, StorageFile, StorageFolder
 from .calendar import CalendarEvent, CalendarEventAssignee, CalendarEventTeam, GoogleCalendarLink
+from .audit import AuditLog
 
 __all__ = [
     "Base",
@@ -67,4 +68,5 @@ __all__ = [
     "CalendarEventAssignee",
     "CalendarEventTeam",
     "GoogleCalendarLink",
+    "AuditLog",
 ]

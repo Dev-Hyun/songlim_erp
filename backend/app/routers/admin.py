@@ -5,8 +5,9 @@ from pydantic import BaseModel
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.audit import log_action
 from app.database import get_db
-from app.models import GradeMaster, Hospital, HospitalProfile, StaffProfile, User
+from app.models import AuditLog, GradeMaster, Hospital, HospitalProfile, StaffProfile, User
 from app.models.auth import Session as UserSession
 from app.routers.auth import require_user
 from app.security import hash_password
@@ -44,21 +45,23 @@ async def list_users(db: AsyncSession = Depends(get_db), _: User = Depends(requi
 
 
 @router.patch("/users/{uid}/admin")
-async def set_admin(uid: int, is_admin: bool, db: AsyncSession = Depends(get_db), _: User = Depends(require_admin)):
+async def set_admin(uid: int, is_admin: bool, db: AsyncSession = Depends(get_db), actor: User = Depends(require_admin)):
     u = (await db.execute(select(User).where(User.id == uid))).scalar_one_or_none()
     if not u:
         raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다")
     u.is_admin = is_admin
+    log_action(db, actor, "role_change", "user", uid, detail=f"{u.username}: is_admin={is_admin}")
     await db.commit()
     return {"ok": True}
 
 
 @router.patch("/users/{uid}/approve")
-async def approve_user(uid: int, db: AsyncSession = Depends(get_db), _: User = Depends(require_admin)):
+async def approve_user(uid: int, db: AsyncSession = Depends(get_db), actor: User = Depends(require_admin)):
     u = (await db.execute(select(User).where(User.id == uid))).scalar_one_or_none()
     if not u:
         raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다")
     u.is_approved = True
+    log_action(db, actor, "role_change", "user", uid, detail=f"{u.username}: 계정 승인")
     await db.commit()
     return {"ok": True}
 
@@ -153,3 +156,22 @@ async def delete_grade(grade_code: str, db: AsyncSession = Depends(get_db), _: U
     await db.delete(g)
     await db.commit()
     return {"ok": True}
+
+
+@router.get("/audit-logs")
+async def list_audit_logs(
+    db: AsyncSession = Depends(get_db),
+    action: Optional[str] = None,
+    limit: int = 100,
+    _: User = Depends(require_admin),
+):
+    """로그인/권한변경/발주상태변경/단가변경/게시글삭제 등 감사로그 조회 (관리자 전용)."""
+    q = select(AuditLog).order_by(AuditLog.created_at.desc())
+    if action:
+        q = q.where(AuditLog.action == action)
+    rows = (await db.execute(q.limit(min(limit, 500)))).scalars().all()
+    return [
+        {"id": a.id, "actor_name": a.actor_name, "action": a.action, "target_type": a.target_type,
+         "target_id": a.target_id, "detail": a.detail, "created_at": a.created_at}
+        for a in rows
+    ]

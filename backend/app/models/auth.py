@@ -59,6 +59,8 @@ class User(Base, TimestampMixin):
     is_admin: Mapped[bool] = mapped_column(default=False)
     is_approved: Mapped[bool] = mapped_column(default=True)  # 회원가입 승인 대기 — 자가가입(register_staff/hospital)만 False로 시작
     notifications_seen_at: Mapped[Optional[str]] = mapped_column(default=None)  # 알림벨 마지막 확인 시각
+    failed_login_count: Mapped[int] = mapped_column(default=0)  # 브루트포스 방어용 연속 실패 횟수
+    locked_until: Mapped[Optional[str]] = mapped_column(default=None)  # 이 시각까지 로그인 잠금 (ISO, None=잠금 없음)
     # role='hospital'일 때만 설정 (병원당 여러 담당자 계정 가능 → 1:N)
     hospital_profile_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("hospital_profiles.id"), default=None

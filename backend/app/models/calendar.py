@@ -40,6 +40,7 @@ class CalendarEventAssignee(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     event_id: Mapped[int] = mapped_column(ForeignKey("calendar_events.id", ondelete="CASCADE"))
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[Optional[str]] = mapped_column(default=None)  # 초대(할당)된 시각 — 알림 판단 기준
 
     event: Mapped["CalendarEvent"] = relationship(back_populates="assignees")
 

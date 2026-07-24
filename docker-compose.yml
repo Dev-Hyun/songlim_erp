@@ -6,6 +6,7 @@ services:
     volumes:
       - ./backend/data.db:/app/data.db
       - ./backend/uploads:/app/uploads
+      - ./backend/backups:/app/backups
     ports:
       - "8010:8010"
 

@@ -9,6 +9,7 @@ load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".env
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.observability import request_logging_middleware, setup_logging, setup_sentry
 from app.routers import (
     admin,
     auth,
@@ -28,6 +29,9 @@ from app.routers import (
     uploads,
 )
 
+setup_logging()
+_sentry_enabled = setup_sentry()
+
 app = FastAPI(title="송림 ERP API")
 _scheduler = AsyncIOScheduler()
 
@@ -40,6 +44,7 @@ app.add_middleware(
     allow_headers=["*"],
     allow_credentials=True,
 )
+app.middleware("http")(request_logging_middleware)
 
 app.include_router(auth.router)
 app.include_router(sales_map.router)
@@ -61,7 +66,7 @@ app.include_router(notifications.router)
 
 @app.get("/api/health")
 def health():
-    return {"status": "ok"}
+    return {"status": "ok", "sentry_enabled": _sentry_enabled}
 
 
 async def _sync_google_calendars_job():

@@ -6,6 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.audit import log_action
 from app.database import get_db
 from app.models import (
     Equipment,
@@ -309,9 +310,10 @@ async def admin_update_catalog(cid: int, payload: CatalogIn, db: AsyncSession = 
 
 
 @router.delete("/admin/catalog/{cid}")
-async def admin_delete_catalog(cid: int, db: AsyncSession = Depends(get_db), _: User = Depends(require_staff)):
+async def admin_delete_catalog(cid: int, db: AsyncSession = Depends(get_db), actor: User = Depends(require_staff)):
     c = (await db.execute(select(SupplyCatalog).where(SupplyCatalog.id == cid))).scalar_one_or_none()
     if c:
+        log_action(db, actor, "post_delete", "supply_catalog", cid, detail=c.name)
         await db.delete(c)
         await db.commit()
     return {"ok": True}
@@ -501,10 +503,12 @@ class HospitalGradeIn(BaseModel):
 
 
 @router.patch("/admin/hospitals/{hid}/grades")
-async def admin_set_hospital_grades(hid: int, payload: HospitalGradeIn, db: AsyncSession = Depends(get_db), _: User = Depends(require_staff)):
+async def admin_set_hospital_grades(hid: int, payload: HospitalGradeIn, db: AsyncSession = Depends(get_db), actor: User = Depends(require_staff)):
     hp = await _get_hospital_profile(db, hid)
     hp.discount_grade_code = payload.discount_grade_code
     hp.gift_grade_code = payload.gift_grade_code
+    log_action(db, actor, "price_change", "hospital_grade", hid,
+               detail=f"discount={payload.discount_grade_code}, gift={payload.gift_grade_code}")
     await db.commit()
     return {"ok": True}
 
@@ -525,7 +529,7 @@ async def admin_list_price_overrides(db: AsyncSession = Depends(get_db), hospita
 
 
 @router.post("/admin/price-overrides")
-async def admin_upsert_price_override(payload: PriceOverrideIn, db: AsyncSession = Depends(get_db), _: User = Depends(require_staff)):
+async def admin_upsert_price_override(payload: PriceOverrideIn, db: AsyncSession = Depends(get_db), actor: User = Depends(require_staff)):
     existing = (
         await db.execute(
             select(SupplyPriceOverride).where(
@@ -534,6 +538,9 @@ async def admin_upsert_price_override(payload: PriceOverrideIn, db: AsyncSession
             )
         )
     ).scalar_one_or_none()
+    log_action(db, actor, "price_change", "price_override",
+               f"catalog={payload.catalog_id},hospital={payload.hospital_profile_id}",
+               detail=f"override_price={payload.override_price}")
     if existing:
         existing.override_price = payload.override_price
         await db.commit()
@@ -546,9 +553,10 @@ async def admin_upsert_price_override(payload: PriceOverrideIn, db: AsyncSession
 
 
 @router.delete("/admin/price-overrides/{oid}")
-async def admin_delete_price_override(oid: int, db: AsyncSession = Depends(get_db), _: User = Depends(require_staff)):
+async def admin_delete_price_override(oid: int, db: AsyncSession = Depends(get_db), actor: User = Depends(require_staff)):
     o = (await db.execute(select(SupplyPriceOverride).where(SupplyPriceOverride.id == oid))).scalar_one_or_none()
     if o:
+        log_action(db, actor, "price_change", "price_override", oid, detail="삭제")
         await db.delete(o)
         await db.commit()
     return {"ok": True}
@@ -599,12 +607,13 @@ class OrderStatusIn(BaseModel):
 
 
 @router.patch("/admin/orders/{oid}/status")
-async def admin_update_order_status(oid: int, payload: OrderStatusIn, db: AsyncSession = Depends(get_db), _: User = Depends(require_staff)):
+async def admin_update_order_status(oid: int, payload: OrderStatusIn, db: AsyncSession = Depends(get_db), actor: User = Depends(require_staff)):
     if payload.status not in ("접수", "출고", "배송완료", "직납출고", "직납완료"):
         raise HTTPException(status_code=400, detail="잘못된 상태값입니다")
     o = (await db.execute(select(SupplyOrder).where(SupplyOrder.id == oid))).scalar_one_or_none()
     if not o:
         raise HTTPException(status_code=404, detail="발주 내역을 찾을 수 없습니다")
+    log_action(db, actor, "order_status_change", "supply_order", oid, detail=f"{o.status} → {payload.status}")
     o.status = payload.status
     await db.commit()
     return {"ok": True}

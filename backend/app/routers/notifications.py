@@ -55,15 +55,17 @@ async def _staff_notifications(db: AsyncSession, user: User) -> dict:
 
     invited = (
         await db.execute(
-            select(CalendarEvent)
+            select(CalendarEvent, CalendarEventAssignee.created_at)
             .join(CalendarEventAssignee, CalendarEventAssignee.event_id == CalendarEvent.id)
             .where(CalendarEventAssignee.user_id == user.id)
-            .order_by(CalendarEvent.start_at.desc())
+            .order_by(CalendarEventAssignee.created_at.desc())
             .limit(10)
         )
-    ).scalars().all()
-    for e in invited:
-        items.append({"type": "calendar", "label": "캘린더 일정", "title": f"{e.title} 일정에 초대되었습니다", "created_at": _iso(e.start_at), "link": "/calendar"})
+    ).all()
+    for e, invited_at in invited:
+        # 초대된 "시각"(invited_at)을 알림 정렬/읽음판단 기준으로 쓴다 — 예전엔 일정 날짜(start_at)를
+        # 대신 써서, 미래 일정에 초대되면 "읽음" 처리 후에도 배지가 계속 남아있는 버그가 있었다.
+        items.append({"type": "calendar", "label": "캘린더 일정", "title": f"{e.title} 일정에 초대되었습니다", "created_at": _iso(invited_at), "link": "/calendar"})
 
     items.sort(key=lambda x: x["created_at"] or "", reverse=True)
     unread_count = sum(1 for it in items if (it["created_at"] or "") > seen_at)

@@ -6,6 +6,7 @@ from pydantic import BaseModel
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.audit import log_action
 from app.database import get_db
 from app.html_sanitize import sanitize_html
 from app.models import CsComment, CsTicket, HospitalProfile, Notice, Suggestion, TechComment, TechPost, User
@@ -27,6 +28,8 @@ class NoticeIn(BaseModel):
 async def list_notices(
     db: AsyncSession = Depends(get_db),
     notice_type: Optional[str] = None,
+    limit: Optional[int] = None,
+    offset: int = 0,
     user: Optional[User] = Depends(get_current_user),
 ):
     # 병원 계정은 사내용 공지사항을 볼 수 없음 — 요청 파라미터와 무관하게 항상 hospital로 고정
@@ -36,6 +39,10 @@ async def list_notices(
     q = select(Notice, User.display_name, User.username).join(User, User.id == Notice.created_by).order_by(Notice.created_at.desc())
     if notice_type:
         q = q.where(Notice.notice_type == notice_type)
+    # limit 파라미터를 명시적으로 넘긴 경우만 페이징 — 대시보드 등 "전체 목록"을 기대하는
+    # 기존 호출부의 동작을 깨지 않기 위해 기본값은 무제한 그대로 유지
+    if limit is not None:
+        q = q.offset(offset).limit(min(limit, 100))
     rows = (await db.execute(q)).all()
     return [{"id": n.id, "title": n.title, "content": n.content, "notice_type": n.notice_type,
              "created_by": n.created_by, "created_by_name": display_name or username,
@@ -63,6 +70,7 @@ async def delete_notice(nid: int, db: AsyncSession = Depends(get_db), user: User
         raise HTTPException(status_code=404, detail="공지를 찾을 수 없습니다")
     if n.created_by != user.id and not user.is_admin:
         raise HTTPException(status_code=403, detail="권한이 없습니다")
+    log_action(db, user, "post_delete", "notice", nid, detail=n.title)
     await db.delete(n)
     await db.commit()
     return {"ok": True}
@@ -81,7 +89,13 @@ class CsCommentIn(BaseModel):
 
 
 @router.get("/cs")
-async def list_cs(db: AsyncSession = Depends(get_db), status: Optional[str] = None, user: User = Depends(require_user)):
+async def list_cs(
+    db: AsyncSession = Depends(get_db),
+    status: Optional[str] = None,
+    limit: Optional[int] = None,
+    offset: int = 0,
+    user: User = Depends(require_user),
+):
     q = (
         select(CsTicket, User.display_name, User.username, User.hospital_profile_id)
         .join(User, User.id == CsTicket.created_by)
@@ -92,6 +106,10 @@ async def list_cs(db: AsyncSession = Depends(get_db), status: Optional[str] = No
         q = q.where(CsTicket.created_by == user.id)
     if status:
         q = q.where(CsTicket.status == status)
+    # limit을 명시적으로 넘긴 경우만 페이징 — 대시보드의 "미처리 CS" 집계처럼 전체 목록이
+    # 필요한 기존 호출부를 깨지 않기 위해 기본값은 무제한 유지
+    if limit is not None:
+        q = q.offset(offset).limit(min(limit, 100))
     rows = (await db.execute(q)).all()
     hospital_names: dict[int, str] = {}
     if user.role == "songrim":
@@ -150,6 +168,7 @@ async def delete_cs(tid: int, db: AsyncSession = Depends(get_db), user: User = D
         raise HTTPException(status_code=404, detail="티켓을 찾을 수 없습니다")
     if t.created_by != user.id and not user.is_admin:
         raise HTTPException(status_code=403, detail="권한이 없습니다")
+    log_action(db, user, "post_delete", "cs_ticket", tid, detail=t.title)
     await db.execute(delete(CsComment).where(CsComment.ticket_id == tid))
     await db.delete(t)
     await db.commit()
@@ -194,7 +213,13 @@ HOSPITAL_VISIBLE_CATEGORIES = ("공동구매", "중고기기")
 
 
 @router.get("/tech-posts")
-async def list_tech_posts(db: AsyncSession = Depends(get_db), category: Optional[str] = None, user: User = Depends(require_user)):
+async def list_tech_posts(
+    db: AsyncSession = Depends(get_db),
+    category: Optional[str] = None,
+    limit: Optional[int] = None,
+    offset: int = 0,
+    user: User = Depends(require_user),
+):
     # 병원 계정은 공동구매/중고기기 게시판만 읽기 전용으로 열람 가능 (사내 커뮤니티 전체는 접근 불가)
     if user.role == "hospital" and category not in HOSPITAL_VISIBLE_CATEGORIES:
         raise HTTPException(status_code=403, detail="접근 권한이 없습니다")
@@ -206,6 +231,8 @@ async def list_tech_posts(db: AsyncSession = Depends(get_db), category: Optional
     )
     if category:
         q = q.where(TechPost.category == category)
+    if limit is not None:
+        q = q.offset(offset).limit(min(limit, 100))
     rows = (await db.execute(q)).all()
     return [{"id": p.id, "title": p.title, "content": p.content, "category": p.category, "created_by": p.created_by,
              "created_by_name": display_name or username, "views": p.views, "created_at": p.created_at,
@@ -270,6 +297,7 @@ async def delete_tech_post(pid: int, db: AsyncSession = Depends(get_db), user: U
         raise HTTPException(status_code=404, detail="게시글을 찾을 수 없습니다")
     if p.created_by != user.id and not user.is_admin:
         raise HTTPException(status_code=403, detail="권한이 없습니다")
+    log_action(db, user, "post_delete", "tech_post", pid, detail=f"{p.category}: {p.title}")
     await db.execute(delete(TechComment).where(TechComment.post_id == pid))
     await db.delete(p)
     await db.commit()
@@ -311,6 +339,7 @@ async def delete_suggestion(sid: int, db: AsyncSession = Depends(get_db), user: 
         raise HTTPException(status_code=404, detail="건의사항을 찾을 수 없습니다")
     if s.created_by != user.id and not user.is_admin:
         raise HTTPException(status_code=403, detail="권한이 없습니다")
+    log_action(db, user, "post_delete", "suggestion", sid, detail=s.title)
     await db.delete(s)
     await db.commit()
     return {"ok": True}

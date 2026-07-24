@@ -5,6 +5,7 @@ import { useAuth } from "@/context/AuthContext";
 import RichTextEditor from "@/components/common/RichTextEditor";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8010";
+const PAGE_SIZE = 20;
 
 export interface BoardItem {
   id: number;
@@ -32,18 +33,39 @@ interface Props {
 export default function SimpleBoard({ endpoint, title, hasStatus, statusOptions, onStatusChange, detailHrefBase, canWrite = true, createExtra }: Props) {
   const [items, setItems] = useState<BoardItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [newContent, setNewContent] = useState("");
   const [expanded, setExpanded] = useState<number | null>(null);
   const { user } = useAuth();
 
+  function pageUrl(offset: number) {
+    const sep = endpoint.includes("?") ? "&" : "?";
+    return `${API}${endpoint}${sep}limit=${PAGE_SIZE}&offset=${offset}`;
+  }
+
   function load() {
     setLoading(true);
-    fetch(`${API}${endpoint}`, { credentials: "include" })
+    fetch(pageUrl(0), { credentials: "include" })
       .then((r) => r.json())
-      .then(setItems)
+      .then((rows: BoardItem[]) => {
+        setItems(rows);
+        setHasMore(rows.length === PAGE_SIZE);
+      })
       .finally(() => setLoading(false));
+  }
+
+  function loadMore() {
+    setLoadingMore(true);
+    fetch(pageUrl(items.length), { credentials: "include" })
+      .then((r) => r.json())
+      .then((rows: BoardItem[]) => {
+        setItems((prev) => [...prev, ...rows]);
+        setHasMore(rows.length === PAGE_SIZE);
+      })
+      .finally(() => setLoadingMore(false));
   }
 
   useEffect(() => {
@@ -172,6 +194,17 @@ export default function SimpleBoard({ endpoint, title, hasStatus, statusOptions,
           ))
         )}
       </div>
+      {hasMore && (
+        <div className="text-center">
+          <button
+            onClick={loadMore}
+            disabled={loadingMore}
+            className="rounded-full border border-gray-300 px-5 py-2 text-xs font-semibold text-gray-600 hover:border-brand-300 hover:text-brand-500 disabled:opacity-50 dark:border-gray-700 dark:text-gray-300"
+          >
+            {loadingMore ? "불러오는 중..." : "더 보기"}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
