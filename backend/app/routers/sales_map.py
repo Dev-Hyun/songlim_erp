@@ -123,7 +123,7 @@ async def _query_hospitals(
         latest = eq[0] if eq else None
         results.append({
             "id": h.id, "name": h.name, "type": h.type,
-            "sido": h.sido, "sigungu": h.sigungu,
+            "sido": h.sido, "sigungu": h.sigungu, "address": h.address,
             "lat": h.lat, "lng": h.lng, "dist_km": dist_km,
             "is_member": h.hospital_profile_id is not None,
             "has_equipment": has_equipment,

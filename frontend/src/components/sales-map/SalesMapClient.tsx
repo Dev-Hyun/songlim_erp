@@ -21,6 +21,10 @@ export default function SalesMapClient() {
     () => typeof window !== "undefined" && !!window.naver?.maps
   );
   const [scriptError, setScriptError] = useState(false);
+  // 모바일에서는 지도가 표시될 공간이 없으므로 아예 지도를 로드하지 않고 주소 기반 목록만 보여준다
+  const [isMobile, setIsMobile] = useState(
+    () => typeof window !== "undefined" && window.innerWidth < 1024
+  );
   const mapDivRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
   const markersRef = useRef<any[]>([]);
@@ -46,6 +50,14 @@ export default function SalesMapClient() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [showRequery, setShowRequery] = useState(false);
   const [exporting, setExporting] = useState(false);
+
+  useEffect(() => {
+    function onResize() {
+      setIsMobile(window.innerWidth < 1024);
+    }
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
 
   useEffect(() => {
     fetchSidoList().then(setSidoList).catch(() => setSidoList([]));
@@ -170,9 +182,15 @@ export default function SalesMapClient() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scriptLoaded]);
 
+  // 모바일에서는 지도를 아예 로드하지 않으므로(위 effect가 절대 실행 안 됨) 별도로 최초 목록을 불러온다
+  useEffect(() => {
+    if (isMobile) loadHospitals();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isMobile]);
+
   // 카테고리/시도/구군/제조사/모델 변경 시 재조회
   useEffect(() => {
-    if (mapRef.current) loadHospitals();
+    if (mapRef.current || isMobile) loadHospitals();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [category, sido, sigungu, maker, model]);
 
@@ -280,12 +298,14 @@ export default function SalesMapClient() {
 
   return (
     <>
-      <Script
-        src={`https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${NAVER_CLIENT_ID}`}
-        strategy="afterInteractive"
-        onLoad={() => setScriptLoaded(true)}
-        onError={() => setScriptError(true)}
-      />
+      {!isMobile && (
+        <Script
+          src={`https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${NAVER_CLIENT_ID}`}
+          strategy="afterInteractive"
+          onLoad={() => setScriptLoaded(true)}
+          onError={() => setScriptError(true)}
+        />
+      )}
 
       <div className="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
         {/* 필터 바 */}
@@ -395,71 +415,99 @@ export default function SalesMapClient() {
           </div>
         </div>
 
-        {/* 본문: 목록 | 지도 | 상세 */}
-        <div className="flex h-[calc(100vh-260px)] min-h-[520px]">
-          <div className="w-[300px] shrink-0 border-r border-gray-200 dark:border-gray-800">
+        {/* 모바일: 지도 없이 주소 기반 목록만. 상세는 전체화면으로 덮어씀 */}
+        {isMobile ? (
+          <div className="relative h-[calc(100vh-220px)] min-h-[420px]">
             <HospitalListPanel
               category={category}
               hospitals={hospitals}
               selectedId={selectedId}
               onSelect={selectHospital}
               loading={loadingList}
+              showAddress
             />
-          </div>
-
-          <div className="relative flex-1">
-            <div ref={mapDivRef} className="h-full w-full" />
-            {scriptError && (
-              <div className="absolute inset-0 flex items-center justify-center bg-white p-8 text-center text-sm text-error-500 dark:bg-gray-900">
-                ⚠ 네이버 지도 로드 실패
-                <br />
-                NCP 콘솔에서 Web 서비스 URL(localhost:3000 등)이 등록되어 있는지 확인해주세요.
+            {selectedId && (
+              <div className="absolute inset-0 z-10 bg-white dark:bg-gray-900">
+                <HospitalDetailPanel
+                  detail={detail}
+                  loading={detailLoading}
+                  category={category}
+                  onClose={closeDetail}
+                  onEquipmentRegistered={() => {
+                    loadHospitals();
+                    if (selectedId) selectHospital(selectedId);
+                  }}
+                />
               </div>
             )}
-            {showRequery && !searchMode && (
-              <button
-                onClick={() => loadHospitals()}
-                className="absolute left-1/2 top-3 -translate-x-1/2 rounded-full border border-gray-200 bg-white px-4 py-2 text-xs font-bold text-gray-700 shadow-lg hover:bg-brand-500 hover:text-white dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
-              >
-                🔍 이 지역 재검색
-              </button>
-            )}
-            <button
-              onClick={locate}
-              className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 bg-white shadow-md dark:border-gray-700 dark:bg-gray-800"
-              title="내 위치"
-            >
-              📍
-            </button>
-            <div className="absolute bottom-3 right-3 rounded-lg bg-white/95 px-3 py-2 text-[11px] shadow-md dark:bg-gray-800/95 dark:text-gray-300">
-              <div className="mb-1 flex items-center gap-1.5">
-                <span className="h-2.5 w-2.5 rounded-full bg-brand-500" /> 장비 보유
-              </div>
-              <div className="mb-1 flex items-center gap-1.5">
-                <span className="h-2.5 w-2.5 rounded-full bg-gray-400" /> 장비 미보유
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="rounded-full bg-success-50 px-1.5 text-[9px] font-bold text-success-600 dark:bg-success-500/15 dark:text-success-400">회원</span>
-                회원가입 병원
-              </div>
-            </div>
           </div>
-
-          {selectedId && (
-            <div className="w-[380px] shrink-0 border-l border-gray-200 dark:border-gray-800">
-              <HospitalDetailPanel
-                detail={detail}
-                loading={detailLoading}
+        ) : (
+          /* 본문: 목록 | 지도 | 상세 */
+          <div className="flex h-[calc(100vh-260px)] min-h-[520px]">
+            <div className="w-[300px] shrink-0 border-r border-gray-200 dark:border-gray-800">
+              <HospitalListPanel
                 category={category}
-                onClose={closeDetail}
-                onEquipmentRegistered={() => {
-                  loadHospitals();
-                  if (selectedId) selectHospital(selectedId);
-                }}
+                hospitals={hospitals}
+                selectedId={selectedId}
+                onSelect={selectHospital}
+                loading={loadingList}
               />
             </div>
-          )}
-        </div>
+
+            <div className="relative flex-1">
+              <div ref={mapDivRef} className="h-full w-full" />
+              {scriptError && (
+                <div className="absolute inset-0 flex items-center justify-center bg-white p-8 text-center text-sm text-error-500 dark:bg-gray-900">
+                  ⚠ 네이버 지도 로드 실패
+                  <br />
+                  NCP 콘솔에서 Web 서비스 URL(localhost:3000 등)이 등록되어 있는지 확인해주세요.
+                </div>
+              )}
+              {showRequery && !searchMode && (
+                <button
+                  onClick={() => loadHospitals()}
+                  className="absolute left-1/2 top-3 -translate-x-1/2 rounded-full border border-gray-200 bg-white px-4 py-2 text-xs font-bold text-gray-700 shadow-lg hover:bg-brand-500 hover:text-white dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
+                >
+                  🔍 이 지역 재검색
+                </button>
+              )}
+              <button
+                onClick={locate}
+                className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 bg-white shadow-md dark:border-gray-700 dark:bg-gray-800"
+                title="내 위치"
+              >
+                📍
+              </button>
+              <div className="absolute bottom-3 right-3 rounded-lg bg-white/95 px-3 py-2 text-[11px] shadow-md dark:bg-gray-800/95 dark:text-gray-300">
+                <div className="mb-1 flex items-center gap-1.5">
+                  <span className="h-2.5 w-2.5 rounded-full bg-brand-500" /> 장비 보유
+                </div>
+                <div className="mb-1 flex items-center gap-1.5">
+                  <span className="h-2.5 w-2.5 rounded-full bg-gray-400" /> 장비 미보유
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="rounded-full bg-success-50 px-1.5 text-[9px] font-bold text-success-600 dark:bg-success-500/15 dark:text-success-400">회원</span>
+                  회원가입 병원
+                </div>
+              </div>
+            </div>
+
+            {selectedId && (
+              <div className="w-[380px] shrink-0 border-l border-gray-200 dark:border-gray-800">
+                <HospitalDetailPanel
+                  detail={detail}
+                  loading={detailLoading}
+                  category={category}
+                  onClose={closeDetail}
+                  onEquipmentRegistered={() => {
+                    loadHospitals();
+                    if (selectedId) selectHospital(selectedId);
+                  }}
+                />
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </>
   );

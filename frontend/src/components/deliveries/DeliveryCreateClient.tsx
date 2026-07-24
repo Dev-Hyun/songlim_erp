@@ -136,7 +136,8 @@ export default function DeliveryCreateClient() {
         </div>
 
         <div className="mb-2 mt-5 text-xs font-bold uppercase text-gray-400">품목 목록</div>
-        <table className="w-full text-sm">
+        <div className="overflow-x-auto">
+        <table className="w-full min-w-[560px] text-sm">
           <thead>
             <tr className="border-b border-gray-200 text-left text-xs text-gray-400 dark:border-gray-800">
               <th className="py-1.5">Description</th>
@@ -158,6 +159,7 @@ export default function DeliveryCreateClient() {
             ))}
           </tbody>
         </table>
+        </div>
         <button
           onClick={() => setItems([...items, { description: "", serial_no: "", price: "", sys_id: "" }])}
           className="mt-2 text-xs font-semibold text-brand-500"

@@ -208,9 +208,9 @@ export default function AdminOrdersClient() {
           {orders.length === 0 && <div className="p-8 text-center text-sm text-gray-400">발주 내역이 없습니다</div>}
         </div>
       ) : (
-        <div className="grid grid-cols-5 gap-3">
+        <div className="grid grid-cols-5 gap-3 overflow-x-auto pb-2 max-lg:flex max-lg:grid-cols-none">
           {STATUSES.map((s) => (
-            <div key={s} className="rounded-2xl border border-gray-200 bg-gray-50 p-2.5 dark:border-gray-800 dark:bg-white/[0.02]">
+            <div key={s} className="rounded-2xl border border-gray-200 bg-gray-50 p-2.5 dark:border-gray-800 dark:bg-white/[0.02] max-lg:w-[220px] max-lg:shrink-0">
               <div className="mb-2 flex items-center justify-between px-1">
                 <span className="text-xs font-bold text-gray-600 dark:text-gray-300">{s}</span>
                 <span className="text-[11px] text-gray-400">{orders.filter((o) => o.status === s).length}</span>
@@ -251,7 +251,8 @@ export default function AdminOrdersClient() {
                   {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
                 </select>
               </div>
-              <table className="w-full text-xs">
+              <div className="overflow-x-auto">
+              <table className="w-full min-w-[420px] text-xs">
                 <thead>
                   <tr className="border-b border-gray-200 text-left text-gray-400 dark:border-gray-800">
                     <th className="py-1.5">품목</th>
@@ -273,6 +274,7 @@ export default function AdminOrdersClient() {
                   ))}
                 </tbody>
               </table>
+              </div>
               <div className="mt-3 text-right text-sm font-bold text-gray-800 dark:text-white/90">합계 {detail.total_amount.toLocaleString()}원</div>
 
               <div className="mt-5 flex flex-wrap items-center gap-2 border-t border-gray-100 pt-4 dark:border-gray-800">

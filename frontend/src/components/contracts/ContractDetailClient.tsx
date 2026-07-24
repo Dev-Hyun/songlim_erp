@@ -157,7 +157,8 @@ export default function ContractDetailClient({ id }: { id: number }) {
           <div className="mt-3">{field("buyer_address", "주소")}</div>
 
           <div className="mb-2 mt-5 text-xs font-bold uppercase text-gray-400">📦 계약 상품</div>
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto">
+          <table className="w-full min-w-[420px] text-sm">
             <thead>
               <tr className="border-b border-gray-200 text-left text-xs text-gray-400 dark:border-gray-800">
                 <th className="py-1.5">상품명</th>
@@ -187,6 +188,7 @@ export default function ContractDetailClient({ id }: { id: number }) {
               ))}
             </tbody>
           </table>
+          </div>
           {editing && (
             <button
               onClick={() => setItems([...items, { id: -Date.now(), name: "", qty: "", note: "" }])}

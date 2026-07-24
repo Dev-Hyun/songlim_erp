@@ -138,7 +138,8 @@ export default function AdminPage() {
         {pendingUsers.length === 0 ? (
           <div className="py-4 text-center text-sm text-gray-400">승인 대기 중인 계정이 없습니다</div>
         ) : (
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto">
+          <table className="w-full min-w-[560px] text-sm">
             <thead>
               <tr className="border-b border-gray-200 text-left text-xs text-gray-400 dark:border-gray-800">
                 <th className="py-1.5">아이디</th>
@@ -166,6 +167,7 @@ export default function AdminPage() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </div>
 
@@ -209,7 +211,8 @@ export default function AdminPage() {
 
       <div className="rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-white/[0.03]">
         <h2 className="mb-3 text-base font-bold text-gray-800 dark:text-white/90">사용자 목록</h2>
-        <table className="w-full text-sm">
+        <div className="overflow-x-auto">
+        <table className="w-full min-w-[720px] text-sm">
           <thead>
             <tr className="border-b border-gray-200 text-left text-xs text-gray-400 dark:border-gray-800">
               <th className="py-1.5">아이디</th>
@@ -269,6 +272,7 @@ export default function AdminPage() {
             ))}
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   );

@@ -8,9 +8,10 @@ interface Props {
   selectedId: number | null;
   onSelect: (id: number) => void;
   loading: boolean;
+  showAddress?: boolean; // 지도가 없는 모바일 화면에서는 주소로 위치를 대신 보여준다
 }
 
-export default function HospitalListPanel({ category, hospitals, selectedId, onSelect, loading }: Props) {
+export default function HospitalListPanel({ category, hospitals, selectedId, onSelect, loading, showAddress }: Props) {
   return (
     <div className="flex h-full flex-col">
       <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3 dark:border-gray-800">
@@ -53,6 +54,7 @@ export default function HospitalListPanel({ category, hospitals, selectedId, onS
               <div className="mt-0.5 text-xs text-gray-400">
                 {h.sigungu || ""} · {h.type || ""}
               </div>
+              {showAddress && h.address && <div className="mt-0.5 text-[11px] text-gray-400">{h.address}</div>}
               {h.has_equipment ? (
                 <div className="mt-1 text-xs">
                   <span className="font-medium text-gray-700 dark:text-gray-300">{h.current_model || "-"}</span>

@@ -79,26 +79,28 @@ export default function ContractCreateClient() {
         </div>
 
         <div className="mb-2 mt-5 text-xs font-bold uppercase text-gray-400">📦 계약 상품</div>
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-gray-200 text-left text-xs text-gray-400 dark:border-gray-800">
-              <th className="py-1.5">상품명</th>
-              <th className="py-1.5">수량</th>
-              <th className="py-1.5">비고</th>
-              <th />
-            </tr>
-          </thead>
-          <tbody>
-            {items.map((it, i) => (
-              <tr key={i} className="border-b border-gray-100 dark:border-gray-800">
-                <td><input value={it.name} placeholder="상품명" onChange={(e) => setItems(items.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)))} className="w-full rounded border border-gray-300 px-1.5 py-1 text-xs dark:border-gray-700 dark:bg-gray-900" /></td>
-                <td><input value={it.qty} placeholder="예: 1 Set" onChange={(e) => setItems(items.map((x, j) => (j === i ? { ...x, qty: e.target.value } : x)))} className="w-full rounded border border-gray-300 px-1.5 py-1 text-xs dark:border-gray-700 dark:bg-gray-900" /></td>
-                <td><input value={it.note} placeholder="비고" onChange={(e) => setItems(items.map((x, j) => (j === i ? { ...x, note: e.target.value } : x)))} className="w-full rounded border border-gray-300 px-1.5 py-1 text-xs dark:border-gray-700 dark:bg-gray-900" /></td>
-                <td><button onClick={() => setItems(items.filter((_, j) => j !== i))} className="text-error-500">×</button></td>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[420px] text-sm">
+            <thead>
+              <tr className="border-b border-gray-200 text-left text-xs text-gray-400 dark:border-gray-800">
+                <th className="py-1.5">상품명</th>
+                <th className="py-1.5">수량</th>
+                <th className="py-1.5">비고</th>
+                <th />
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {items.map((it, i) => (
+                <tr key={i} className="border-b border-gray-100 dark:border-gray-800">
+                  <td><input value={it.name} placeholder="상품명" onChange={(e) => setItems(items.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)))} className="w-full rounded border border-gray-300 px-1.5 py-1 text-xs dark:border-gray-700 dark:bg-gray-900" /></td>
+                  <td><input value={it.qty} placeholder="예: 1 Set" onChange={(e) => setItems(items.map((x, j) => (j === i ? { ...x, qty: e.target.value } : x)))} className="w-full rounded border border-gray-300 px-1.5 py-1 text-xs dark:border-gray-700 dark:bg-gray-900" /></td>
+                  <td><input value={it.note} placeholder="비고" onChange={(e) => setItems(items.map((x, j) => (j === i ? { ...x, note: e.target.value } : x)))} className="w-full rounded border border-gray-300 px-1.5 py-1 text-xs dark:border-gray-700 dark:bg-gray-900" /></td>
+                  <td><button onClick={() => setItems(items.filter((_, j) => j !== i))} className="text-error-500">×</button></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
         <button onClick={() => setItems([...items, { name: "", qty: "", note: "" }])} className="mt-2 text-xs font-semibold text-brand-500">
           + 품목 추가
         </button>

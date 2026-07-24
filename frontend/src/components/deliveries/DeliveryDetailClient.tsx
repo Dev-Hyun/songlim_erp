@@ -175,7 +175,8 @@ export default function DeliveryDetailClient({ id }: { id: number }) {
           )}
 
           <div className="mb-2 mt-5 text-xs font-bold uppercase text-gray-400">장비 품목</div>
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto">
+          <table className="w-full min-w-[560px] text-sm">
             <thead>
               <tr className="border-b border-gray-200 text-left text-xs text-gray-400 dark:border-gray-800">
                 <th className="py-1.5">Description</th>
@@ -208,6 +209,7 @@ export default function DeliveryDetailClient({ id }: { id: number }) {
               ))}
             </tbody>
           </table>
+          </div>
           {editing && (
             <button
               onClick={() => setItems([...items, { id: -Date.now(), description: "", serial_no: "", price: null, sys_id: "" }])}

@@ -81,7 +81,8 @@ export default function MyOrdersClient() {
               </button>
               {expanded === o.id && (
                 <div className="bg-gray-50 px-4 pb-4 dark:bg-white/[0.015]">
-                  <table className="w-full text-xs">
+                  <div className="overflow-x-auto">
+                  <table className="w-full min-w-[360px] text-xs">
                     <thead>
                       <tr className="text-left text-gray-400">
                         <th className="py-1.5">품목</th>
@@ -101,6 +102,7 @@ export default function MyOrdersClient() {
                       ))}
                     </tbody>
                   </table>
+                  </div>
                   {o.gift_note && <div className="mt-2 text-[11px] text-success-600 dark:text-success-400">🎁 {o.gift_note}</div>}
                   <div className="mt-3 flex gap-2">
                     <button

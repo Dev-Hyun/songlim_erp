@@ -6,6 +6,7 @@ export interface HospitalListItem {
   type: string | null;
   sido: string | null;
   sigungu: string | null;
+  address: string | null;
   lat: number | null;
   lng: number | null;
   dist_km: number | null;
