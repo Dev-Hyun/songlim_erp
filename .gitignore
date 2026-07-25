@@ -46,3 +46,6 @@ Thumbs.db
 
 # ── NCP 인증키/인프라 메모 (절대 원격에 올리지 않음) ──
 /NCP/
+
+# ── GitHub Wiki에 게시할 문서 초안 (실제 게시물은 별도 wiki 저장소, 여긴 로컬 초안 스테이징용) ──
+/docs_wiki_draft/

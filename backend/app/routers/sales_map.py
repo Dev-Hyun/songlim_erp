@@ -7,12 +7,12 @@ from typing import Optional
 import requests
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
-from sqlalchemy import select, func, text
+from sqlalchemy import select, func, text, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.manufacturer_map import model_series as _compute_model_series
-from app.models import Hospital, Equipment, SalesNote, User
+from app.models import Hospital, Equipment, SalesNote, User, PersonalMemo
 from app.routers.auth import require_staff
 
 router = APIRouter(prefix="/api", tags=["sales_map"])
@@ -445,25 +445,82 @@ async def list_sales_notes(
     user_id: Optional[int] = None,
     date_from: Optional[date] = None,
     date_to: Optional[date] = None,
+    q: Optional[str] = None,
+    sort: str = "desc",
 ):
-    q = select(SalesNote, Hospital.name).join(Hospital, Hospital.id == SalesNote.hospital_id)
+    """작성자 무관하게 전 직원의 영업노트를 모아본다(사내 전체 공유). q는 병원명/내용 검색어."""
+    query = (
+        select(SalesNote, Hospital.name, User.display_name)
+        .join(Hospital, Hospital.id == SalesNote.hospital_id)
+        .join(User, User.id == SalesNote.user_id)
+    )
     if hospital_id:
-        q = q.where(SalesNote.hospital_id == hospital_id)
+        query = query.where(SalesNote.hospital_id == hospital_id)
     if user_id:
-        q = q.where(SalesNote.user_id == user_id)
+        query = query.where(SalesNote.user_id == user_id)
     if date_from:
-        q = q.where(SalesNote.visit_date >= date_from)
+        query = query.where(SalesNote.visit_date >= date_from)
     if date_to:
-        q = q.where(SalesNote.visit_date <= date_to)
-    q = q.order_by(SalesNote.visit_date.desc())
-    rows = (await db.execute(q)).all()
+        query = query.where(SalesNote.visit_date <= date_to)
+    if q:
+        like = f"%{q}%"
+        query = query.where(or_(SalesNote.content.ilike(like), Hospital.name.ilike(like)))
+    order_col = SalesNote.visit_date.asc() if sort == "asc" else SalesNote.visit_date.desc()
+    query = query.order_by(order_col)
+    rows = (await db.execute(query)).all()
     return [
         {
             "id": n.id, "hospital_id": n.hospital_id, "hospital_name": hosp_name, "user_id": n.user_id,
-            "visit_date": n.visit_date, "content": n.content, "created_at": n.created_at,
+            "author_name": author_name, "visit_date": n.visit_date, "content": n.content, "created_at": n.created_at,
         }
-        for n, hosp_name in rows
+        for n, hosp_name, author_name in rows
     ]
+
+
+# ────────────────────────────────────────────────────────
+# 영업노트 탭의 개인 메모 — 제목 없이 내용만, 작성자 본인만 조회 가능
+# ────────────────────────────────────────────────────────
+class PersonalMemoIn(BaseModel):
+    content: str
+
+
+@router.get("/personal-memos")
+async def list_personal_memos(db: AsyncSession = Depends(get_db), user: User = Depends(require_staff)):
+    rows = (
+        await db.execute(
+            select(PersonalMemo).where(PersonalMemo.user_id == user.id).order_by(PersonalMemo.created_at.desc())
+        )
+    ).scalars().all()
+    return [{"id": m.id, "content": m.content, "created_at": m.created_at} for m in rows]
+
+
+@router.post("/personal-memos")
+async def create_personal_memo(payload: PersonalMemoIn, db: AsyncSession = Depends(get_db), user: User = Depends(require_staff)):
+    memo = PersonalMemo(user_id=user.id, content=payload.content)
+    db.add(memo)
+    await db.commit()
+    await db.refresh(memo)
+    return {"id": memo.id}
+
+
+@router.patch("/personal-memos/{memo_id}")
+async def update_personal_memo(memo_id: int, payload: PersonalMemoIn, db: AsyncSession = Depends(get_db), user: User = Depends(require_staff)):
+    memo = (await db.execute(select(PersonalMemo).where(PersonalMemo.id == memo_id))).scalar_one_or_none()
+    if not memo or memo.user_id != user.id:
+        raise HTTPException(status_code=404, detail="메모를 찾을 수 없습니다")
+    memo.content = payload.content
+    await db.commit()
+    return {"ok": True}
+
+
+@router.delete("/personal-memos/{memo_id}")
+async def delete_personal_memo(memo_id: int, db: AsyncSession = Depends(get_db), user: User = Depends(require_staff)):
+    memo = (await db.execute(select(PersonalMemo).where(PersonalMemo.id == memo_id))).scalar_one_or_none()
+    if not memo or memo.user_id != user.id:
+        raise HTTPException(status_code=404, detail="메모를 찾을 수 없습니다")
+    await db.delete(memo)
+    await db.commit()
+    return {"ok": True}
 
 
 # ────────────────────────────────────────────────────────

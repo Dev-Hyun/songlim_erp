@@ -16,7 +16,7 @@ from .supply import (
     SupplyOrder,
     SupplyOrderItem,
 )
-from .sales_map import Hospital, Equipment, SalesNote
+from .sales_map import Hospital, Equipment, SalesNote, PersonalMemo
 from .contracts import Contract, ContractItem, ContractPhoto, ContractComment
 from .deliveries import Delivery, DeliveryItem, DeliveryPhoto, DeliveryComment
 from .inventory import InvEquipment, InvSupply
@@ -43,6 +43,7 @@ __all__ = [
     "Hospital",
     "Equipment",
     "SalesNote",
+    "PersonalMemo",
     "Contract",
     "ContractItem",
     "ContractPhoto",

@@ -78,3 +78,13 @@ class SalesNote(Base, TimestampMixin):
     content: Mapped[str] = mapped_column()
 
     hospital: Mapped["Hospital"] = relationship(back_populates="sales_notes")
+
+
+class PersonalMemo(Base, TimestampMixin):
+    """영업노트 탭의 개인 메모 — 제목 없이 내용만, 작성자 본인만 조회 가능(병원/날짜와 무관한 자유메모)."""
+    __tablename__ = "personal_memos"
+    __table_args__ = (Index("idx_memo_user", "user_id"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    content: Mapped[str] = mapped_column()

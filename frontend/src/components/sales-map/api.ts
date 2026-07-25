@@ -1,4 +1,4 @@
-import type { EquipmentCategory, HospitalDetail, HospitalListItem, SalesNoteItem } from "./types";
+import type { EquipmentCategory, HospitalDetail, HospitalListItem, SalesNoteItem, PersonalMemoItem } from "./types";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8010";
 
@@ -102,10 +102,52 @@ export async function fetchSalesNotes(hospitalId: number): Promise<SalesNoteItem
   return res.json();
 }
 
-export async function fetchMySalesNotes(userId: number): Promise<SalesNoteItem[]> {
-  const res = await fetch(`${API}/api/sales-notes?user_id=${userId}`, { credentials: "include" });
+export async function fetchAllSalesNotes(params?: {
+  q?: string;
+  sort?: "asc" | "desc";
+  dateFrom?: string;
+  dateTo?: string;
+}): Promise<SalesNoteItem[]> {
+  const p = new URLSearchParams();
+  if (params?.q) p.set("q", params.q);
+  if (params?.sort) p.set("sort", params.sort);
+  if (params?.dateFrom) p.set("date_from", params.dateFrom);
+  if (params?.dateTo) p.set("date_to", params.dateTo);
+  const res = await fetch(`${API}/api/sales-notes?${p.toString()}`, { credentials: "include" });
   if (!res.ok) throw new Error("영업노트 조회 실패");
   return res.json();
+}
+
+export async function fetchPersonalMemos(): Promise<PersonalMemoItem[]> {
+  const res = await fetch(`${API}/api/personal-memos`, { credentials: "include" });
+  if (!res.ok) throw new Error("메모 조회 실패");
+  return res.json();
+}
+
+export async function createPersonalMemo(content: string): Promise<{ id: number }> {
+  const res = await fetch(`${API}/api/personal-memos`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ content }),
+  });
+  if (!res.ok) throw new Error("메모 작성 실패");
+  return res.json();
+}
+
+export async function updatePersonalMemo(id: number, content: string): Promise<void> {
+  const res = await fetch(`${API}/api/personal-memos/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ content }),
+  });
+  if (!res.ok) throw new Error("메모 수정 실패");
+}
+
+export async function deletePersonalMemo(id: number): Promise<void> {
+  const res = await fetch(`${API}/api/personal-memos/${id}`, { method: "DELETE", credentials: "include" });
+  if (!res.ok) throw new Error("메모 삭제 실패");
 }
 
 export async function createSalesNote(payload: {

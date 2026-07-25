@@ -42,7 +42,14 @@ export interface SalesNoteItem {
   hospital_id: number;
   hospital_name?: string;
   user_id: number;
+  author_name?: string;
   visit_date: string | null;
+  content: string;
+  created_at: string;
+}
+
+export interface PersonalMemoItem {
+  id: number;
   content: string;
   created_at: string;
 }
