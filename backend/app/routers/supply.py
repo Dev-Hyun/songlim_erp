@@ -336,7 +336,18 @@ async def admin_delete_catalog(cid: int, db: AsyncSession = Depends(get_db), act
     return {"ok": True}
 
 
-CATALOG_XLSX_HEADERS = ["코드", "품목명", "제조사", "카테고리", "소분류", "단위", "기본금액", "노출여부"]
+# 소분류/규격 데이터(예: 소모품 카탈로그.xlsx)를 그대로 업로드하면 바로 카탈로그에 들어가도록,
+# 엑셀 내보내기/추가하기 양식을 그 파일의 컬럼(대분류/중분류/제조사/소모품이름/규격/단위/상품번호)에
+# 맞춰 통일한다. 기본금액/노출여부는 관리자가 이미 등록한 항목 재편집용으로 뒤에 추가(없으면
+# 기본금액은 임의값, 노출여부는 노출로 처리).
+CATALOG_XLSX_HEADERS = ["대분류", "중분류", "제조사", "소모품이름", "규격", "단위", "상품번호", "기본금액", "노출여부"]
+
+_RANDOM_PRICE_MIN, _RANDOM_PRICE_MAX, _RANDOM_PRICE_STEP = 500, 50000, 100
+
+
+def _random_placeholder_price() -> int:
+    import random
+    return random.randint(_RANDOM_PRICE_MIN // _RANDOM_PRICE_STEP, _RANDOM_PRICE_MAX // _RANDOM_PRICE_STEP) * _RANDOM_PRICE_STEP
 
 
 @router.get("/admin/catalog/export")
@@ -353,8 +364,8 @@ async def admin_export_catalog(db: AsyncSession = Depends(get_db), _: User = Dep
     ws.title = "소모품 카탈로그"
     ws.append(CATALOG_XLSX_HEADERS)
     for c in rows:
-        ws.append([c.code or "", c.name, c.manufacturer or "", c.category, c.sub_category or "", c.unit, c.unit_price, "O" if c.is_active else "X"])
-    for i, w in enumerate([12, 28, 16, 14, 14, 16, 12, 10], start=1):
+        ws.append([c.category, c.sub_category or "", c.manufacturer or "", c.name, c.spec or "", c.unit, c.code or "", c.unit_price, "O" if c.is_active else "X"])
+    for i, w in enumerate([14, 14, 16, 28, 16, 12, 12, 12, 10], start=1):
         ws.column_dimensions[chr(64 + i)].width = w
 
     buf = io.BytesIO()
@@ -370,7 +381,9 @@ async def admin_export_catalog(db: AsyncSession = Depends(get_db), _: User = Dep
 
 @router.post("/admin/catalog/import")
 async def admin_import_catalog(file: UploadFile = File(...), db: AsyncSession = Depends(get_db), _: User = Depends(require_staff)):
-    """엑셀 업로드로 카탈로그 일괄 추가. 이미 등록된 품목명(중복)은 건너뛰고 신규 항목만 추가한다."""
+    """엑셀 업로드로 카탈로그 일괄 추가. 상품번호(코드)가 있으면 코드 기준으로, 없으면 품목명 기준으로
+    이미 등록된 항목은 건너뛰고 신규 항목만 추가한다. 기본금액 칸이 비어 있으면(예: 소모품 카탈로그.xlsx처럼
+    가격 정보가 없는 원본) 임의 가격(500~50,000원)을 배정한다."""
     import io
 
     import openpyxl
@@ -379,27 +392,36 @@ async def admin_import_catalog(file: UploadFile = File(...), db: AsyncSession = 
     wb = openpyxl.load_workbook(io.BytesIO(content))
     ws = wb.active
 
+    existing_codes = {c for (c,) in (await db.execute(select(SupplyCatalog.code).where(SupplyCatalog.code.is_not(None)))).all()}
     existing_names = {n for (n,) in (await db.execute(select(SupplyCatalog.name))).all()}
+    seen_codes: set[str] = set()
     added = 0
     skipped = 0
     for row in ws.iter_rows(min_row=2, values_only=True):
-        if not row or len(row) < 2 or not row[1]:
+        if not row or len(row) < 4 or not row[3]:
             continue
-        code = str(row[0]).strip() if row[0] else None
-        name = str(row[1]).strip()
-        if not name or name in existing_names:
+        category = str(row[0]).strip() if row[0] else "기타"
+        sub_category = str(row[1]).strip() if len(row) > 1 and row[1] else None
+        manufacturer = str(row[2]).strip() if len(row) > 2 and row[2] else None
+        name = str(row[3]).strip()
+        spec = str(row[4]).strip() if len(row) > 4 and row[4] else None
+        unit = str(row[5]).strip() if len(row) > 5 and row[5] else "개"
+        code = str(row[6]).strip() if len(row) > 6 and row[6] else None
+        if code and (code in existing_codes or code in seen_codes):
             skipped += 1
             continue
-        manufacturer = str(row[2]).strip() if len(row) > 2 and row[2] else None
-        category = str(row[3]).strip() if len(row) > 3 and row[3] else "기타"
-        sub_category = str(row[4]).strip() if len(row) > 4 and row[4] else None
-        unit = str(row[5]).strip() if len(row) > 5 and row[5] else "개"
-        unit_price = int(row[6]) if len(row) > 6 and row[6] else 0
-        is_active = not (len(row) > 7 and str(row[7]).strip().upper() == "X")
+        if not code and name in existing_names:
+            skipped += 1
+            continue
+        raw_price = row[7] if len(row) > 7 else None
+        unit_price = int(raw_price) if raw_price not in (None, "") else _random_placeholder_price()
+        is_active = not (len(row) > 8 and str(row[8]).strip().upper() == "X")
         db.add(SupplyCatalog(
-            code=code, name=name, manufacturer=manufacturer, category=category, sub_category=sub_category,
-            unit=unit, unit_price=unit_price, is_active=is_active,
+            code=code, name=name, manufacturer=manufacturer, spec=spec, category=category,
+            sub_category=sub_category, unit=unit, unit_price=unit_price, is_active=is_active,
         ))
+        if code:
+            seen_codes.add(code)
         existing_names.add(name)
         added += 1
     await db.commit()
