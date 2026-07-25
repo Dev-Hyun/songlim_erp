@@ -90,16 +90,16 @@ export default function ContractsListClient() {
             <button
               key={c.id}
               onClick={() => router.push(`/contracts/${c.id}`)}
-              className="flex w-full items-center justify-between rounded-xl border border-gray-200 bg-white p-4 text-left transition hover:border-brand-300 dark:border-gray-800 dark:bg-white/[0.03]"
+              className="flex w-full items-center gap-3 rounded-xl border border-gray-200 bg-white p-4 text-left transition hover:border-brand-300 dark:border-gray-800 dark:bg-white/[0.03]"
             >
-              <div>
+              <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2 text-sm font-semibold text-gray-800 dark:text-white/90">
-                  {c.title}
-                  {c.buyer_hospital && <span className="text-xs text-gray-400">🏥 {c.buyer_hospital}</span>}
+                  <span className="min-w-0 flex-1 truncate">{c.title}</span>
+                  {c.buyer_hospital && <span className="shrink-0 truncate text-xs font-normal text-gray-400">🏥 {c.buyer_hospital}</span>}
                 </div>
-                <div className="mt-1 text-xs text-gray-400">{c.updated_at?.slice(0, 10)}</div>
+                <div className="mt-1 w-20 shrink-0 text-xs text-gray-400">{c.updated_at?.slice(0, 10)}</div>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex shrink-0 items-center gap-2">
                 <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] text-gray-500 dark:bg-white/10">💬 {c.comment_count}</span>
                 <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${STATUS_COLOR[c.status]}`}>{c.status}</span>
               </div>

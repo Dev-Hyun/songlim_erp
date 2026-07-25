@@ -135,19 +135,15 @@ export default function SimpleBoard({ endpoint, title, hasStatus, statusOptions,
             <div key={item.id} className="border-b border-gray-100 last:border-0 dark:border-gray-800">
               <button
                 onClick={() => (detailHrefBase ? (window.location.href = `${detailHrefBase}/${item.id}`) : setExpanded(expanded === item.id ? null : item.id))}
-                className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-gray-50 dark:hover:bg-white/[0.02]"
+                className="flex w-full items-center gap-2 px-4 py-3 text-left hover:bg-gray-50 dark:hover:bg-white/[0.02]"
               >
-                <span className="flex items-center gap-2 text-sm font-medium text-gray-800 dark:text-white/90">
-                  {item.title}
-                  {item.hospital_name ? (
-                    <span className="text-xs font-normal text-gray-400">{item.hospital_name}</span>
-                  ) : (
-                    item.created_by_name && (
-                      <span className="text-xs font-normal text-gray-400">{item.created_by_name}</span>
-                    )
-                  )}
+                <span className="w-14 shrink-0 truncate text-xs text-gray-400" title={item.hospital_name || item.created_by_name || ""}>
+                  {item.hospital_name || item.created_by_name || ""}
                 </span>
-                <div className="flex items-center gap-2">
+                <span className="min-w-0 flex-1 truncate text-sm font-medium text-gray-800 dark:text-white/90">
+                  {item.title}
+                </span>
+                <div className="flex shrink-0 items-center gap-2">
                   {hasStatus && item.status && (
                     onStatusChange ? (
                       <select
@@ -170,7 +166,7 @@ export default function SimpleBoard({ endpoint, title, hasStatus, statusOptions,
                       </span>
                     )
                   )}
-                  <span className="text-xs text-gray-400">{item.created_at?.slice(0, 10)}</span>
+                  <span className="w-20 shrink-0 text-right text-xs text-gray-400">{item.created_at?.slice(0, 10)}</span>
                   {!detailHrefBase && (item.is_mine || user?.is_admin) && (
                     <span
                       onClick={(e) => {

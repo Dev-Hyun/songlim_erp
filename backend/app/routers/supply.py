@@ -47,7 +47,7 @@ async def list_catalog(
     user: User = Depends(require_hospital),
 ):
     hp = await _get_hospital_profile(db, user.hospital_profile_id)
-    q = select(SupplyCatalog).where(SupplyCatalog.is_active.is_(True)).order_by(SupplyCatalog.category, SupplyCatalog.sort_order)
+    q = select(SupplyCatalog).where(SupplyCatalog.is_active.is_(True)).order_by(SupplyCatalog.category, SupplyCatalog.sub_category, SupplyCatalog.sort_order)
     if category:
         q = q.where(SupplyCatalog.category == category)
     items = (await db.execute(q)).scalars().all()
@@ -74,7 +74,8 @@ async def list_catalog(
         if it.category in restricted and it.category not in allowed:
             continue
         result.append({
-            "id": it.id, "name": it.name, "spec": it.spec, "manufacturer": it.manufacturer, "category": it.category,
+            "id": it.id, "name": it.name, "spec": it.spec, "manufacturer": it.manufacturer,
+            "category": it.category, "sub_category": it.sub_category,
             "unit": it.unit,
             "price": overrides.get(it.id, it.unit_price), "base_price": it.unit_price,
             "has_special_price": it.id in overrides,
@@ -98,6 +99,21 @@ async def list_categories(db: AsyncSession = Depends(get_db), user: User = Depen
             continue
         counts[cat] = counts.get(cat, 0) + 1
     return [{"category": c, "count": n} for c, n in sorted(counts.items())]
+
+
+@router.get("/subcategories")
+async def list_subcategories(category: str, db: AsyncSession = Depends(get_db), user: User = Depends(require_hospital)):
+    """특정 대분류(category) 안의 소분류별 품목 수."""
+    rows = (
+        await db.execute(
+            select(SupplyCatalog.sub_category)
+            .where(SupplyCatalog.is_active.is_(True), SupplyCatalog.category == category, SupplyCatalog.sub_category.is_not(None))
+        )
+    ).scalars().all()
+    counts: dict[str, int] = {}
+    for sc in rows:
+        counts[sc] = counts.get(sc, 0) + 1
+    return [{"sub_category": s, "count": n} for s, n in sorted(counts.items())]
 
 
 class FavoriteIn(BaseModel):
@@ -265,6 +281,7 @@ class CatalogIn(BaseModel):
     manufacturer: Optional[str] = None
     spec: Optional[str] = None
     category: str = "기타"
+    sub_category: Optional[str] = None
     unit: str = "개"  # 자유 입력, 예: "100입/1box"
     unit_price: int = 0
     description: Optional[str] = None
@@ -276,7 +293,7 @@ class CatalogIn(BaseModel):
 def _serialize_catalog(c: SupplyCatalog) -> dict:
     return {
         "id": c.id, "code": c.code, "name": c.name, "manufacturer": c.manufacturer,
-        "spec": c.spec, "category": c.category,
+        "spec": c.spec, "category": c.category, "sub_category": c.sub_category,
         "unit": c.unit,
         "unit_price": c.unit_price, "description": c.description, "image_key": c.image_key,
         "sort_order": c.sort_order, "is_active": c.is_active,
@@ -319,7 +336,7 @@ async def admin_delete_catalog(cid: int, db: AsyncSession = Depends(get_db), act
     return {"ok": True}
 
 
-CATALOG_XLSX_HEADERS = ["코드", "품목명", "제조사", "카테고리", "단위", "기본금액", "노출여부"]
+CATALOG_XLSX_HEADERS = ["코드", "품목명", "제조사", "카테고리", "소분류", "단위", "기본금액", "노출여부"]
 
 
 @router.get("/admin/catalog/export")
@@ -336,8 +353,8 @@ async def admin_export_catalog(db: AsyncSession = Depends(get_db), _: User = Dep
     ws.title = "소모품 카탈로그"
     ws.append(CATALOG_XLSX_HEADERS)
     for c in rows:
-        ws.append([c.code or "", c.name, c.manufacturer or "", c.category, c.unit, c.unit_price, "O" if c.is_active else "X"])
-    for i, w in enumerate([12, 28, 16, 14, 16, 12, 10], start=1):
+        ws.append([c.code or "", c.name, c.manufacturer or "", c.category, c.sub_category or "", c.unit, c.unit_price, "O" if c.is_active else "X"])
+    for i, w in enumerate([12, 28, 16, 14, 14, 16, 12, 10], start=1):
         ws.column_dimensions[chr(64 + i)].width = w
 
     buf = io.BytesIO()
@@ -375,12 +392,13 @@ async def admin_import_catalog(file: UploadFile = File(...), db: AsyncSession = 
             continue
         manufacturer = str(row[2]).strip() if len(row) > 2 and row[2] else None
         category = str(row[3]).strip() if len(row) > 3 and row[3] else "기타"
-        unit = str(row[4]).strip() if len(row) > 4 and row[4] else "개"
-        unit_price = int(row[5]) if len(row) > 5 and row[5] else 0
-        is_active = not (len(row) > 6 and str(row[6]).strip().upper() == "X")
+        sub_category = str(row[4]).strip() if len(row) > 4 and row[4] else None
+        unit = str(row[5]).strip() if len(row) > 5 and row[5] else "개"
+        unit_price = int(row[6]) if len(row) > 6 and row[6] else 0
+        is_active = not (len(row) > 7 and str(row[7]).strip().upper() == "X")
         db.add(SupplyCatalog(
-            code=code, name=name, manufacturer=manufacturer, category=category, unit=unit,
-            unit_price=unit_price, is_active=is_active,
+            code=code, name=name, manufacturer=manufacturer, category=category, sub_category=sub_category,
+            unit=unit, unit_price=unit_price, is_active=is_active,
         ))
         existing_names.add(name)
         added += 1

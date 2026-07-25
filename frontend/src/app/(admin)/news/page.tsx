@@ -50,7 +50,7 @@ export default function NewsPage() {
               </button>
             ))}
           </div>
-          <span className="ml-auto text-xs text-gray-400">MedicalTimes(RSS)·의협신문 인기기사 자동수집 · 매일 07:00/13:00 갱신</span>
+          <span className="ml-auto text-xs text-gray-400">MedicalTimes(RSS)·의협신문 인기기사 자동수집</span>
         </div>
 
         <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">

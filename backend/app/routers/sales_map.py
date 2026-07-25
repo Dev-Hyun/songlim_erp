@@ -11,6 +11,7 @@ from sqlalchemy import select, func, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
+from app.manufacturer_map import model_series as _compute_model_series
 from app.models import Hospital, Equipment, SalesNote, User
 from app.routers.auth import require_staff
 
@@ -369,6 +370,7 @@ async def register_manual_equipment(payload: ManualEquipmentIn, db: AsyncSession
         year=payload.year,
         manufacturer=payload.manufacturer,
         model=payload.model,
+        model_series=_compute_model_series(payload.model, "xr") if payload.category == "xray" else None,
         eq_count=payload.eq_count,
         source="manual",
         created_by=payload.created_by,
@@ -396,6 +398,7 @@ async def update_manual_equipment(equipment_id: int, payload: ManualEquipmentUpd
         raise HTTPException(status_code=403, detail="공공데이터로 임포트된 장비는 수정할 수 없습니다")
     eq.manufacturer = payload.manufacturer
     eq.model = payload.model
+    eq.model_series = _compute_model_series(payload.model, "xr") if eq.category == "xray" else None
     eq.year = payload.year
     eq.eq_count = payload.eq_count
     await db.commit()

@@ -39,7 +39,9 @@ export interface ShareItem {
   share: number;
 }
 
-export async function fetchMarketShare(f: StatsFilter, by: "maker" | "model"): Promise<ShareItem[]> {
+export type StatsGroupBy = "maker" | "model" | "series";
+
+export async function fetchMarketShare(f: StatsFilter, by: StatsGroupBy): Promise<ShareItem[]> {
   const res = await fetch(`${API}/api/stats/market-share?${qs(f, { by })}`, { credentials: "include" });
   if (!res.ok) throw new Error("점유율 조회 실패");
   return res.json();
@@ -51,7 +53,7 @@ export interface TrendData {
   data: Record<string, number[]>;
 }
 
-export async function fetchYearlyTrend(f: StatsFilter, by: "maker" | "model"): Promise<TrendData> {
+export async function fetchYearlyTrend(f: StatsFilter, by: StatsGroupBy): Promise<TrendData> {
   const res = await fetch(`${API}/api/stats/yearly-trend?${qs(f, { by, top_n: "8" })}`, { credentials: "include" });
   if (!res.ok) throw new Error("연도별 추이 조회 실패");
   return res.json();

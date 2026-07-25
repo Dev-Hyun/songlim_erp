@@ -3,6 +3,7 @@ import React, { useState, useRef, useEffect, useMemo } from "react";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import interactionPlugin from "@fullcalendar/interaction";
+import koLocale from "@fullcalendar/core/locales/ko";
 import {
   EventInput,
   DateSelectArg,
@@ -268,6 +269,9 @@ const Calendar: React.FC = () => {
           ref={calendarRef}
           plugins={[dayGridPlugin, interactionPlugin]}
           initialView="dayGridMonth"
+          locale={koLocale}
+          titleFormat={{ month: "long" }}
+          showNonCurrentDates={false}
           headerToolbar={{
             left: "prev,next addEventButton",
             center: "title",
@@ -314,7 +318,7 @@ const Calendar: React.FC = () => {
                   className="h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
                 />
               </div>
-              <div className="mt-4 flex gap-3">
+              <div className="mt-4 flex flex-col gap-3 sm:flex-row">
                 <div className="flex-1">
                   <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">시작일</label>
                   <input type="date" value={eventStartDate} onChange={(e) => setEventStartDate(e.target.value)} disabled={fieldsDisabled}

@@ -45,6 +45,7 @@ class Equipment(Base):
         CheckConstraint("source IN ('import','manual')", name="ck_equipment_source"),
         Index("idx_eq_hosp_cat", "hospital_id", "category"),
         Index("idx_eq_cat_year", "category", "year"),
+        Index("idx_eq_series", "model_series"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -53,6 +54,7 @@ class Equipment(Base):
     year: Mapped[int] = mapped_column()
     manufacturer: Mapped[Optional[str]] = mapped_column(default=None)
     model: Mapped[Optional[str]] = mapped_column(default=None)
+    model_series: Mapped[Optional[str]] = mapped_column(default=None)  # X-ray 전용 — 모델명 변형을 시리즈로 통합(app/manufacturer_map.py)
     eq_count: Mapped[int] = mapped_column(default=1)
     source: Mapped[str] = mapped_column(default="import")
     created_by: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), default=None)

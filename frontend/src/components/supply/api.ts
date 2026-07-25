@@ -6,6 +6,7 @@ export interface CatalogItem {
   spec: string | null;
   manufacturer: string | null;
   category: string;
+  sub_category: string | null;
   unit: string;
   price: number;
   base_price: number;
@@ -17,6 +18,11 @@ export interface CatalogItem {
 
 export interface CategoryCount {
   category: string;
+  count: number;
+}
+
+export interface SubCategoryCount {
+  sub_category: string;
   count: number;
 }
 
@@ -60,6 +66,9 @@ export const fetchCatalog = (category?: string): Promise<CatalogItem[]> =>
 export const fetchCategories = (): Promise<CategoryCount[]> =>
   fetch(`${API}/api/supply/categories`, { credentials: "include" }).then((r) => j(r));
 
+export const fetchSubcategories = (category: string): Promise<SubCategoryCount[]> =>
+  fetch(`${API}/api/supply/subcategories?category=${encodeURIComponent(category)}`, { credentials: "include" }).then((r) => j(r));
+
 export const addFavorite = (catalog_id: number) =>
   fetch(`${API}/api/supply/favorites`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ catalog_id }) }).then((r) => j(r));
 
@@ -91,6 +100,7 @@ export interface AdminCatalogItem {
   manufacturer: string | null;
   spec: string | null;
   category: string;
+  sub_category: string | null;
   unit: string;
   unit_price: number;
   description: string | null;
@@ -108,6 +118,7 @@ export interface CatalogInput {
   manufacturer?: string;
   spec?: string;
   category: string;
+  sub_category?: string;
   unit: string;
   unit_price: number;
   description?: string;

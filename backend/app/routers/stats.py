@@ -76,9 +76,9 @@ async def market_share(
     sido: Optional[str] = None,
     sigungu: Optional[str] = None,
     type_group: Optional[str] = None,
-    by: str = "maker",  # maker | model
+    by: str = "maker",  # maker | model | series (series는 X-ray 전용)
 ):
-    field = Equipment.manufacturer if by == "maker" else Equipment.model
+    field = Equipment.manufacturer if by == "maker" else (Equipment.model_series if by == "series" else Equipment.model)
     q = (
         select(field, func.sum(Equipment.eq_count))
         .join(Hospital, Hospital.id == Equipment.hospital_id)
@@ -109,9 +109,9 @@ async def yearly_trend(
     sigungu: Optional[str] = None,
     type_group: Optional[str] = None,
     top_n: int = 8,
-    by: str = "maker",
+    by: str = "maker",  # maker | model | series (series는 X-ray 전용)
 ):
-    field = Equipment.manufacturer if by == "maker" else Equipment.model
+    field = Equipment.manufacturer if by == "maker" else (Equipment.model_series if by == "series" else Equipment.model)
 
     latest_q = (
         select(field, func.sum(Equipment.eq_count))

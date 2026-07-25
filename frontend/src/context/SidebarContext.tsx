@@ -51,6 +51,15 @@ export const SidebarProvider: React.FC<{ children: React.ReactNode }> = ({
     };
   }, []);
 
+  // 모바일 사이드바가 열려있는 동안 배경(우측 페이지 콘텐츠)이 함께 스크롤되지 않도록 body 스크롤을 잠근다.
+  // 사이드바 자체는 AppSidebar.tsx의 내부 div(overflow-y-auto)로 독립적으로 스크롤된다.
+  useEffect(() => {
+    document.body.style.overflow = isMobileOpen ? "hidden" : "unset";
+    return () => {
+      document.body.style.overflow = "unset";
+    };
+  }, [isMobileOpen]);
+
   const toggleSidebar = () => {
     setIsExpanded((prev) => !prev);
   };

@@ -1,18 +1,25 @@
 import { OrderItem, SupplyOrder } from "./api";
 
-const VAT_RATE = 0.1;
+// 카탈로그 단가(따라서 it.subtotal, order.total_amount)는 부가세가 포함된 "실제 결제 금액" 기준이다.
+// 즉 총액 = 11a, 공급가액 = 10a, 부가세 = a (a = 총액 / 11). 이전 코드는 반대로 subtotal을
+// 부가세 "제외" 금액으로 보고 10%를 더 얹어(총액 = subtotal*1.1) 실제 청구액보다 부풀려 계산했었다.
+function splitVat(totalInclusive: number): { supply: number; vat: number } {
+  const supply = Math.round(totalInclusive / 1.1);
+  return { supply, vat: totalInclusive - supply };
+}
 
 function formatDateTime(iso?: string) {
   if (!iso) return "-";
   return iso.replace("T", " ").slice(0, 16);
 }
 
-function renderInvoiceHtml(items: OrderItem[], meta: { hospitalLabel: string; dateLabel: string; statusLabel: string; orderRequest?: string | null }) {
+function renderInvoiceHtml(
+  items: OrderItem[],
+  meta: { hospitalLabel: string; dateLabel: string; statusLabel: string; orderRequest?: string | null; trueTotal: number }
+) {
   const rows = items
     .map((it) => {
-      const supply = it.subtotal;
-      const vat = Math.round(supply * VAT_RATE);
-      const total = supply + vat;
+      const { supply, vat } = splitVat(it.subtotal);
       return `
       <tr>
         <td>${it.name}</td>
@@ -22,14 +29,18 @@ function renderInvoiceHtml(items: OrderItem[], meta: { hospitalLabel: string; da
         <td style="text-align:right">${it.qty}</td>
         <td style="text-align:right">${supply.toLocaleString()}원</td>
         <td style="text-align:right">${vat.toLocaleString()}원</td>
-        <td style="text-align:right">${total.toLocaleString()}원</td>
+        <td style="text-align:right">${it.subtotal.toLocaleString()}원</td>
       </tr>`;
     })
     .join("");
 
-  const supplySum = items.reduce((s, it) => s + it.subtotal, 0);
-  const vatSum = items.reduce((s, it) => s + Math.round(it.subtotal * VAT_RATE), 0);
-  const totalSum = supplySum + vatSum;
+  // 품목별 금액을 그대로 합산한 값(itemTotalSum)과 실제 청구액(meta.trueTotal)이 다를 수 있다 —
+  // 병원 등급 할인이 주문 전체에 적용된 경우. 이 경우 차액을 "할인 적용" 줄로 명시해서, 인쇄된
+  // 발주서의 "총 합계"가 항상 실제 결제 금액(발주내역에 찍히는 금액)과 일치하도록 만든다.
+  const itemTotalSum = items.reduce((s, it) => s + it.subtotal, 0);
+  const { supply: supplySum, vat: vatSum } = splitVat(itemTotalSum);
+  const discountAmount = itemTotalSum - meta.trueTotal;
+  const totalSum = meta.trueTotal;
 
   return `
     <!DOCTYPE html>
@@ -70,6 +81,7 @@ function renderInvoiceHtml(items: OrderItem[], meta: { hospitalLabel: string; da
         <div class="totals">
           <div><span>공급가액 합계</span><span>${supplySum.toLocaleString()}원</span></div>
           <div><span>부가세 합계</span><span>${vatSum.toLocaleString()}원</span></div>
+          ${discountAmount !== 0 ? `<div><span>할인 적용</span><span>-${discountAmount.toLocaleString()}원</span></div>` : ""}
           <div class="grand"><span>총 합계</span><span>${totalSum.toLocaleString()}원</span></div>
         </div>
       </body>
@@ -92,6 +104,7 @@ export function printOrder(order: SupplyOrder, hospitalName?: string) {
     dateLabel: formatDateTime(order.created_at),
     statusLabel: order.status,
     orderRequest: order.order_request,
+    trueTotal: order.total_amount,
   });
   openAndPrint(html);
 }
@@ -113,6 +126,7 @@ export function printOrders(orders: SupplyOrder[], hospitalName?: string) {
     dateLabel: dateLabels,
     statusLabel: statuses.join(", "),
     orderRequest: requests || null,
+    trueTotal: orders.reduce((s, o) => s + o.total_amount, 0),
   });
   openAndPrint(html);
 }

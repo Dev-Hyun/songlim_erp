@@ -15,6 +15,7 @@ class SupplyCatalog(Base, TimestampMixin):
     manufacturer: Mapped[Optional[str]] = mapped_column(default=None)
     spec: Mapped[Optional[str]] = mapped_column(default=None)
     category: Mapped[str] = mapped_column(default="기타")
+    sub_category: Mapped[Optional[str]] = mapped_column(default=None)  # 대분류(category) 하위의 소분류
     unit: Mapped[str] = mapped_column(default="개")  # 자유 입력, 예: "100입/1box"
     unit_price: Mapped[int] = mapped_column(default=0)  # unit 기준 가격
     description: Mapped[Optional[str]] = mapped_column(default=None)

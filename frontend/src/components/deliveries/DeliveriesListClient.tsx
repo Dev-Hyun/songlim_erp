@@ -73,13 +73,13 @@ export default function DeliveriesListClient() {
             <button
               key={d.id}
               onClick={() => router.push(`/deliveries/${d.id}`)}
-              className="flex w-full items-center justify-between rounded-xl border border-gray-200 bg-white p-4 text-left transition hover:border-brand-300 dark:border-gray-800 dark:bg-white/[0.03]"
+              className="flex w-full items-center gap-3 rounded-xl border border-gray-200 bg-white p-4 text-left transition hover:border-brand-300 dark:border-gray-800 dark:bg-white/[0.03]"
             >
-              <div>
-                <div className="text-sm font-semibold text-gray-800 dark:text-white/90">{d.hospital_name}</div>
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-sm font-semibold text-gray-800 dark:text-white/90">{d.hospital_name}</div>
                 <div className="mt-1 text-xs text-gray-400">설치일 {d.installation_date || "-"}</div>
               </div>
-              <div className="flex items-center gap-1.5">
+              <div className="flex shrink-0 items-center gap-1.5">
                 <span
                   className={`rounded-full px-2.5 py-1 text-xs font-bold ${
                     d.site_type === "demo"

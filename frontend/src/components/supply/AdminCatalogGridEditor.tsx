@@ -23,7 +23,7 @@ const ICONS: Record<string, string> = {
 };
 
 const EMPTY_FORM: CatalogInput = {
-  code: "", name: "", manufacturer: "", spec: "", category: "소모품", unit: "개",
+  code: "", name: "", manufacturer: "", spec: "", category: "소모품", sub_category: "", unit: "개",
   unit_price: 0, description: "", image_key: "", is_active: true,
 };
 
@@ -80,8 +80,10 @@ function Card({
           ICONS[item.category] || "📦"
         )}
       </div>
-      <div className="mb-1 flex items-center gap-1.5">
-        <span className="rounded-full bg-brand-50 px-1.5 py-0.5 text-[10px] font-bold text-brand-600 dark:bg-brand-500/15 dark:text-brand-400">{item.category}</span>
+      <div className="mb-1 flex flex-wrap items-center gap-1.5">
+        <span className="rounded-full bg-brand-50 px-1.5 py-0.5 text-[10px] font-bold text-brand-600 dark:bg-brand-500/15 dark:text-brand-400">
+          {item.category}{item.sub_category ? ` · ${item.sub_category}` : ""}
+        </span>
         {item.code && <span className="text-[10px] text-gray-400">#{item.code}</span>}
       </div>
       <div className="mb-1.5 line-clamp-2 min-h-[34px] text-[13px] font-semibold leading-snug text-gray-800 dark:text-white/90">{item.name}</div>
@@ -104,6 +106,7 @@ export default function AdminCatalogGridEditor({ onClose }: { onClose: () => voi
   const [saving, setSaving] = useState(false);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
+  const [subCategoryFilter, setSubCategoryFilter] = useState<string | null>(null);
   const [filteredItems, setFilteredItems] = useState<AdminCatalogItem[]>([]);
   const [search, setSearch] = useState("");
 
@@ -114,12 +117,18 @@ export default function AdminCatalogGridEditor({ onClose }: { onClose: () => voi
   useEffect(load, []);
 
   const categories = Array.from(new Set(items.map((it) => it.category))).sort();
+  const subCategories = categoryFilter
+    ? Array.from(new Set(items.filter((it) => it.category === categoryFilter && it.sub_category).map((it) => it.sub_category as string))).sort()
+    : [];
 
-  // 카테고리를 선택했을 때만 그 카테고리 안에서 드래그 순서 변경이 가능하도록 별도 상태로 분리 —
+  // 카테고리(+소분류)를 선택했을 때만 그 안에서 드래그 순서 변경이 가능하도록 별도 상태로 분리 —
   // "전체" 보기는 추가한 순서(id) 그대로 보여주고 재정렬 대상이 아니다.
   useEffect(() => {
-    if (categoryFilter) setFilteredItems(items.filter((it) => it.category === categoryFilter));
-  }, [items, categoryFilter]);
+    if (!categoryFilter) return;
+    setFilteredItems(
+      items.filter((it) => it.category === categoryFilter && (!subCategoryFilter || it.sub_category === subCategoryFilter))
+    );
+  }, [items, categoryFilter, subCategoryFilter]);
 
   const q = search.trim().toLowerCase();
   const baseItems = categoryFilter ? filteredItems : [...items].sort((a, b) => a.id - b.id);
@@ -128,6 +137,11 @@ export default function AdminCatalogGridEditor({ onClose }: { onClose: () => voi
     ? [...items].filter((it) => `${it.name} ${it.manufacturer || ""} ${it.code || ""}`.toLowerCase().includes(q))
     : baseItems;
   const canDrag = !!categoryFilter && !q;
+
+  function selectCategory(c: string | null) {
+    setCategoryFilter(c);
+    setSubCategoryFilter(null);
+  }
 
   function moveCard(from: number, to: number) {
     if (!categoryFilter) return;
@@ -153,7 +167,7 @@ export default function AdminCatalogGridEditor({ onClose }: { onClose: () => voi
     setEditing(item);
     setForm({
       code: item.code || "", name: item.name, manufacturer: item.manufacturer || "",
-      spec: item.spec || "", category: item.category, unit: item.unit,
+      spec: item.spec || "", category: item.category, sub_category: item.sub_category || "", unit: item.unit,
       unit_price: item.unit_price, description: item.description || "",
       image_key: item.image_key || "", is_active: item.is_active,
     });
@@ -211,9 +225,9 @@ export default function AdminCatalogGridEditor({ onClose }: { onClose: () => voi
       <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
         <DndProvider backend={HTML5Backend}>
           <div className="flex-1 overflow-y-auto p-5">
-            <div className="mb-4 flex flex-wrap items-center gap-1.5">
+            <div className="mb-2 flex flex-wrap items-center gap-1.5">
               <button
-                onClick={() => setCategoryFilter(null)}
+                onClick={() => selectCategory(null)}
                 className={`rounded-full px-3 py-1.5 text-xs font-bold ${!categoryFilter ? "bg-brand-500 text-white" : "bg-gray-100 text-gray-500 dark:bg-white/10"}`}
               >
                 전체
@@ -221,15 +235,34 @@ export default function AdminCatalogGridEditor({ onClose }: { onClose: () => voi
               {categories.map((c) => (
                 <button
                   key={c}
-                  onClick={() => setCategoryFilter(c)}
+                  onClick={() => selectCategory(c)}
                   className={`rounded-full px-3 py-1.5 text-xs font-bold ${categoryFilter === c ? "bg-brand-500 text-white" : "bg-gray-100 text-gray-500 dark:bg-white/10"}`}
                 >
                   {c}
                 </button>
               ))}
-              {canDrag && <span className="ml-1 text-[11px] text-gray-400">드래그해서 이 카테고리 안에서 순서 변경</span>}
               {q && <span className="ml-1 text-[11px] text-gray-400">&quot;{search}&quot; 검색 결과 {displayItems.length}건</span>}
             </div>
+            {categoryFilter && subCategories.length > 0 && (
+              <div className="mb-4 flex flex-wrap items-center gap-1.5">
+                <button
+                  onClick={() => setSubCategoryFilter(null)}
+                  className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${!subCategoryFilter ? "bg-brand-100 text-brand-700 dark:bg-brand-500/20 dark:text-brand-300" : "bg-gray-50 text-gray-500 dark:bg-white/5"}`}
+                >
+                  소분류 전체
+                </button>
+                {subCategories.map((sc) => (
+                  <button
+                    key={sc}
+                    onClick={() => setSubCategoryFilter(sc)}
+                    className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${subCategoryFilter === sc ? "bg-brand-100 text-brand-700 dark:bg-brand-500/20 dark:text-brand-300" : "bg-gray-50 text-gray-500 dark:bg-white/5"}`}
+                  >
+                    {sc}
+                  </button>
+                ))}
+              </div>
+            )}
+            {canDrag && <div className="mb-3 text-[11px] text-gray-400">드래그해서 이 카테고리 안에서 순서 변경</div>}
             {loading ? (
               <div className="p-10 text-center text-sm text-gray-400">불러오는 중...</div>
             ) : (
@@ -275,6 +308,7 @@ export default function AdminCatalogGridEditor({ onClose }: { onClose: () => voi
           <input value={form.manufacturer} onChange={(e) => setForm({ ...form, manufacturer: e.target.value })} placeholder="제조사" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900" />
           <input value={form.spec} onChange={(e) => setForm({ ...form, spec: e.target.value })} placeholder="규격(선택)" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900" />
           <input value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} placeholder="카테고리" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900" />
+          <input value={form.sub_category} onChange={(e) => setForm({ ...form, sub_category: e.target.value })} placeholder="소분류(선택)" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900" />
           <input value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} placeholder="단위 (예: 100입/1box)" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900" />
           <input type="number" value={form.unit_price} onChange={(e) => setForm({ ...form, unit_price: Number(e.target.value) })} placeholder="기본금액" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900" />
           <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="설명(선택)" rows={2} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900" />

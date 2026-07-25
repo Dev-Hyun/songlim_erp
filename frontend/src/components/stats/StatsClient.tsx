@@ -10,6 +10,7 @@ import { CATEGORY_LABEL, EquipmentCategory } from "@/components/sales-map/types"
 import {
   ShareItem,
   StatsFilter,
+  StatsGroupBy,
   SummaryStats,
   TrendData,
   fetchByRegion,
@@ -70,7 +71,7 @@ export default function StatsClient() {
   const [sigunguList, setSigunguList] = useState<string[]>([]);
   const [sigungu, setSigungu] = useState("");
   const [typeGroup, setTypeGroup] = useState("");
-  const [groupBy, setGroupBy] = useState<"maker" | "model">("maker");
+  const [groupBy, setGroupBy] = useState<StatsGroupBy>("maker");
   const captureRef = useRef<HTMLDivElement>(null);
   const [exportingPng, setExportingPng] = useState(false);
 
@@ -181,7 +182,7 @@ export default function StatsClient() {
           {CATS.map((c) => (
             <button
               key={c}
-              onClick={() => setCategory(c)}
+              onClick={() => { setCategory(c); if (c !== "xray" && groupBy === "series") setGroupBy("maker"); }}
               className={`rounded-full px-3 py-1.5 text-xs font-bold transition ${
                 category === c ? "bg-brand-500 text-white" : "text-gray-500 dark:text-gray-400"
               }`}
@@ -237,13 +238,13 @@ export default function StatsClient() {
             title="제조사별 점유율"
             desc={
               <span className="inline-flex gap-1">
-                {(["maker", "model"] as const).map((b) => (
+                {(category === "xray" ? (["maker", "model", "series"] as const) : (["maker", "model"] as const)).map((b) => (
                   <button
                     key={b}
                     onClick={() => setGroupBy(b)}
                     className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${groupBy === b ? "bg-brand-500 text-white" : "bg-gray-100 text-gray-500 dark:bg-white/10"}`}
                   >
-                    {b === "maker" ? "제조사" : "모델"}
+                    {b === "maker" ? "제조사" : b === "model" ? "모델" : "시리즈"}
                   </button>
                 ))}
               </span>
@@ -275,7 +276,7 @@ export default function StatsClient() {
               <thead>
                 <tr className="border-b border-gray-200 text-left text-xs text-gray-400 dark:border-gray-800">
                   <th className="py-2">순위</th>
-                  <th className="py-2">{groupBy === "maker" ? "제조사" : "모델"}</th>
+                  <th className="py-2">{groupBy === "maker" ? "제조사" : groupBy === "model" ? "모델" : "시리즈"}</th>
                   <th className="py-2 text-right">장비 수</th>
                   <th className="py-2 text-right">점유율</th>
                 </tr>

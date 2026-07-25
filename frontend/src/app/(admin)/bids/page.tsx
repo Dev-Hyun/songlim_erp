@@ -65,7 +65,7 @@ export default function BidsPage() {
             placeholder="공고명/수요기관 검색..."
             className="w-56 rounded-full border border-gray-300 bg-gray-50 px-3.5 py-1.5 text-xs focus:border-brand-500 focus:outline-none dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300"
           />
-          <span className="ml-auto text-xs text-gray-400">나라장터(G2B)·국방전자조달(D2B) 자동수집 · 매일 07:00 갱신</span>
+          <span className="ml-auto text-xs text-gray-400">나라장터(G2B)·국방전자조달(D2B) 자동수집</span>
         </div>
         <div className="overflow-x-auto rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
           {loading ? (

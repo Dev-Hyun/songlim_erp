@@ -86,9 +86,9 @@ async def _sync_google_calendars_job():
 async def _startup():
     from app.routers.bids_news import refresh_bids_job, refresh_news_job
 
-    # 레거시와 동일한 스케줄: 입찰정보 매일 07:00, 의료뉴스 매일 07:00/13:00
+    # 입찰정보/의료뉴스 모두 매일 07:00 1회 갱신으로 통일
     _scheduler.add_job(refresh_bids_job, "cron", hour=7, minute=0, id="bids")
-    _scheduler.add_job(refresh_news_job, "cron", hour="7,13", minute=0, id="news")
+    _scheduler.add_job(refresh_news_job, "cron", hour=7, minute=0, id="news")
     # 구글 캘린더 → 사이트 역방향 동기화 (휴대폰에서 생성/수정/삭제한 일정 반영), 5분마다 폴링
     _scheduler.add_job(_sync_google_calendars_job, "interval", minutes=5, id="google_calendar_sync")
     _scheduler.start()

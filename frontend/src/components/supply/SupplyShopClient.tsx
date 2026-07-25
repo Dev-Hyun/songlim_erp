@@ -31,6 +31,7 @@ export default function SupplyShopClient() {
   const router = useRouter();
   const [categories, setCategories] = useState<CategoryCount[]>([]);
   const [category, setCategory] = useState<string | null>(null);
+  const [subCategory, setSubCategory] = useState<string | null>(null);
   const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [items, setItems] = useState<CatalogItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -74,9 +75,20 @@ export default function SupplyShopClient() {
     });
   }, [items]);
 
+  const subCategories = useMemo(
+    () => (category ? Array.from(new Set(items.filter((it) => it.sub_category).map((it) => it.sub_category as string))).sort() : []),
+    [items, category]
+  );
+
   const filtered = useMemo(
-    () => items.filter((it) => (favoritesOnly ? it.is_favorite : true) && (!search || it.name.includes(search))),
-    [items, favoritesOnly, search]
+    () =>
+      items.filter(
+        (it) =>
+          (favoritesOnly ? it.is_favorite : true) &&
+          (!search || it.name.includes(search)) &&
+          (!subCategory || it.sub_category === subCategory)
+      ),
+    [items, favoritesOnly, search, subCategory]
   );
 
   const cartLines = Object.values(cart);
@@ -160,7 +172,7 @@ export default function SupplyShopClient() {
         <div className="mb-1 text-[11px] font-bold uppercase tracking-wide text-gray-400">카테고리</div>
         <div className="flex flex-wrap gap-1.5 lg:block">
           <button
-            onClick={() => { setCategory(null); setFavoritesOnly(false); }}
+            onClick={() => { setCategory(null); setSubCategory(null); setFavoritesOnly(false); }}
             className={`mb-1 flex w-auto items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-left text-xs font-semibold lg:w-full ${
               !category && !favoritesOnly ? "bg-brand-50 text-brand-500 dark:bg-brand-500/10" : "text-gray-600 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-white/5"
             }`}
@@ -171,7 +183,7 @@ export default function SupplyShopClient() {
           {categories.map((c) => (
             <button
               key={c.category}
-              onClick={() => { setCategory(c.category); setFavoritesOnly(false); }}
+              onClick={() => { setCategory(c.category); setSubCategory(null); setFavoritesOnly(false); }}
               className={`mb-1 flex w-auto items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-left text-xs font-semibold lg:w-full ${
                 category === c.category ? "bg-brand-50 text-brand-500 dark:bg-brand-500/10" : "text-gray-600 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-white/5"
               }`}
@@ -181,7 +193,7 @@ export default function SupplyShopClient() {
             </button>
           ))}
           <button
-            onClick={() => { setFavoritesOnly(true); setCategory(null); }}
+            onClick={() => { setFavoritesOnly(true); setCategory(null); setSubCategory(null); }}
             className={`flex w-auto items-center gap-1.5 rounded-lg px-2.5 py-2 text-left text-xs font-semibold lg:mt-2 lg:w-full ${
               favoritesOnly ? "bg-brand-50 text-brand-500 dark:bg-brand-500/10" : "text-gray-600 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-white/5"
             }`}
@@ -189,6 +201,32 @@ export default function SupplyShopClient() {
             ⭐ 즐겨찾기
           </button>
         </div>
+        {subCategories.length > 0 && (
+          <div className="mt-4 border-t border-gray-100 pt-3 dark:border-gray-800">
+            <div className="mb-1 text-[11px] font-bold uppercase tracking-wide text-gray-400">소분류</div>
+            <div className="flex flex-wrap gap-1.5 lg:block">
+              <button
+                onClick={() => setSubCategory(null)}
+                className={`mb-1 block w-auto rounded-lg px-2.5 py-1.5 text-left text-[11px] font-semibold lg:w-full ${
+                  !subCategory ? "bg-brand-50 text-brand-500 dark:bg-brand-500/10" : "text-gray-500 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-white/5"
+                }`}
+              >
+                전체
+              </button>
+              {subCategories.map((sc) => (
+                <button
+                  key={sc}
+                  onClick={() => setSubCategory(sc)}
+                  className={`mb-1 block w-auto rounded-lg px-2.5 py-1.5 text-left text-[11px] font-semibold lg:w-full ${
+                    subCategory === sc ? "bg-brand-50 text-brand-500 dark:bg-brand-500/10" : "text-gray-500 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-white/5"
+                  }`}
+                >
+                  {sc}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </aside>
 
       <main className="min-w-0 flex-1 rounded-2xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-white/[0.01]">
@@ -234,7 +272,7 @@ export default function SupplyShopClient() {
                     ICONS[it.category] || "📦"
                   )}
                 </div>
-                <div className="mb-0.5 text-[10px] font-bold uppercase text-brand-500">{it.category}</div>
+                <div className="mb-0.5 text-[10px] font-bold uppercase text-brand-500">{it.category}{it.sub_category ? ` · ${it.sub_category}` : ""}</div>
                 <div className="mb-1 line-clamp-2 min-h-[34px] text-[13px] font-semibold leading-snug text-gray-800 dark:text-white/90">{it.name}</div>
                 <div className="text-[11px] font-medium text-gray-500 dark:text-gray-400">{it.manufacturer || "제조사 미상"}</div>
                 <div className="mb-2 text-[11px] text-gray-400">{it.spec ? `${it.spec} · ` : ""}{it.unit}</div>
@@ -346,7 +384,7 @@ export default function SupplyShopClient() {
                   <div className="flex gap-2"><dt className="w-16 shrink-0 text-gray-400">제조사</dt><dd className="font-medium text-gray-700 dark:text-gray-200">{detail.manufacturer || "-"}</dd></div>
                   <div className="flex gap-2"><dt className="w-16 shrink-0 text-gray-400">규격</dt><dd className="font-medium text-gray-700 dark:text-gray-200">{detail.spec || "-"}</dd></div>
                   <div className="flex gap-2"><dt className="w-16 shrink-0 text-gray-400">단위</dt><dd className="font-medium text-gray-700 dark:text-gray-200">{detail.unit}</dd></div>
-                  <div className="flex gap-2"><dt className="w-16 shrink-0 text-gray-400">카테고리</dt><dd className="font-medium text-gray-700 dark:text-gray-200">{detail.category}</dd></div>
+                  <div className="flex gap-2"><dt className="w-16 shrink-0 text-gray-400">카테고리</dt><dd className="font-medium text-gray-700 dark:text-gray-200">{detail.category}{detail.sub_category ? ` · ${detail.sub_category}` : ""}</dd></div>
                 </dl>
                 {detail.description && <p className="mb-4 text-sm text-gray-600 dark:text-gray-300">{detail.description}</p>}
                 <div className="flex items-baseline justify-between rounded-xl bg-brand-50 px-4 py-3.5 dark:bg-brand-500/10">

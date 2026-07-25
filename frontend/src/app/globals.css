@@ -286,6 +286,17 @@
 
 
 
+/* iOS Safari는 포커스된 입력창의 font-size가 16px보다 작으면 자동으로 화면을 확대한다.
+   pinch-zoom 자체를 막는 방식(user-scalable=no)은 접근성을 해치므로, 대신 모바일 폭에서만
+   모든 입력창 글자를 16px 이상으로 강제해서 자동 확대가 아예 발생하지 않게 한다(로그인창 포함). */
+@media (max-width: 640px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
 @layer utilities {
   /* For Remove Date Icon */
   input[type="date"]::-webkit-inner-spin-button,
@@ -521,7 +532,7 @@ span.flatpickr-weekday,
   @apply text-error-500 dark:text-error-400;
 }
 .fc-holiday-label {
-  @apply mt-0.5 block truncate text-[9px] font-semibold text-error-500 dark:text-error-400;
+  @apply mt-0.5 block w-full truncate text-[9px] font-semibold text-error-500 dark:text-error-400;
 }
 .fc .fc-scrollgrid-section > * {
   border-right-width: 0;
@@ -563,6 +574,23 @@ span.flatpickr-weekday,
 .fc-toolbar-title {
   @apply !text-lg !font-medium text-gray-800 dark:text-white/90;
 }
+/* 우측 버튼 영역(right)이 비어있어서 title이 flex space-between으로는 좌측 버튼 그룹 너비만큼
+   한쪽으로 쏠려 보인다. 툴바 폭 기준 절대중앙에 고정해서 좌/우 청크 너비 차이와 무관하게 정중앙에 오게 한다. */
+.fc-header-toolbar.fc-toolbar .fc-toolbar-chunk:nth-child(2) {
+  @apply w-full text-center;
+}
+@media (min-width: 640px) {
+  .fc-header-toolbar.fc-toolbar {
+    position: relative;
+  }
+  .fc-header-toolbar.fc-toolbar .fc-toolbar-chunk:nth-child(2) {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: auto;
+    transform: translate(-50%, -50%);
+  }
+}
 .fc-header-toolbar.fc-toolbar .fc-toolbar-chunk:last-child {
   @apply rounded-lg bg-gray-100 p-0.5 dark:bg-gray-900;
 }
@@ -600,8 +628,10 @@ span.flatpickr-weekday,
 .fc .fc-daynum {
   @apply inline-block;
 }
+/* 날짜 숫자 아래에 공휴일 라벨이 세로로 쌓이도록(가로로 나란히 놓으면 "광복절 대체공휴일"처럼
+   긴 라벨이 셀 밖으로 흘러나간다) — 기본값(row-reverse)을 세로 방향으로 덮어쓴다 */
 .fc .fc-daygrid-day-top {
-  @apply !flex-row;
+  @apply !flex-col;
 }
 .fc .fc-day-other .fc-daygrid-day-top {
   opacity: 1;
