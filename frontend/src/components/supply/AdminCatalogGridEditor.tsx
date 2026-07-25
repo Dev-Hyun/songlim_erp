@@ -120,6 +120,10 @@ export default function AdminCatalogGridEditor({ onClose }: { onClose: () => voi
   const subCategories = categoryFilter
     ? Array.from(new Set(items.filter((it) => it.category === categoryFilter && it.sub_category).map((it) => it.sub_category as string))).sort()
     : [];
+  // 편집 폼에서 선택한 카테고리 기준 소분류 후보 (좌측 탐색 필터의 categoryFilter와는 별개)
+  const formSubCategories = form.category
+    ? Array.from(new Set(items.filter((it) => it.category === form.category && it.sub_category).map((it) => it.sub_category as string))).sort()
+    : [];
 
   // 카테고리(+소분류)를 선택했을 때만 그 안에서 드래그 순서 변경이 가능하도록 별도 상태로 분리 —
   // "전체" 보기는 추가한 순서(id) 그대로 보여주고 재정렬 대상이 아니다.
@@ -307,8 +311,42 @@ export default function AdminCatalogGridEditor({ onClose }: { onClose: () => voi
           <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="품목명" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900" />
           <input value={form.manufacturer} onChange={(e) => setForm({ ...form, manufacturer: e.target.value })} placeholder="제조사" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900" />
           <input value={form.spec} onChange={(e) => setForm({ ...form, spec: e.target.value })} placeholder="규격(선택)" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900" />
-          <input value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} placeholder="카테고리" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900" />
-          <input value={form.sub_category} onChange={(e) => setForm({ ...form, sub_category: e.target.value })} placeholder="소분류(선택)" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900" />
+          <div>
+            <select
+              value={categories.includes(form.category) ? form.category : "__new__"}
+              onChange={(e) => setForm({ ...form, category: e.target.value === "__new__" ? "" : e.target.value, sub_category: "" })}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
+            >
+              {categories.map((c) => <option key={c} value={c}>{c}</option>)}
+              <option value="__new__">+ 새 대분류 직접입력</option>
+            </select>
+            {!categories.includes(form.category) && (
+              <input
+                value={form.category}
+                onChange={(e) => setForm({ ...form, category: e.target.value })}
+                placeholder="새 대분류명"
+                className="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
+              />
+            )}
+          </div>
+          <div>
+            <select
+              value={form.sub_category && formSubCategories.includes(form.sub_category) ? form.sub_category : "__new__"}
+              onChange={(e) => setForm({ ...form, sub_category: e.target.value === "__new__" ? "" : e.target.value })}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
+            >
+              <option value="__new__">선택 안 함 / 새 소분류 직접입력</option>
+              {formSubCategories.map((sc) => <option key={sc} value={sc}>{sc}</option>)}
+            </select>
+            {(!form.sub_category || !formSubCategories.includes(form.sub_category)) && (
+              <input
+                value={form.sub_category}
+                onChange={(e) => setForm({ ...form, sub_category: e.target.value })}
+                placeholder="소분류(선택)"
+                className="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
+              />
+            )}
+          </div>
           <input value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} placeholder="단위 (예: 100입/1box)" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900" />
           <input type="number" value={form.unit_price} onChange={(e) => setForm({ ...form, unit_price: Number(e.target.value) })} placeholder="기본금액" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900" />
           <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="설명(선택)" rows={2} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900" />

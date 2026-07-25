@@ -131,8 +131,6 @@ async def update_contract(cid: int, payload: ContractUpdateIn, db: AsyncSession 
     c = (await db.execute(select(Contract).where(Contract.id == cid))).scalar_one_or_none()
     if not c:
         raise HTTPException(status_code=404, detail="계약을 찾을 수 없습니다")
-    if c.author_id != user.id and not user.is_admin:
-        raise HTTPException(status_code=403, detail="권한이 없습니다")
 
     data = payload.model_dump(exclude_unset=True, exclude={"items"})
     if data.get("status") and data["status"] not in ("진행중", "보류", "완료"):
@@ -159,8 +157,6 @@ async def delete_contract(cid: int, db: AsyncSession = Depends(get_db), user: Us
     c = (await db.execute(select(Contract).where(Contract.id == cid))).scalar_one_or_none()
     if not c:
         raise HTTPException(status_code=404, detail="계약을 찾을 수 없습니다")
-    if c.author_id != user.id and not user.is_admin:
-        raise HTTPException(status_code=403, detail="권한이 없습니다")
     await db.delete(c)
     await db.commit()
     return {"ok": True}

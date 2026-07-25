@@ -47,7 +47,7 @@ export default function ContractDetailClient({ id }: { id: number }) {
   if (!detail) return <div className="p-8 text-center text-sm text-gray-400">불러오는 중...</div>;
 
   const c = detail.contract;
-  const canEdit = user && (user.id === c.author_id || user.is_admin);
+  const canEdit = !!user;
 
   async function setStatus(status: ContractStatus) {
     await updateContract(id, { status });

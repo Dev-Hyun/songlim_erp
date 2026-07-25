@@ -74,9 +74,13 @@ export default function AdminHospitalsClient() {
     adminFetchPriceOverrides(hid).then(setOverrides);
   }
 
+  function catalogLabel(c: AdminCatalogItem) {
+    return `${c.manufacturer ? `(${c.manufacturer}) ` : ""}${c.name} / ${c.spec || "-"} / ${c.unit}`;
+  }
+
   function pickOverrideCatalog(c: AdminCatalogItem) {
-    setOvForm({ ...ovForm, catalog_id: String(c.id) });
-    setOvSearch(c.name);
+    setOvForm({ catalog_id: String(c.id), override_price: String(c.unit_price) });
+    setOvSearch(catalogLabel(c));
   }
 
   const discountGrades = grades.filter((g) => g.grade_type === "discount");
@@ -175,16 +179,16 @@ export default function AdminHospitalsClient() {
                         />
                         {ovSearch && !ovForm.catalog_id && (
                           <div className="absolute z-10 mt-1 max-h-48 w-full overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-900">
-                            {catalog.filter((c) => c.name.includes(ovSearch)).slice(0, 20).map((c) => (
+                            {catalog.filter((c) => `${c.name} ${c.manufacturer || ""}`.includes(ovSearch)).slice(0, 20).map((c) => (
                               <button
                                 key={c.id}
                                 onClick={() => pickOverrideCatalog(c)}
                                 className="block w-full px-3 py-1.5 text-left text-xs hover:bg-gray-50 dark:hover:bg-white/5"
                               >
-                                {c.name}
+                                {catalogLabel(c)}
                               </button>
                             ))}
-                            {catalog.filter((c) => c.name.includes(ovSearch)).length === 0 && (
+                            {catalog.filter((c) => `${c.name} ${c.manufacturer || ""}`.includes(ovSearch)).length === 0 && (
                               <div className="px-3 py-1.5 text-xs text-gray-400">검색 결과 없음</div>
                             )}
                           </div>
@@ -193,18 +197,43 @@ export default function AdminHospitalsClient() {
                       <input type="number" value={ovForm.override_price} onChange={(e) => setOvForm({ ...ovForm, override_price: e.target.value })} placeholder="적용가" className={inputCls} />
                       <button onClick={() => addOverride(h.id)} disabled={!ovForm.catalog_id} className="rounded-lg bg-brand-500 px-3 text-xs font-bold text-white disabled:opacity-50">설정</button>
                     </div>
-                    <div className="flex flex-wrap gap-2">
-                      {overrides.map((o) => {
-                        const c = catalog.find((x) => x.id === o.catalog_id);
-                        return (
-                          <span key={o.id} className="flex items-center gap-1.5 rounded-full bg-success-50 px-3 py-1 text-[11px] font-semibold text-success-600 dark:bg-success-500/15 dark:text-success-400">
-                            {c?.name || `#${o.catalog_id}`}: {o.override_price.toLocaleString()}원
-                            <button onClick={async () => { await adminDeletePriceOverride(o.id); adminFetchPriceOverrides(h.id).then(setOverrides); }} className="text-error-500">×</button>
-                          </span>
-                        );
-                      })}
-                      {overrides.length === 0 && <span className="text-[11px] text-gray-400">설정된 전용 단가가 없습니다</span>}
-                    </div>
+                    {overrides.length === 0 ? (
+                      <span className="text-[11px] text-gray-400">설정된 전용 단가가 없습니다</span>
+                    ) : (
+                      <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-800">
+                        <table className="w-full min-w-[520px] text-xs">
+                          <thead>
+                            <tr className="border-b border-gray-200 bg-gray-50 text-left text-gray-400 dark:border-gray-800 dark:bg-white/[0.02]">
+                              <th className="px-3 py-2">품목명</th>
+                              <th className="px-3 py-2">제조사</th>
+                              <th className="px-3 py-2">규격</th>
+                              <th className="px-3 py-2">단위</th>
+                              <th className="px-3 py-2">기본가</th>
+                              <th className="px-3 py-2">적용가</th>
+                              <th className="px-3 py-2" />
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {overrides.map((o) => {
+                              const c = catalog.find((x) => x.id === o.catalog_id);
+                              return (
+                                <tr key={o.id} className="border-b border-gray-100 dark:border-gray-800">
+                                  <td className="px-3 py-1.5 font-medium text-gray-800 dark:text-white/90">{c?.name || `#${o.catalog_id}`}</td>
+                                  <td className="px-3 py-1.5 text-gray-500">{c?.manufacturer || "-"}</td>
+                                  <td className="px-3 py-1.5 text-gray-500">{c?.spec || "-"}</td>
+                                  <td className="px-3 py-1.5 text-gray-500">{c?.unit || "-"}</td>
+                                  <td className="px-3 py-1.5 text-gray-400">{c ? c.unit_price.toLocaleString() : "-"}원</td>
+                                  <td className="px-3 py-1.5 font-bold text-success-600 dark:text-success-400">{o.override_price.toLocaleString()}원</td>
+                                  <td className="px-3 py-1.5 text-right">
+                                    <button onClick={async () => { await adminDeletePriceOverride(o.id); adminFetchPriceOverrides(h.id).then(setOverrides); }} className="text-error-500">삭제</button>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
                   </div>
 
                   <div>

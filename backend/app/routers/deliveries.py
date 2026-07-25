@@ -126,8 +126,6 @@ async def update_delivery(did: int, payload: DeliveryUpdateIn, db: AsyncSession 
     d = (await db.execute(select(Delivery).where(Delivery.id == did))).scalar_one_or_none()
     if not d:
         raise HTTPException(status_code=404, detail="납품 건을 찾을 수 없습니다")
-    if d.created_by != user.id and not user.is_admin:
-        raise HTTPException(status_code=403, detail="권한이 없습니다")
 
     data = payload.model_dump(exclude_unset=True, exclude={"items"})
     if data.get("site_type") and data["site_type"] not in ("delivery", "demo"):
@@ -155,8 +153,6 @@ async def delete_delivery(did: int, db: AsyncSession = Depends(get_db), user: Us
     d = (await db.execute(select(Delivery).where(Delivery.id == did))).scalar_one_or_none()
     if not d:
         raise HTTPException(status_code=404, detail="납품 건을 찾을 수 없습니다")
-    if d.created_by != user.id and not user.is_admin:
-        raise HTTPException(status_code=403, detail="권한이 없습니다")
     await db.delete(d)
     await db.commit()
     return {"ok": True}

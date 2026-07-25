@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
-import { addComment, fetchDeliveryDetail, photoUrl, updateDelivery, uploadPhoto } from "./api";
+import { addComment, deleteDelivery, fetchDeliveryDetail, photoUrl, updateDelivery, uploadPhoto } from "./api";
 import { DeliveryDetail, DeliveryItemRow } from "./types";
 
 export default function DeliveryDetailClient({ id }: { id: number }) {
@@ -12,6 +13,7 @@ export default function DeliveryDetailClient({ id }: { id: number }) {
   const [items, setItems] = useState<DeliveryItemRow[]>([]);
   const [commentText, setCommentText] = useState("");
   const { user } = useAuth();
+  const router = useRouter();
 
   function load() {
     fetchDeliveryDetail(id).then((d) => {
@@ -66,6 +68,12 @@ export default function DeliveryDetailClient({ id }: { id: number }) {
     load();
   }
 
+  async function handleDelete() {
+    if (!confirm("이 납품 건을 삭제하시겠습니까?")) return;
+    await deleteDelivery(id);
+    router.push("/deliveries");
+  }
+
   async function submitComment() {
     if (!commentText.trim()) return;
     await addComment(id, commentText);
@@ -111,6 +119,9 @@ export default function DeliveryDetailClient({ id }: { id: number }) {
                 <button onClick={saveEdits} className="rounded-full bg-brand-500 px-3 py-1.5 text-xs font-bold text-white">저장</button>
               ) : (
                 <button onClick={() => setEditing(true)} className="rounded-full border border-gray-300 px-3 py-1.5 text-xs font-semibold dark:border-gray-700">수정</button>
+              )}
+              {user && (
+                <button onClick={handleDelete} className="rounded-full border border-error-300 px-3 py-1.5 text-xs font-semibold text-error-500">삭제</button>
               )}
             </div>
           </div>
