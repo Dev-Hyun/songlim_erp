@@ -7,7 +7,7 @@ export default async function DeliveryDetailPage({ params }: { params: Promise<{
   return (
     <StaffOnly>
       <div>
-        <PageBreadcrumb pageTitle="초음파 계약 현황 상세" />
+        <PageBreadcrumb pageTitle="초음파 & 유지보수 현황 상세" />
         <DeliveryDetailClient id={Number(id)} />
       </div>
     </StaffOnly>

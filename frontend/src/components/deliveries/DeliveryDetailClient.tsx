@@ -110,7 +110,7 @@ export default function DeliveryDetailClient({ id }: { id: number }) {
       <div className="space-y-4 lg:col-span-2">
         <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-            <h2 className="text-lg font-bold text-gray-800 dark:text-white/90">🔬 초음파 계약/납품 현황</h2>
+            <h2 className="text-lg font-bold text-gray-800 dark:text-white/90">🔬 초음파 & 유지보수 현황</h2>
             <div className="flex items-center gap-2">
               <span
                 className={`rounded-full px-3 py-1.5 text-xs font-bold text-white ${isDemo ? "bg-brand-500" : "bg-success-500"}`}
