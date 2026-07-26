@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import { DndProvider, useDrag, useDrop } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
@@ -78,12 +78,16 @@ function Row({
   const [menuOpen, setMenuOpen] = useState(false);
   const [renaming, setRenaming] = useState(!!autoRename);
   const [renameValue, setRenameValue] = useState(name);
-  const inputRef = (el: HTMLInputElement | null) => {
-    if (el && renaming) {
-      el.focus();
-      el.select();
+  const inputElRef = useRef<HTMLInputElement | null>(null);
+  // renaming이 true가 될 때 딱 한 번만 focus/select한다. 매 렌더마다(=매 키 입력마다) 새로
+  // 만들어지는 콜백 ref로 select()를 다시 호출하면 그 사이 진행 중이던 한글 IME 조합이
+  // 끊겨서 한 글자 이상 입력이 안 되는 버그가 있었다.
+  useEffect(() => {
+    if (renaming) {
+      inputElRef.current?.focus();
+      inputElRef.current?.select();
     }
-  };
+  }, [renaming]);
   const [{ isDragging }, dragRef] = useDrag({
     type: ITEM_TYPE,
     item: dragItem,
@@ -105,7 +109,7 @@ function Row({
 
   const nameNode = renaming ? (
     <input
-      ref={inputRef}
+      ref={inputElRef}
       value={renameValue}
       onChange={(e) => setRenameValue(e.target.value)}
       onKeyDown={(e) => {

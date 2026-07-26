@@ -23,6 +23,37 @@ def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+async def get_or_create_shared_folder(
+    db: AsyncSession, root: str, parent_id: Optional[int], name: str, created_by: int
+) -> StorageFolder:
+    """다른 도메인(계약서 사진 자동저장 등)에서 공유 클라우드 NAS 폴더를 코드로 만들 때 쓰는 헬퍼.
+    같은 부모 아래 동일한 이름의 폴더가 이미 있으면 그걸 그대로 재사용한다."""
+    existing = (
+        await db.execute(
+            select(StorageFolder).where(
+                StorageFolder.root == root, StorageFolder.space == "shared",
+                StorageFolder.parent_id == parent_id, StorageFolder.name == name,
+            )
+        )
+    ).scalar_one_or_none()
+    if existing:
+        return existing
+    folder = StorageFolder(root=root, space="shared", owner_id=None, parent_id=parent_id, name=name, created_by=created_by, created_at=_now())
+    db.add(folder)
+    await db.flush()
+    return folder
+
+
+async def save_shared_file(db: AsyncSession, root: str, folder_id: int, filename: str, content: bytes, uploaded_by: int) -> StorageFile:
+    """다른 도메인에서 공유 클라우드 NAS에 파일을 코드로 올릴 때 쓰는 헬퍼."""
+    key = f"{secrets.token_hex(8)}_{filename}"
+    await put_object(key, content)
+    sf = StorageFile(root=root, space="shared", owner_id=None, folder_id=folder_id, filename=filename, file_key=key, size=len(content), uploaded_by=uploaded_by, created_at=_now())
+    db.add(sf)
+    await db.flush()
+    return sf
+
+
 async def _get_folder_or_404(db: AsyncSession, folder_id: int) -> StorageFolder:
     f = (await db.execute(select(StorageFolder).where(StorageFolder.id == folder_id))).scalar_one_or_none()
     if not f:

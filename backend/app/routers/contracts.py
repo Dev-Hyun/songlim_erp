@@ -13,6 +13,7 @@ from app.database import get_db
 from app.image_utils import optimize_image
 from app.models import Contract, ContractComment, ContractItem, ContractPhoto, User
 from app.routers.auth import require_staff
+from app.routers.storage import get_or_create_shared_folder, save_shared_file
 
 router = APIRouter(prefix="/api/contracts", tags=["contracts"])
 
@@ -216,6 +217,18 @@ async def upload_photo(cid: int, file: UploadFile = File(...), db: AsyncSession 
 
     photo = ContractPhoto(contract_id=cid, image_key=filename, created_at=datetime.now(timezone.utc).isoformat())
     db.add(photo)
+
+    # 계약서 사진은 클라우드 NAS의 "계약서/{병원명}" 폴더에도 자동으로 사본을 남긴다.
+    contract = (await db.execute(select(Contract).where(Contract.id == cid))).scalar_one_or_none()
+    if contract:
+        hosp_name = contract.buyer_hospital or contract.title or f"계약#{cid}"
+        root_folder = await get_or_create_shared_folder(db, "nas", None, "계약서", user.id)
+        hosp_folder = await get_or_create_shared_folder(db, "nas", root_folder.id, hosp_name, user.id)
+        today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        nas_ext = f".{new_ext}" if new_ext else (orig_ext or ".jpeg")
+        nas_filename = f"{hosp_name}_{today_str}_계약서{nas_ext}"
+        await save_shared_file(db, "nas", hosp_folder.id, nas_filename, optimized, user.id)
+
     await db.commit()
     await db.refresh(photo)
     return {"id": photo.id, "image_key": photo.image_key}

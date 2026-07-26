@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { addComment, deleteDelivery, fetchDeliveryDetail, photoUrl, updateDelivery, uploadPhoto } from "./api";
 import { DeliveryDetail, DeliveryItemRow } from "./types";
+import PhotoLightbox from "@/components/common/PhotoLightbox";
 
 export default function DeliveryDetailClient({ id }: { id: number }) {
   const [detail, setDetail] = useState<DeliveryDetail | null>(null);
@@ -12,6 +13,7 @@ export default function DeliveryDetailClient({ id }: { id: number }) {
   const [form, setForm] = useState<Record<string, string>>({});
   const [items, setItems] = useState<DeliveryItemRow[]>([]);
   const [commentText, setCommentText] = useState("");
+  const [lightboxPhotoId, setLightboxPhotoId] = useState<number | null>(null);
   const { user } = useAuth();
   const router = useRouter();
 
@@ -244,11 +246,25 @@ export default function DeliveryDetailClient({ id }: { id: number }) {
           <div className="grid grid-cols-2 gap-2">
             {detail.photos.map((p) => (
               // eslint-disable-next-line @next/next/no-img-element
-              <img key={p.id} src={photoUrl(id, p.id)} alt="" className="h-24 w-full rounded-lg object-cover" />
+              <img
+                key={p.id}
+                src={photoUrl(id, p.id)}
+                alt=""
+                onClick={() => setLightboxPhotoId(p.id)}
+                className="h-24 w-full cursor-zoom-in rounded-lg object-cover"
+              />
             ))}
             {detail.photos.length === 0 && <div className="col-span-2 py-4 text-center text-xs text-gray-400">사진 없음</div>}
           </div>
         </div>
+
+        {lightboxPhotoId != null && (
+          <PhotoLightbox
+            src={photoUrl(id, lightboxPhotoId)}
+            filename={`${d.hospital_name || "납품"}_사진.jpg`}
+            onClose={() => setLightboxPhotoId(null)}
+          />
+        )}
 
         <div className="rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-white/[0.03]">
           <div className="mb-2 text-xs font-bold uppercase text-gray-400">💬 메모</div>

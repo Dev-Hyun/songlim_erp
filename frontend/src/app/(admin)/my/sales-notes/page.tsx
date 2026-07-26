@@ -15,6 +15,23 @@ import StaffOnly from "@/components/auth/StaffOnly";
 
 type Tab = "notes" | "memo";
 
+// 영업노트를 날짜별로 묶어서 보여준다. 날짜 그룹의 순서는 정렬 방향(최신순/오래된순)을 그대로
+// 따르고, 같은 날짜 안에서는 항상 작성 순서(created_at 오름차순)로 모아 보여준다.
+function groupNotesByDate(notes: SalesNoteItem[], sort: "desc" | "asc"): [string, SalesNoteItem[]][] {
+  const buckets = new Map<string, SalesNoteItem[]>();
+  for (const n of notes) {
+    const key = n.visit_date || n.created_at?.slice(0, 10) || "날짜 없음";
+    if (!buckets.has(key)) buckets.set(key, []);
+    buckets.get(key)!.push(n);
+  }
+  for (const group of buckets.values()) {
+    group.sort((a, b) => (a.created_at || "").localeCompare(b.created_at || ""));
+  }
+  const entries = Array.from(buckets.entries());
+  entries.sort((a, b) => (sort === "asc" ? a[0].localeCompare(b[0]) : b[0].localeCompare(a[0])));
+  return entries;
+}
+
 export default function MySalesNotesPage() {
   const { user, loading: authLoading } = useAuth();
   const [tab, setTab] = useState<Tab>("notes");
@@ -149,19 +166,26 @@ export default function MySalesNotesPage() {
                 작성된 영업노트가 없습니다. 영업지도에서 병원을 선택해 작성해보세요.
               </div>
             ) : (
-              <div className="space-y-2">
-                {notes.map((n) => (
-                  <div key={n.id} className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-white/[0.03]">
-                    <div className="mb-1 flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-semibold text-gray-800 dark:text-white/90">{n.hospital_name}</span>
-                        <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-semibold text-gray-500 dark:bg-white/10 dark:text-gray-300">
-                          {n.author_name || "-"}
-                        </span>
-                      </div>
-                      <span className="shrink-0 text-xs text-gray-400">{n.visit_date || n.created_at?.slice(0, 10)}</span>
+              <div className="space-y-5">
+                {groupNotesByDate(notes, sort).map(([date, group]) => (
+                  <div key={date}>
+                    <div className="mb-2 text-xs font-bold text-gray-400">{date}</div>
+                    <div className="space-y-2">
+                      {group.map((n) => (
+                        <div key={n.id} className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-white/[0.03]">
+                          <div className="mb-1 flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-semibold text-gray-800 dark:text-white/90">{n.hospital_name}</span>
+                              <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-semibold text-gray-500 dark:bg-white/10 dark:text-gray-300">
+                                {n.author_name || "-"}
+                              </span>
+                            </div>
+                            <span className="shrink-0 text-xs text-gray-400">{n.created_at?.slice(11, 16)}</span>
+                          </div>
+                          <div className="whitespace-pre-wrap text-sm text-gray-600 dark:text-gray-300">{n.content}</div>
+                        </div>
+                      ))}
                     </div>
-                    <div className="whitespace-pre-wrap text-sm text-gray-600 dark:text-gray-300">{n.content}</div>
                   </div>
                 ))}
               </div>

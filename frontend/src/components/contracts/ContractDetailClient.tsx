@@ -14,6 +14,7 @@ import {
   uploadPhoto,
 } from "./api";
 import { ContractDetail, ContractItemRow, ContractStatus } from "./types";
+import PhotoLightbox from "@/components/common/PhotoLightbox";
 
 const STATUSES: ContractStatus[] = ["진행중", "보류", "완료"];
 const STATUS_COLOR: Record<ContractStatus, string> = {
@@ -28,6 +29,7 @@ export default function ContractDetailClient({ id }: { id: number }) {
   const [form, setForm] = useState<Record<string, string | number | null>>({});
   const [items, setItems] = useState<ContractItemRow[]>([]);
   const [commentText, setCommentText] = useState("");
+  const [lightboxPhotoId, setLightboxPhotoId] = useState<number | null>(null);
   const { user } = useAuth();
   const router = useRouter();
 
@@ -224,7 +226,12 @@ export default function ContractDetailClient({ id }: { id: number }) {
             {detail.photos.map((p) => (
               <div key={p.id} className="group relative">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={photoUrl(id, p.id)} alt="" className="h-24 w-full rounded-lg object-cover" />
+                <img
+                  src={photoUrl(id, p.id)}
+                  alt=""
+                  onClick={() => setLightboxPhotoId(p.id)}
+                  className="h-24 w-full cursor-zoom-in rounded-lg object-cover"
+                />
                 <button
                   onClick={async () => { await deletePhoto(id, p.id); load(); }}
                   className="absolute right-1 top-1 hidden rounded-full bg-black/60 px-1.5 text-xs text-white group-hover:block"
@@ -236,6 +243,14 @@ export default function ContractDetailClient({ id }: { id: number }) {
             {detail.photos.length === 0 && <div className="col-span-2 py-4 text-center text-xs text-gray-400">사진 없음</div>}
           </div>
         </div>
+
+        {lightboxPhotoId != null && (
+          <PhotoLightbox
+            src={photoUrl(id, lightboxPhotoId)}
+            filename={`${c.buyer_hospital || "계약서"}_사진.jpg`}
+            onClose={() => setLightboxPhotoId(null)}
+          />
+        )}
 
         <div className="rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-white/[0.03]">
           <div className="mb-2 text-xs font-bold uppercase text-gray-400">💬 진행 메모</div>
