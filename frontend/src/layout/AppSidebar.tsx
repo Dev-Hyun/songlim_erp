@@ -26,6 +26,7 @@ type NavItem = {
   name: string;
   icon: React.ReactNode;
   path?: string;
+  adminOnly?: boolean;
   subItems?: { name: string; path: string; pro?: boolean; new?: boolean }[];
 };
 
@@ -109,6 +110,7 @@ const othersItems: NavItem[] = [
     icon: <UserCircleIcon />,
     name: "관리자페이지",
     path: "/admin",
+    adminOnly: true,
   },
   {
     icon: <BoxCubeIcon />,
@@ -135,6 +137,11 @@ const AppSidebar: React.FC = () => {
   const isHospital = user?.role === "hospital";
   // 병원 계정은 영업/사내 전용 메뉴 전체를 대체하는 별도의 6개 메뉴만 본다
   const visibleNavItems = useMemo(() => (isHospital ? hospitalNavItems : navItems), [isHospital]);
+  // 관리자 전용 메뉴(관리자페이지)는 is_admin 계정에게만 노출
+  const visibleOthersItems = useMemo(
+    () => othersItems.filter((item) => !item.adminOnly || user?.is_admin),
+    [user]
+  );
 
   const renderMenuItems = (
     navItems: NavItem[],
@@ -395,7 +402,7 @@ const AppSidebar: React.FC = () => {
                     <HorizontaLDots />
                   )}
                 </h2>
-                {renderMenuItems(othersItems, "others")}
+                {renderMenuItems(visibleOthersItems, "others")}
               </div>
             )}
           </div>

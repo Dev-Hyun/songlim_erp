@@ -75,8 +75,26 @@ export const addFavorite = (catalog_id: number) =>
 export const removeFavorite = (catalog_id: number) =>
   fetch(`${API}/api/supply/favorites/${catalog_id}`, { method: "DELETE", credentials: "include" }).then((r) => j(r));
 
-export const createOrder = (items: { catalog_id: number; qty: number }[], orderRequest?: string): Promise<{ id: number; total_amount: number }> =>
-  fetch(`${API}/api/supply/orders`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ items, order_request: orderRequest || null }) }).then((r) => j(r));
+export const createOrder = (
+  items: { catalog_id: number; qty: number }[],
+  orderRequest?: string,
+  giftItemId?: number
+): Promise<{ id: number; total_amount: number }> =>
+  fetch(`${API}/api/supply/orders`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ items, order_request: orderRequest || null, gift_item_id: giftItemId || null }),
+  }).then((r) => j(r));
+
+export interface GiftTierPublic {
+  id: number;
+  threshold_amount: number;
+  items: { id: number; name: string }[];
+}
+
+export const fetchGiftTiers = (): Promise<{ eligible: boolean; tiers: GiftTierPublic[] }> =>
+  fetch(`${API}/api/supply/gift-tiers`, { credentials: "include" }).then((r) => j(r));
 
 export const fetchMyOrders = (params?: { status?: string; date_from?: string; date_to?: string }): Promise<SupplyOrder[]> => {
   const qs = new URLSearchParams();
@@ -234,6 +252,40 @@ export const adminSetTracking = (id: number, tracking_number: string) =>
 export const adminSetTaxInvoiceStatus = (id: number, tax_invoice_status: string) =>
   fetch(`${API}/api/supply/admin/orders/${id}/tax-invoice`, { method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ tax_invoice_status }) }).then((r) => j(r));
 
+export interface AdminGiftItem {
+  id: number;
+  name: string;
+  sort_order: number;
+}
+
+export interface AdminGiftTier {
+  id: number;
+  threshold_amount: number;
+  sort_order: number;
+  items: AdminGiftItem[];
+}
+
+export const adminFetchGiftTiers = (): Promise<AdminGiftTier[]> =>
+  fetch(`${API}/api/supply/admin/gift-tiers`, { credentials: "include" }).then((r) => j(r));
+
+export const adminCreateGiftTier = (payload: { threshold_amount: number; sort_order?: number }): Promise<AdminGiftTier> =>
+  fetch(`${API}/api/supply/admin/gift-tiers`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify(payload) }).then((r) => j(r));
+
+export const adminUpdateGiftTier = (id: number, payload: { threshold_amount: number; sort_order?: number }): Promise<AdminGiftTier> =>
+  fetch(`${API}/api/supply/admin/gift-tiers/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify(payload) }).then((r) => j(r));
+
+export const adminDeleteGiftTier = (id: number) =>
+  fetch(`${API}/api/supply/admin/gift-tiers/${id}`, { method: "DELETE", credentials: "include" }).then((r) => j(r));
+
+export const adminAddGiftItem = (tierId: number, payload: { name: string; sort_order?: number }): Promise<AdminGiftItem> =>
+  fetch(`${API}/api/supply/admin/gift-tiers/${tierId}/items`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify(payload) }).then((r) => j(r));
+
+export const adminUpdateGiftItem = (id: number, payload: { name: string; sort_order?: number }) =>
+  fetch(`${API}/api/supply/admin/gift-items/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify(payload) }).then((r) => j(r));
+
+export const adminDeleteGiftItem = (id: number) =>
+  fetch(`${API}/api/supply/admin/gift-items/${id}`, { method: "DELETE", credentials: "include" }).then((r) => j(r));
+
 export interface GradeRow {
   grade_code: string;
   grade_type: string;
@@ -245,3 +297,14 @@ export interface GradeRow {
 
 export const fetchGrades = (): Promise<GradeRow[]> =>
   fetch(`${API}/api/admin/grades`, { credentials: "include" }).then((r) => j(r));
+
+export const adminCreateGiftGrade = (payload: { grade_code: string; label: string }) =>
+  fetch(`${API}/api/admin/grades`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ grade_code: payload.grade_code, grade_type: "gift", label: payload.label }),
+  }).then((r) => j(r));
+
+export const adminDeleteGrade = (grade_code: string) =>
+  fetch(`${API}/api/admin/grades/${grade_code}`, { method: "DELETE", credentials: "include" }).then((r) => j(r));

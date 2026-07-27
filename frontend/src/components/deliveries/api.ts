@@ -51,7 +51,7 @@ export async function updateDelivery(
     person_in_charge: string;
     site_type: SiteType;
     warranty_start: string;
-    warranty_end: string;
+    warranty_end: string | null;
     maintenance: string;
     demo_result: string;
     items: { description?: string; serial_no?: string; price?: number; sys_id?: string }[];

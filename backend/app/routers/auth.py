@@ -29,10 +29,11 @@ async def get_current_user(
 ) -> Optional[User]:
     if not session_token:
         return None
-    sess = (await db.execute(select(Session).where(Session.token == session_token))).scalar_one_or_none()
-    if not sess:
-        return None
-    return (await db.execute(select(User).where(User.id == sess.user_id))).scalar_one_or_none()
+    # 세션+유저 조회를 쿼리 1번으로 합침 — 이 의존성은 로그인 필요한 모든 요청(특히 카탈로그 이미지처럼
+    # 페이지 하나에서 수십~수백 번 호출되는 엔드포인트)마다 실행되므로 왕복 쿼리 수가 곧 체감 속도다.
+    return (
+        await db.execute(select(User).join(Session, Session.user_id == User.id).where(Session.token == session_token))
+    ).scalar_one_or_none()
 
 
 async def require_user(user: Optional[User] = Depends(get_current_user)) -> User:

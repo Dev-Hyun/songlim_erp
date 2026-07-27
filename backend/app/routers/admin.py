@@ -9,7 +9,7 @@ from app.audit import log_action
 from app.database import get_db
 from app.models import AuditLog, GradeMaster, Hospital, HospitalProfile, StaffProfile, User
 from app.models.auth import Session as UserSession
-from app.routers.auth import require_user
+from app.routers.auth import require_staff, require_user
 from app.security import hash_password
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
@@ -127,9 +127,12 @@ async def list_grades(db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/grades")
-async def create_grade(payload: GradeMasterIn, db: AsyncSession = Depends(get_db), _: User = Depends(require_admin)):
+async def create_grade(payload: GradeMasterIn, db: AsyncSession = Depends(get_db), actor: User = Depends(require_staff)):
     if payload.grade_type not in ("discount", "gift"):
         raise HTTPException(status_code=400, detail="grade_type은 discount 또는 gift여야 합니다")
+    # 할인율 등급 신설은 관리자만, 사은품 등급(소모품 카탈로그 관리 > 사은품 관리 탭)은 직원 누구나 가능
+    if payload.grade_type == "discount" and not actor.is_admin:
+        raise HTTPException(status_code=403, detail="할인율 등급은 관리자만 추가할 수 있습니다")
     g = GradeMaster(**payload.model_dump())
     db.add(g)
     await db.commit()
@@ -137,10 +140,12 @@ async def create_grade(payload: GradeMasterIn, db: AsyncSession = Depends(get_db
 
 
 @router.patch("/grades/{grade_code}")
-async def update_grade(grade_code: str, payload: GradeMasterIn, db: AsyncSession = Depends(get_db), _: User = Depends(require_admin)):
+async def update_grade(grade_code: str, payload: GradeMasterIn, db: AsyncSession = Depends(get_db), actor: User = Depends(require_staff)):
     g = (await db.execute(select(GradeMaster).where(GradeMaster.grade_code == grade_code))).scalar_one_or_none()
     if not g:
         raise HTTPException(status_code=404, detail="등급을 찾을 수 없습니다")
+    if g.grade_type == "discount" and not actor.is_admin:
+        raise HTTPException(status_code=403, detail="할인율 등급은 관리자만 수정할 수 있습니다")
     for k, v in payload.model_dump().items():
         if k != "grade_code":
             setattr(g, k, v)
@@ -149,10 +154,12 @@ async def update_grade(grade_code: str, payload: GradeMasterIn, db: AsyncSession
 
 
 @router.delete("/grades/{grade_code}")
-async def delete_grade(grade_code: str, db: AsyncSession = Depends(get_db), _: User = Depends(require_admin)):
+async def delete_grade(grade_code: str, db: AsyncSession = Depends(get_db), actor: User = Depends(require_staff)):
     g = (await db.execute(select(GradeMaster).where(GradeMaster.grade_code == grade_code))).scalar_one_or_none()
     if not g:
         raise HTTPException(status_code=404, detail="등급을 찾을 수 없습니다")
+    if g.grade_type == "discount" and not actor.is_admin:
+        raise HTTPException(status_code=403, detail="할인율 등급은 관리자만 삭제할 수 있습니다")
     await db.delete(g)
     await db.commit()
     return {"ok": True}

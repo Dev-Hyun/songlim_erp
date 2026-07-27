@@ -34,7 +34,8 @@ export default function AdminPage() {
   const [users, setUsers] = useState<UserRow[]>([]);
   const [grades, setGrades] = useState<GradeRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [newGrade, setNewGrade] = useState({ grade_code: "", grade_type: "discount", label: "", discount_rate: "" });
+  const [newGrade, setNewGrade] = useState({ grade_code: "", label: "", discount_rate: "" });
+  const [userSearch, setUserSearch] = useState("");
 
   function load() {
     setLoading(true);
@@ -98,13 +99,13 @@ export default function AdminPage() {
       credentials: "include",
       body: JSON.stringify({
         grade_code: newGrade.grade_code,
-        grade_type: newGrade.grade_type,
+        grade_type: "discount",
         label: newGrade.label,
         discount_rate: newGrade.discount_rate ? Number(newGrade.discount_rate) : null,
         sort_order: grades.length,
       }),
     });
-    setNewGrade({ grade_code: "", grade_type: "discount", label: "", discount_rate: "" });
+    setNewGrade({ grade_code: "", label: "", discount_rate: "" });
     load();
   }
 
@@ -128,6 +129,14 @@ export default function AdminPage() {
   }
 
   const pendingUsers = users.filter((u) => !u.is_approved);
+  const uq = userSearch.trim().toLowerCase();
+  const visibleUsers = uq
+    ? users.filter((u) =>
+        `${u.username} ${u.display_name || ""} ${u.department || ""} ${u.position || ""} ${u.hospital_name || ""} ${u.phone || ""} ${u.email || ""}`
+          .toLowerCase()
+          .includes(uq)
+      )
+    : users;
 
   return (
     <div className="space-y-6">
@@ -172,22 +181,21 @@ export default function AdminPage() {
       </div>
 
       <div className="rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-white/[0.03]">
-        <h2 className="mb-3 text-base font-bold text-gray-800 dark:text-white/90">등급 관리 (할인율/사은품)</h2>
+        <h2 className="mb-3 text-base font-bold text-gray-800 dark:text-white/90">등급 관리 (할인율)</h2>
+        <p className="mb-3 text-[11px] text-gray-400">사은품 등급/구간 설정은 소모품 카탈로그 관리 → 사은품 관리 탭으로 옮겨졌습니다.</p>
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-gray-200 text-left text-xs text-gray-400 dark:border-gray-800">
               <th className="py-1.5">코드</th>
-              <th className="py-1.5">유형</th>
               <th className="py-1.5">라벨</th>
               <th className="py-1.5">할인율</th>
               <th className="w-8" />
             </tr>
           </thead>
           <tbody>
-            {grades.map((g) => (
+            {grades.filter((g) => g.grade_type === "discount").map((g) => (
               <tr key={g.grade_code} className="border-b border-gray-100 dark:border-gray-800">
                 <td className="py-1.5">{g.grade_code}</td>
-                <td className="py-1.5">{g.grade_type === "discount" ? "할인" : "사은품"}</td>
                 <td className="py-1.5">{g.label}</td>
                 <td className="py-1.5">{g.discount_rate ?? "-"}</td>
                 <td><button onClick={() => deleteGrade(g.grade_code)} className="text-error-500">×</button></td>
@@ -195,12 +203,6 @@ export default function AdminPage() {
             ))}
             <tr>
               <td><input value={newGrade.grade_code} onChange={(e) => setNewGrade({ ...newGrade, grade_code: e.target.value })} placeholder="코드" className="w-full rounded border border-gray-300 px-1.5 py-1 text-xs dark:border-gray-700 dark:bg-gray-900" /></td>
-              <td>
-                <select value={newGrade.grade_type} onChange={(e) => setNewGrade({ ...newGrade, grade_type: e.target.value })} className="w-full rounded border border-gray-300 px-1.5 py-1 text-xs dark:border-gray-700 dark:bg-gray-900">
-                  <option value="discount">할인</option>
-                  <option value="gift">사은품</option>
-                </select>
-              </td>
               <td><input value={newGrade.label} onChange={(e) => setNewGrade({ ...newGrade, label: e.target.value })} placeholder="라벨" className="w-full rounded border border-gray-300 px-1.5 py-1 text-xs dark:border-gray-700 dark:bg-gray-900" /></td>
               <td><input value={newGrade.discount_rate} onChange={(e) => setNewGrade({ ...newGrade, discount_rate: e.target.value })} placeholder="%" className="w-full rounded border border-gray-300 px-1.5 py-1 text-xs dark:border-gray-700 dark:bg-gray-900" /></td>
               <td><button onClick={addGrade} className="text-brand-500">+</button></td>
@@ -210,7 +212,15 @@ export default function AdminPage() {
       </div>
 
       <div className="rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-white/[0.03]">
-        <h2 className="mb-3 text-base font-bold text-gray-800 dark:text-white/90">사용자 목록</h2>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-base font-bold text-gray-800 dark:text-white/90">사용자 목록 ({visibleUsers.length})</h2>
+          <input
+            value={userSearch}
+            onChange={(e) => setUserSearch(e.target.value)}
+            placeholder="🔍 아이디/이름/부서·직급/병원명/연락처로 검색"
+            className="w-full rounded-lg border border-gray-300 px-3 py-1.5 text-xs dark:border-gray-700 dark:bg-gray-900 sm:w-80"
+          />
+        </div>
         <div className="overflow-x-auto">
         <table className="w-full min-w-[720px] text-sm">
           <thead>
@@ -227,7 +237,7 @@ export default function AdminPage() {
             </tr>
           </thead>
           <tbody>
-            {users.map((u) => (
+            {visibleUsers.map((u) => (
               <tr key={u.id} className="border-b border-gray-100 dark:border-gray-800">
                 <td className="py-1.5">{u.username}</td>
                 <td className="py-1.5">{u.display_name}</td>
@@ -272,6 +282,9 @@ export default function AdminPage() {
             ))}
           </tbody>
         </table>
+        {users.length > 0 && visibleUsers.length === 0 && (
+          <div className="p-8 text-center text-sm text-gray-400">&quot;{userSearch}&quot; 검색 결과가 없습니다</div>
+        )}
         </div>
       </div>
 

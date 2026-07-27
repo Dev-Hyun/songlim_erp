@@ -10,6 +10,8 @@ from app.audit import log_action
 from app.database import get_db
 from app.models import (
     Equipment,
+    GiftItem,
+    GiftTier,
     GradeMaster,
     Hospital,
     HospitalProfile,
@@ -116,6 +118,29 @@ async def list_subcategories(category: str, db: AsyncSession = Depends(get_db), 
     return [{"sub_category": s, "count": n} for s, n in sorted(counts.items())]
 
 
+@router.get("/gift-tiers")
+async def list_gift_tiers(db: AsyncSession = Depends(get_db), user: User = Depends(require_hospital)):
+    """발주 시 사은품 선택 모달에 쓸 구간표. gift_grade_code가 지정된 병원만 사은품 대상이며,
+    구간표 자체는 병원별이 아니라 전사 공통(구간이 늘어나면 관리자가 사은품 관리 탭에서 추가)."""
+    hp = await _get_hospital_profile(db, user.hospital_profile_id)
+    rows = (
+        await db.execute(
+            select(GiftTier).options(selectinload(GiftTier.items)).order_by(GiftTier.threshold_amount)
+        )
+    ).scalars().all()
+    return {
+        "eligible": bool(hp.gift_grade_code),
+        "tiers": [
+            {
+                "id": t.id,
+                "threshold_amount": t.threshold_amount,
+                "items": [{"id": i.id, "name": i.name} for i in sorted(t.items, key=lambda i: i.sort_order)],
+            }
+            for t in rows
+        ],
+    }
+
+
 class FavoriteIn(BaseModel):
     catalog_id: int
 
@@ -161,6 +186,7 @@ class OrderItemIn(BaseModel):
 class OrderCreateIn(BaseModel):
     items: list[OrderItemIn]
     order_request: Optional[str] = None
+    gift_item_id: Optional[int] = None
 
 
 @router.post("/orders")
@@ -193,13 +219,24 @@ async def create_order(payload: OrderCreateIn, db: AsyncSession = Depends(get_db
         ))
 
     discount_rate = None
-    gift_note = None
     if hp.discount_grade_code:
         g = (await db.execute(select(GradeMaster).where(GradeMaster.grade_code == hp.discount_grade_code))).scalar_one_or_none()
         discount_rate = g.discount_rate if g else None
-    if hp.gift_grade_code:
-        g = (await db.execute(select(GradeMaster).where(GradeMaster.grade_code == hp.gift_grade_code))).scalar_one_or_none()
-        gift_note = g.gift_policy_note if g else None
+
+    gift_note = None
+    if payload.gift_item_id:
+        if not hp.gift_grade_code:
+            raise HTTPException(status_code=400, detail="사은품 대상 병원이 아닙니다")
+        gift_item = (
+            await db.execute(
+                select(GiftItem).options(selectinload(GiftItem.tier)).where(GiftItem.id == payload.gift_item_id)
+            )
+        ).scalar_one_or_none()
+        if not gift_item:
+            raise HTTPException(status_code=400, detail="선택한 사은품을 찾을 수 없습니다")
+        if subtotal < gift_item.tier.threshold_amount:
+            raise HTTPException(status_code=400, detail="사은품 선택 조건 금액에 도달하지 않았습니다")
+        gift_note = gift_item.name
 
     total = subtotal
     if discount_rate:
@@ -473,6 +510,101 @@ async def admin_remove_category_access(rid: int, db: AsyncSession = Depends(get_
     return {"ok": True}
 
 
+class GiftTierIn(BaseModel):
+    threshold_amount: int
+    sort_order: int = 0
+
+
+class GiftItemIn(BaseModel):
+    name: str
+    sort_order: int = 0
+
+
+def _serialize_gift_tier(t: GiftTier) -> dict:
+    return {
+        "id": t.id, "threshold_amount": t.threshold_amount, "sort_order": t.sort_order,
+        "items": [
+            {"id": i.id, "name": i.name, "sort_order": i.sort_order}
+            for i in sorted(t.items, key=lambda i: i.sort_order)
+        ],
+    }
+
+
+@router.get("/admin/gift-tiers")
+async def admin_list_gift_tiers(db: AsyncSession = Depends(get_db), _: User = Depends(require_staff)):
+    rows = (
+        await db.execute(select(GiftTier).options(selectinload(GiftTier.items)).order_by(GiftTier.threshold_amount))
+    ).scalars().all()
+    return [_serialize_gift_tier(t) for t in rows]
+
+
+@router.post("/admin/gift-tiers")
+async def admin_create_gift_tier(payload: GiftTierIn, db: AsyncSession = Depends(get_db), _: User = Depends(require_staff)):
+    t = GiftTier(**payload.model_dump())
+    db.add(t)
+    await db.commit()
+    await db.refresh(t)
+    # 방금 만든 구간은 항목이 있을 수 없음 — t.items에 접근하면 비동기 세션에서 lazy-load가 걸려
+    # MissingGreenlet 오류가 나므로 관계를 건드리지 않고 직접 구성한다.
+    return {"id": t.id, "threshold_amount": t.threshold_amount, "sort_order": t.sort_order, "items": []}
+
+
+@router.patch("/admin/gift-tiers/{tid}")
+async def admin_update_gift_tier(tid: int, payload: GiftTierIn, db: AsyncSession = Depends(get_db), _: User = Depends(require_staff)):
+    t = (
+        await db.execute(select(GiftTier).options(selectinload(GiftTier.items)).where(GiftTier.id == tid))
+    ).scalar_one_or_none()
+    if not t:
+        raise HTTPException(status_code=404, detail="사은품 구간을 찾을 수 없습니다")
+    t.threshold_amount = payload.threshold_amount
+    t.sort_order = payload.sort_order
+    await db.commit()
+    return _serialize_gift_tier(t)
+
+
+@router.delete("/admin/gift-tiers/{tid}")
+async def admin_delete_gift_tier(tid: int, db: AsyncSession = Depends(get_db), actor: User = Depends(require_staff)):
+    t = (await db.execute(select(GiftTier).where(GiftTier.id == tid))).scalar_one_or_none()
+    if t:
+        log_action(db, actor, "post_delete", "gift_tier", tid, detail=f"{t.threshold_amount}원 구간")
+        await db.delete(t)
+        await db.commit()
+    return {"ok": True}
+
+
+@router.post("/admin/gift-tiers/{tid}/items")
+async def admin_add_gift_item(tid: int, payload: GiftItemIn, db: AsyncSession = Depends(get_db), _: User = Depends(require_staff)):
+    t = (await db.execute(select(GiftTier).where(GiftTier.id == tid))).scalar_one_or_none()
+    if not t:
+        raise HTTPException(status_code=404, detail="사은품 구간을 찾을 수 없습니다")
+    item = GiftItem(tier_id=tid, **payload.model_dump())
+    db.add(item)
+    await db.commit()
+    await db.refresh(item)
+    return {"id": item.id, "name": item.name, "sort_order": item.sort_order}
+
+
+@router.patch("/admin/gift-items/{iid}")
+async def admin_update_gift_item(iid: int, payload: GiftItemIn, db: AsyncSession = Depends(get_db), _: User = Depends(require_staff)):
+    item = (await db.execute(select(GiftItem).where(GiftItem.id == iid))).scalar_one_or_none()
+    if not item:
+        raise HTTPException(status_code=404, detail="사은품을 찾을 수 없습니다")
+    item.name = payload.name
+    item.sort_order = payload.sort_order
+    await db.commit()
+    return {"ok": True}
+
+
+@router.delete("/admin/gift-items/{iid}")
+async def admin_delete_gift_item(iid: int, db: AsyncSession = Depends(get_db), actor: User = Depends(require_staff)):
+    item = (await db.execute(select(GiftItem).where(GiftItem.id == iid))).scalar_one_or_none()
+    if item:
+        log_action(db, actor, "post_delete", "gift_item", iid, detail=item.name)
+        await db.delete(item)
+        await db.commit()
+    return {"ok": True}
+
+
 @router.get("/admin/hospitals")
 async def admin_list_hospitals(db: AsyncSession = Depends(get_db), _: User = Depends(require_staff)):
     rows = (await db.execute(select(HospitalProfile))).scalars().all()
@@ -621,11 +753,13 @@ async def admin_list_orders(
     if date_to:
         q = q.where(SupplyOrder.created_at <= date_to)
     rows = (await db.execute(q.order_by(SupplyOrder.created_at.desc()))).scalars().all()
+    hospital_names = dict(
+        (await db.execute(select(HospitalProfile.id, HospitalProfile.hospital_name))).all()
+    )
     result = []
     for o in rows:
-        hp = (await db.execute(select(HospitalProfile).where(HospitalProfile.id == o.hospital_profile_id))).scalar_one_or_none()
         d = _serialize_order(o)
-        d["hospital_name"] = hp.hospital_name if hp else None
+        d["hospital_name"] = hospital_names.get(o.hospital_profile_id)
         d["hospital_profile_id"] = o.hospital_profile_id
         result.append(d)
     return result

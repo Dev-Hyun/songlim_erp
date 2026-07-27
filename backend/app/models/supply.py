@@ -72,6 +72,30 @@ class SupplyOrder(Base, TimestampMixin):
     items: Mapped[list["SupplyOrderItem"]] = relationship(back_populates="order", cascade="all, delete-orphan")
 
 
+class GiftTier(Base):
+    """사은품 구간. 발주 합계금액이 threshold_amount 이상이면 이 구간(및 그 이하 구간)의 사은품이
+    선택지 풀에 합류한다 — 실제 선택 가능 여부는 병원의 gift_grade_code 설정 여부로 별도 판단."""
+    __tablename__ = "gift_tiers"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    threshold_amount: Mapped[int] = mapped_column()
+    sort_order: Mapped[int] = mapped_column(default=0)
+
+    items: Mapped[list["GiftItem"]] = relationship(back_populates="tier", cascade="all, delete-orphan")
+
+
+class GiftItem(Base):
+    """사은품 구간별 사은품 품목(자유 입력 — 카탈로그 품목이 아닐 수 있어 이름만 관리)."""
+    __tablename__ = "gift_items"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    tier_id: Mapped[int] = mapped_column(ForeignKey("gift_tiers.id", ondelete="CASCADE"))
+    name: Mapped[str] = mapped_column()
+    sort_order: Mapped[int] = mapped_column(default=0)
+
+    tier: Mapped["GiftTier"] = relationship(back_populates="items")
+
+
 class SupplyOrderItem(Base):
     """발주 품목 스냅샷 — 이후 카탈로그 가격/이름이 바뀌어도 발주 당시 값을 그대로 보존."""
     __tablename__ = "supply_order_items"

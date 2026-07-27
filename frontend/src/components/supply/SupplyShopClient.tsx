@@ -5,10 +5,12 @@ import { useRouter } from "next/navigation";
 import {
   CatalogItem,
   CategoryCount,
+  GiftTierPublic,
   addFavorite,
   createOrder,
   fetchCatalog,
   fetchCategories,
+  fetchGiftTiers,
   fetchMyOrders,
   fetchReorderItems,
   removeFavorite,
@@ -42,6 +44,14 @@ export default function SupplyShopClient() {
   const [submitting, setSubmitting] = useState(false);
   const [loadingPrev, setLoadingPrev] = useState(false);
   const [orderRequest, setOrderRequest] = useState("");
+  const [giftEligible, setGiftEligible] = useState(false);
+  const [giftTiers, setGiftTiers] = useState<GiftTierPublic[]>([]);
+  const [showGiftModal, setShowGiftModal] = useState(false);
+  const [selectedGiftId, setSelectedGiftId] = useState<number | null>(null);
+
+  useEffect(() => {
+    fetchGiftTiers().then((r) => { setGiftEligible(r.eligible); setGiftTiers(r.tiers); });
+  }, []);
 
   function load() {
     setLoading(true);
@@ -94,6 +104,14 @@ export default function SupplyShopClient() {
   const cartLines = Object.values(cart);
   const cartCount = cartLines.reduce((s, l) => s + l.qty, 0);
   const cartTotal = cartLines.reduce((s, l) => s + l.item.price * l.qty, 0);
+
+  const sortedGiftTiers = useMemo(() => [...giftTiers].sort((a, b) => a.threshold_amount - b.threshold_amount), [giftTiers]);
+  const unlockedGiftItems = useMemo(
+    () => sortedGiftTiers.filter((t) => cartTotal >= t.threshold_amount).flatMap((t) => t.items),
+    [sortedGiftTiers, cartTotal]
+  );
+  const nextGiftTier = useMemo(() => sortedGiftTiers.find((t) => cartTotal < t.threshold_amount) || null, [sortedGiftTiers, cartTotal]);
+  const giftProgressPct = nextGiftTier ? Math.min(100, Math.round((cartTotal / nextGiftTier.threshold_amount) * 100)) : 100;
 
   function addToCart(item: CatalogItem, qty: number) {
     setCart((prev) => ({ ...prev, [item.id]: { item, qty: (prev[item.id]?.qty || 0) + qty } }));
@@ -152,13 +170,28 @@ export default function SupplyShopClient() {
     }
   }
 
-  async function submitOrder() {
+  function openOrderFlow() {
+    if (cartLines.length === 0) return;
+    if (giftEligible && sortedGiftTiers.length > 0) {
+      setSelectedGiftId(null);
+      setShowGiftModal(true);
+    } else {
+      submitOrder();
+    }
+  }
+
+  async function submitOrder(giftItemId?: number | null) {
     if (cartLines.length === 0) return;
     setSubmitting(true);
     try {
-      const res = await createOrder(cartLines.map((l) => ({ catalog_id: l.item.id, qty: l.qty })), orderRequest.trim() || undefined);
+      const res = await createOrder(
+        cartLines.map((l) => ({ catalog_id: l.item.id, qty: l.qty })),
+        orderRequest.trim() || undefined,
+        giftItemId || undefined
+      );
       setCart({});
       setOrderRequest("");
+      setShowGiftModal(false);
       alert(`발주가 접수되었습니다 (발주번호 #${res.id}, 총액 ${res.total_amount.toLocaleString()}원)`);
       router.push("/my/supply-orders");
     } finally {
@@ -267,7 +300,7 @@ export default function SupplyShopClient() {
                 <div className="mb-3 flex h-20 items-center justify-center overflow-hidden rounded-lg bg-brand-50 text-2xl dark:bg-brand-500/10">
                   {it.image_key ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={`${API}${it.image_key}`} alt={it.name} className="h-full w-full object-cover" />
+                    <img src={`${API}${it.image_key}`} alt={it.name} loading="lazy" decoding="async" className="h-full w-full object-cover" />
                   ) : (
                     ICONS[it.category] || "📦"
                   )}
@@ -344,12 +377,27 @@ export default function SupplyShopClient() {
             placeholder="예: 배송희망일, 상품/포장 관련 요청 등"
             className="mb-3 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs dark:border-gray-700 dark:bg-gray-900"
           />
+          {giftEligible && sortedGiftTiers.length > 0 && (
+            <div className="mb-3 rounded-xl bg-brand-50 p-3 dark:bg-brand-500/10">
+              <div className="mb-1.5 flex items-center justify-between text-[11px] font-bold text-brand-600 dark:text-brand-400">
+                <span>🎁 사은품</span>
+                {nextGiftTier ? (
+                  <span>{Math.max(0, nextGiftTier.threshold_amount - cartTotal).toLocaleString()}원 추가 시 사은품 선택 가능</span>
+                ) : (
+                  <span>사은품 선택 가능!</span>
+                )}
+              </div>
+              <div className="h-1.5 w-full overflow-hidden rounded-full bg-white dark:bg-gray-900">
+                <div className="h-full rounded-full bg-brand-500 transition-all" style={{ width: `${giftProgressPct}%` }} />
+              </div>
+            </div>
+          )}
           <div className="mb-3 flex items-center justify-between">
             <span className="text-xs text-gray-400">합계</span>
             <span className="text-lg font-extrabold text-gray-900 dark:text-white">{cartTotal.toLocaleString()}원</span>
           </div>
           <button
-            onClick={submitOrder}
+            onClick={openOrderFlow}
             disabled={submitting || cartLines.length === 0}
             className="w-full rounded-lg bg-brand-500 py-3 text-sm font-bold text-white hover:bg-brand-600 disabled:opacity-40"
           >
@@ -357,6 +405,61 @@ export default function SupplyShopClient() {
           </button>
         </div>
       </aside>
+
+      {/* 사은품 선택 모달 */}
+      {showGiftModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/50 p-4" onClick={() => setShowGiftModal(false)}>
+          <div
+            className="flex max-h-full w-full max-w-md flex-col overflow-hidden rounded-2xl bg-white dark:bg-gray-900"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="border-b border-gray-200 px-5 py-4 dark:border-gray-800">
+              <h3 className="text-sm font-bold text-gray-800 dark:text-white/90">🎁 사은품을 선택하세요</h3>
+              <p className="mt-1 text-[11px] text-gray-400">주문 금액에 따라 아래 사은품 중 1개를 무료로 선택할 수 있습니다.</p>
+            </div>
+            <div className="flex-1 overflow-y-auto p-5">
+              <div className="mb-4 rounded-xl bg-brand-50 p-3 dark:bg-brand-500/10">
+                <div className="mb-1.5 flex items-center justify-between text-[11px] font-bold text-brand-600 dark:text-brand-400">
+                  <span>현재 주문금액 {cartTotal.toLocaleString()}원</span>
+                  {nextGiftTier && <span>{(nextGiftTier.threshold_amount - cartTotal).toLocaleString()}원 추가 시 다음 구간</span>}
+                </div>
+                <div className="h-1.5 w-full overflow-hidden rounded-full bg-white dark:bg-gray-900">
+                  <div className="h-full rounded-full bg-brand-500 transition-all" style={{ width: `${giftProgressPct}%` }} />
+                </div>
+              </div>
+              {unlockedGiftItems.length === 0 ? (
+                <div className="py-6 text-center text-xs text-gray-400">
+                  아직 선택 가능한 사은품이 없습니다.
+                  {nextGiftTier && <><br />{nextGiftTier.threshold_amount.toLocaleString()}원 이상 주문 시 사은품을 선택할 수 있어요.</>}
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-gray-200 p-3 text-xs dark:border-gray-700">
+                    <input type="radio" checked={selectedGiftId === null} onChange={() => setSelectedGiftId(null)} />
+                    사은품 선택 안 함
+                  </label>
+                  {unlockedGiftItems.map((g) => (
+                    <label key={g.id} className={`flex cursor-pointer items-center gap-2 rounded-lg border p-3 text-xs ${selectedGiftId === g.id ? "border-brand-400 bg-brand-50 dark:bg-brand-500/10" : "border-gray-200 dark:border-gray-700"}`}>
+                      <input type="radio" checked={selectedGiftId === g.id} onChange={() => setSelectedGiftId(g.id)} />
+                      🎁 {g.name}
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="flex gap-2 border-t border-gray-200 p-4 dark:border-gray-800">
+              <button onClick={() => setShowGiftModal(false)} className="rounded-lg border border-gray-300 px-4 py-2.5 text-xs font-semibold text-gray-600 dark:border-gray-700 dark:text-gray-300">취소</button>
+              <button
+                onClick={() => submitOrder(selectedGiftId)}
+                disabled={submitting}
+                className="flex-1 rounded-lg bg-brand-500 py-2.5 text-sm font-bold text-white hover:bg-brand-600 disabled:opacity-40"
+              >
+                {submitting ? "주문 처리 중..." : "주문 확정하기"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 상세 (전체화면) */}
       {detail && (
