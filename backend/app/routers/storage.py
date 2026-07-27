@@ -10,7 +10,15 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.models import StaffProfile, StorageFile, StorageFolder, StorageFolderPermission, User
+from app.models import (
+    StaffProfile,
+    StorageAccess,
+    StorageFavorite,
+    StorageFile,
+    StorageFolder,
+    StorageFolderPermission,
+    User,
+)
 from app.object_storage import copy_object, delete_object, get_object, put_object
 from app.routers.auth import require_staff
 
@@ -38,7 +46,8 @@ async def get_or_create_shared_folder(
     ).scalar_one_or_none()
     if existing:
         return existing
-    folder = StorageFolder(root=root, space="shared", owner_id=None, parent_id=parent_id, name=name, created_by=created_by, created_at=_now())
+    now = _now()
+    folder = StorageFolder(root=root, space="shared", owner_id=None, parent_id=parent_id, name=name, created_by=created_by, created_at=now, updated_at=now)
     db.add(folder)
     await db.flush()
     return folder
@@ -48,7 +57,8 @@ async def save_shared_file(db: AsyncSession, root: str, folder_id: int, filename
     """다른 도메인에서 공유 클라우드 NAS에 파일을 코드로 올릴 때 쓰는 헬퍼."""
     key = f"{secrets.token_hex(8)}_{filename}"
     await put_object(key, content)
-    sf = StorageFile(root=root, space="shared", owner_id=None, folder_id=folder_id, filename=filename, file_key=key, size=len(content), uploaded_by=uploaded_by, created_at=_now())
+    now = _now()
+    sf = StorageFile(root=root, space="shared", owner_id=None, folder_id=folder_id, filename=filename, file_key=key, size=len(content), uploaded_by=uploaded_by, created_at=now, updated_at=now)
     db.add(sf)
     await db.flush()
     return sf
@@ -91,6 +101,25 @@ async def _breadcrumb(db: AsyncSession, folder: Optional[StorageFolder]) -> list
         cur = (await db.execute(select(StorageFolder).where(StorageFolder.id == cur.parent_id))).scalar_one_or_none() if cur.parent_id else None
     trail.reverse()
     return trail
+
+
+async def _folder_path(db: AsyncSession, folder_id: Optional[int], top_label: str = "전체 파일") -> str:
+    """파일/폴더 상세정보의 '위치' 표시용 경로 문자열 (예: '전체 파일 > 계약서')."""
+    parts: list[str] = []
+    cur_id = folder_id
+    while cur_id is not None:
+        cur = (await db.execute(select(StorageFolder).where(StorageFolder.id == cur_id))).scalar_one_or_none()
+        if not cur:
+            break
+        parts.append(cur.name)
+        cur_id = cur.parent_id
+    parts.append(top_label)
+    return " > ".join(reversed(parts))
+
+
+async def _favorite_ids(db: AsyncSession, user_id: int) -> tuple[set[int], set[int]]:
+    rows = (await db.execute(select(StorageFavorite).where(StorageFavorite.user_id == user_id))).scalars().all()
+    return {r.folder_id for r in rows if r.folder_id}, {r.file_id for r in rows if r.file_id}
 
 
 async def _is_descendant(db: AsyncSession, maybe_ancestor_id: int, folder_id: Optional[int]) -> bool:
@@ -139,14 +168,153 @@ async def browse(
         )
     ).scalars().all()
 
+    fav_folders, fav_files = await _favorite_ids(db, user.id)
     return {
         "breadcrumb": await _breadcrumb(db, folder),
-        "folders": [{"id": f.id, "name": f.name, "created_at": f.created_at} for f in folders],
+        "folders": [
+            {"id": f.id, "name": f.name, "created_at": f.created_at,
+             "updated_at": f.updated_at or f.created_at, "is_favorite": f.id in fav_folders}
+            for f in folders
+        ],
         "files": [
-            {"id": f.id, "filename": f.filename, "size": f.size, "uploaded_by": f.uploaded_by, "created_at": f.created_at}
+            {"id": f.id, "filename": f.filename, "size": f.size, "uploaded_by": f.uploaded_by,
+             "created_at": f.created_at, "updated_at": f.updated_at or f.created_at, "is_favorite": f.id in fav_files}
             for f in files
         ],
     }
+
+
+def _scope_owner(space: str, owner_id: Optional[int], user: User) -> Optional[int]:
+    eff = user.id if space == "personal" else None
+    if space == "personal" and owner_id and user.is_admin:
+        eff = owner_id
+    return eff
+
+
+@router.get("/usage")
+async def storage_usage(
+    root: str = "nas", space: str = "shared", owner_id: Optional[int] = None,
+    db: AsyncSession = Depends(get_db), user: User = Depends(require_staff),
+):
+    """현재 사용 용량(바이트 합계) — 최고 용량 제한 없이 사용량만 표시하기 위한 집계."""
+    if root not in ROOTS:
+        raise HTTPException(status_code=400, detail="잘못된 경로입니다")
+    eff = _scope_owner(space, owner_id, user)
+    rows = (
+        await db.execute(
+            select(StorageFile.size).where(
+                StorageFile.root == root, StorageFile.space == space, StorageFile.owner_id == eff
+            )
+        )
+    ).scalars().all()
+    return {"bytes": sum(rows), "count": len(rows)}
+
+
+@router.get("/recent")
+async def storage_recent(
+    root: str = "nas", space: str = "shared", kind: str = "uploaded",
+    owner_id: Optional[int] = None, limit: int = 60,
+    db: AsyncSession = Depends(get_db), user: User = Depends(require_staff),
+):
+    """최근 올린(created_at 내림차순) 또는 최근 열어본(본인 열람시각 내림차순) 파일 목록 — 폴더 상관없이 평평하게."""
+    if root not in ROOTS:
+        raise HTTPException(status_code=400, detail="잘못된 경로입니다")
+    eff = _scope_owner(space, owner_id, user)
+    fav_folders, fav_files = await _favorite_ids(db, user.id)
+
+    if kind == "opened":
+        accesses = (
+            await db.execute(
+                select(StorageAccess).where(StorageAccess.user_id == user.id).order_by(StorageAccess.accessed_at.desc())
+            )
+        ).scalars().all()
+        result = []
+        for acc in accesses:
+            f = (await db.execute(select(StorageFile).where(StorageFile.id == acc.file_id))).scalar_one_or_none()
+            if not f or f.root != root or f.space != space or f.owner_id != eff:
+                continue
+            result.append((f, acc.accessed_at))
+            if len(result) >= limit:
+                break
+        return [
+            {"id": f.id, "filename": f.filename, "size": f.size, "uploaded_by": f.uploaded_by,
+             "created_at": f.created_at, "updated_at": f.updated_at or f.created_at,
+             "opened_at": opened, "is_favorite": f.id in fav_files,
+             "location": await _folder_path(db, f.folder_id)}
+            for f, opened in result
+        ]
+
+    files = (
+        await db.execute(
+            select(StorageFile).where(
+                StorageFile.root == root, StorageFile.space == space, StorageFile.owner_id == eff
+            ).order_by(StorageFile.created_at.desc()).limit(limit)
+        )
+    ).scalars().all()
+    return [
+        {"id": f.id, "filename": f.filename, "size": f.size, "uploaded_by": f.uploaded_by,
+         "created_at": f.created_at, "updated_at": f.updated_at or f.created_at,
+         "is_favorite": f.id in fav_files, "location": await _folder_path(db, f.folder_id)}
+        for f in files
+    ]
+
+
+@router.get("/favorites")
+async def storage_favorites(
+    root: str = "nas", space: str = "shared", owner_id: Optional[int] = None,
+    db: AsyncSession = Depends(get_db), user: User = Depends(require_staff),
+):
+    """사용자가 즐겨찾기한 폴더/파일 (현재 root/space 범위)."""
+    if root not in ROOTS:
+        raise HTTPException(status_code=400, detail="잘못된 경로입니다")
+    eff = _scope_owner(space, owner_id, user)
+    fav_folder_ids, fav_file_ids = await _favorite_ids(db, user.id)
+
+    folders = []
+    for fid in fav_folder_ids:
+        f = (await db.execute(select(StorageFolder).where(StorageFolder.id == fid))).scalar_one_or_none()
+        if f and f.root == root and f.space == space and f.owner_id == eff:
+            folders.append({"id": f.id, "name": f.name, "created_at": f.created_at,
+                            "updated_at": f.updated_at or f.created_at, "is_favorite": True,
+                            "location": await _folder_path(db, f.parent_id)})
+    files = []
+    for fid in fav_file_ids:
+        f = (await db.execute(select(StorageFile).where(StorageFile.id == fid))).scalar_one_or_none()
+        if f and f.root == root and f.space == space and f.owner_id == eff:
+            files.append({"id": f.id, "filename": f.filename, "size": f.size, "uploaded_by": f.uploaded_by,
+                          "created_at": f.created_at, "updated_at": f.updated_at or f.created_at, "is_favorite": True,
+                          "location": await _folder_path(db, f.folder_id)})
+    folders.sort(key=lambda x: x["name"])
+    files.sort(key=lambda x: x["filename"])
+    return {"folders": folders, "files": files}
+
+
+class FavoriteToggleIn(BaseModel):
+    folder_id: Optional[int] = None
+    file_id: Optional[int] = None
+
+
+@router.post("/favorites")
+async def toggle_favorite(payload: FavoriteToggleIn, db: AsyncSession = Depends(get_db), user: User = Depends(require_staff)):
+    """즐겨찾기 토글 (있으면 해제, 없으면 추가)."""
+    if not payload.folder_id and not payload.file_id:
+        raise HTTPException(status_code=400, detail="folder_id 또는 file_id가 필요합니다")
+    existing = (
+        await db.execute(
+            select(StorageFavorite).where(
+                StorageFavorite.user_id == user.id,
+                StorageFavorite.folder_id == payload.folder_id,
+                StorageFavorite.file_id == payload.file_id,
+            )
+        )
+    ).scalar_one_or_none()
+    if existing:
+        await db.delete(existing)
+        await db.commit()
+        return {"is_favorite": False}
+    db.add(StorageFavorite(user_id=user.id, folder_id=payload.folder_id, file_id=payload.file_id, created_at=_now()))
+    await db.commit()
+    return {"is_favorite": True}
 
 
 class FolderCreateIn(BaseModel):
@@ -167,9 +335,10 @@ async def create_folder(payload: FolderCreateIn, db: AsyncSession = Depends(get_
     parent = await _get_folder_or_404(db, payload.parent_id) if payload.parent_id else None
     await _check_access(parent, payload.space, effective_owner, user, db, write=True)
 
+    now = _now()
     f = StorageFolder(
         root=payload.root, space=payload.space, owner_id=effective_owner, parent_id=payload.parent_id,
-        name=payload.name.strip() or "새 폴더", created_by=user.id, created_at=_now(),
+        name=payload.name.strip() or "새 폴더", created_by=user.id, created_at=now, updated_at=now,
     )
     db.add(f)
     await db.commit()
@@ -188,8 +357,10 @@ async def update_folder(folder_id: int, payload: FolderUpdateIn, db: AsyncSessio
     folder = await _get_folder_or_404(db, folder_id)
     await _check_access(folder, folder.space, folder.owner_id, user, db, write=True)
 
+    changed = False
     if payload.name is not None:
         folder.name = payload.name.strip() or folder.name
+        changed = True
     if payload.parent_id is not None or payload.move_to_root:
         new_parent_id = None if payload.move_to_root else payload.parent_id
         if new_parent_id == folder.id:
@@ -199,6 +370,9 @@ async def update_folder(folder_id: int, payload: FolderUpdateIn, db: AsyncSessio
         new_parent = await _get_folder_or_404(db, new_parent_id) if new_parent_id else None
         await _check_access(new_parent, folder.space, folder.owner_id, user, db, write=True)
         folder.parent_id = new_parent_id
+        changed = True
+    if changed:
+        folder.updated_at = _now()
     await db.commit()
     return {"ok": True}
 
@@ -290,9 +464,10 @@ async def upload_file(
     content = await file.read()
     key = f"{secrets.token_hex(8)}_{file.filename}"
     await put_object(key, content)
+    now = _now()
     sf = StorageFile(
         root=root, space=space, owner_id=effective_owner, folder_id=folder_id,
-        filename=file.filename, file_key=key, size=len(content), uploaded_by=user.id, created_at=_now(),
+        filename=file.filename, file_key=key, size=len(content), uploaded_by=user.id, created_at=now, updated_at=now,
     )
     db.add(sf)
     await db.commit()
@@ -310,6 +485,17 @@ async def download_file(file_id: int, db: AsyncSession = Depends(get_db), user: 
     data = await get_object(f.file_key)
     if data is None:
         raise HTTPException(status_code=404, detail="파일이 존재하지 않습니다")
+    # '최근 열어본' 추적 — 사용자별 파일당 마지막 열람 시각만 upsert
+    acc = (
+        await db.execute(
+            select(StorageAccess).where(StorageAccess.user_id == user.id, StorageAccess.file_id == f.id)
+        )
+    ).scalar_one_or_none()
+    if acc:
+        acc.accessed_at = _now()
+    else:
+        db.add(StorageAccess(user_id=user.id, file_id=f.id, accessed_at=_now()))
+    await db.commit()
     return Response(
         content=data,
         media_type="application/octet-stream",
@@ -331,13 +517,18 @@ async def update_file(file_id: int, payload: FileUpdateIn, db: AsyncSession = De
     folder = await _get_folder_or_404(db, f.folder_id) if f.folder_id else None
     await _check_access(folder, f.space, f.owner_id, user, db, write=True)
 
+    changed = False
     if payload.filename is not None:
         f.filename = payload.filename.strip() or f.filename
+        changed = True
     if payload.folder_id is not None or payload.move_to_root:
         new_folder_id = None if payload.move_to_root else payload.folder_id
         new_folder = await _get_folder_or_404(db, new_folder_id) if new_folder_id else None
         await _check_access(new_folder, f.space, f.owner_id, user, db, write=True)
         f.folder_id = new_folder_id
+        changed = True
+    if changed:
+        f.updated_at = _now()
     await db.commit()
     return {"ok": True}
 

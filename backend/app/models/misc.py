@@ -1,5 +1,5 @@
 from typing import Optional
-from sqlalchemy import ForeignKey, Index
+from sqlalchemy import ForeignKey, Index, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .base import Base
@@ -68,6 +68,7 @@ class StorageFolder(Base):
     name: Mapped[str] = mapped_column()
     created_by: Mapped[int] = mapped_column(ForeignKey("users.id"))
     created_at: Mapped[str] = mapped_column()
+    updated_at: Mapped[Optional[str]] = mapped_column(default=None)  # 이름변경/이동 시 갱신 (없으면 created_at으로 취급)
 
 
 class StorageFile(Base):
@@ -85,3 +86,33 @@ class StorageFile(Base):
     size: Mapped[int] = mapped_column(default=0)
     uploaded_by: Mapped[int] = mapped_column(ForeignKey("users.id"))
     created_at: Mapped[str] = mapped_column()
+    updated_at: Mapped[Optional[str]] = mapped_column(default=None)  # 이름변경/이동 시 갱신 (없으면 created_at으로 취급)
+
+
+class StorageFavorite(Base):
+    """클라우드 NAS 즐겨찾기 (사용자별). folder_id 또는 file_id 중 하나만 채워진다."""
+    __tablename__ = "storage_favorites"
+    __table_args__ = (
+        UniqueConstraint("user_id", "folder_id", "file_id", name="uq_storage_favorite"),
+        Index("idx_storage_favorite_user", "user_id"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    folder_id: Mapped[Optional[int]] = mapped_column(ForeignKey("storage_folders.id", ondelete="CASCADE"), default=None)
+    file_id: Mapped[Optional[int]] = mapped_column(ForeignKey("storage_files.id", ondelete="CASCADE"), default=None)
+    created_at: Mapped[str] = mapped_column()
+
+
+class StorageAccess(Base):
+    """클라우드 NAS 최근 열어본 파일 추적 (사용자별, 파일당 마지막 열람 시각만 upsert)."""
+    __tablename__ = "storage_access"
+    __table_args__ = (
+        UniqueConstraint("user_id", "file_id", name="uq_storage_access"),
+        Index("idx_storage_access_user", "user_id"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    file_id: Mapped[int] = mapped_column(ForeignKey("storage_files.id", ondelete="CASCADE"))
+    accessed_at: Mapped[str] = mapped_column()

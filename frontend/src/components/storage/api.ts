@@ -4,6 +4,9 @@ export interface FolderRow {
   id: number;
   name: string;
   created_at: string;
+  updated_at?: string;
+  is_favorite?: boolean;
+  location?: string;
 }
 
 export interface FileRow {
@@ -12,6 +15,10 @@ export interface FileRow {
   size: number;
   uploaded_by: number;
   created_at: string;
+  updated_at?: string;
+  is_favorite?: boolean;
+  location?: string;
+  opened_at?: string;
 }
 
 export interface BrowseResult {
@@ -207,4 +214,33 @@ export function removePermission(id: number) {
 
 export function folderTree(root: string): Promise<{ id: number; path: string }[]> {
   return fetch(`${API}/api/storage/folder-tree?root=${root}`, { credentials: "include" }).then((r) => j(r));
+}
+
+function scopeQs(root: string, space: string, ownerId?: number) {
+  const qs = new URLSearchParams({ root, space });
+  if (ownerId) qs.set("owner_id", String(ownerId));
+  return qs;
+}
+
+export function storageUsage(root: string, space: string, ownerId?: number): Promise<{ bytes: number; count: number }> {
+  return fetch(`${API}/api/storage/usage?${scopeQs(root, space, ownerId).toString()}`, { credentials: "include" }).then((r) => j(r));
+}
+
+export function storageRecent(root: string, space: string, kind: "uploaded" | "opened", ownerId?: number): Promise<FileRow[]> {
+  const qs = scopeQs(root, space, ownerId);
+  qs.set("kind", kind);
+  return fetch(`${API}/api/storage/recent?${qs.toString()}`, { credentials: "include" }).then((r) => j(r));
+}
+
+export function storageFavorites(root: string, space: string, ownerId?: number): Promise<{ folders: FolderRow[]; files: FileRow[] }> {
+  return fetch(`${API}/api/storage/favorites?${scopeQs(root, space, ownerId).toString()}`, { credentials: "include" }).then((r) => j(r));
+}
+
+export function toggleFavorite(target: { folder_id?: number; file_id?: number }): Promise<{ is_favorite: boolean }> {
+  return fetch(`${API}/api/storage/favorites`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify(target),
+  }).then((r) => j(r));
 }

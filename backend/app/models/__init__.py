@@ -23,7 +23,7 @@ from .contracts import Contract, ContractItem, ContractPhoto, ContractComment
 from .deliveries import Delivery, DeliveryItem, DeliveryPhoto, DeliveryComment
 from .inventory import InvEquipment, InvSupply
 from .board import Notice, CsTicket, CsComment, TechPost, TechComment, Suggestion
-from .misc import MileageLog, Bid, NewsArticle, StorageFile, StorageFolder
+from .misc import MileageLog, Bid, NewsArticle, StorageFile, StorageFolder, StorageFavorite, StorageAccess
 from .calendar import CalendarEvent, CalendarEventAssignee, CalendarEventTeam, GoogleCalendarLink
 from .audit import AuditLog
 
@@ -69,6 +69,8 @@ __all__ = [
     "NewsArticle",
     "StorageFile",
     "StorageFolder",
+    "StorageFavorite",
+    "StorageAccess",
     "CalendarEvent",
     "CalendarEventAssignee",
     "CalendarEventTeam",
