@@ -439,6 +439,9 @@ function Workspace({ root, showSpaces }: { root: string; showSpaces?: boolean })
   function toggleSelectAll() { setSelection(allSelected ? new Set() : new Set(sorted.map((n) => n.key))); }
 
   const btn = "shrink-0 rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-semibold text-gray-700 hover:border-brand-400 hover:text-brand-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200";
+  // 올리기(주요 액션) 전용 — btn(bg-white/text-gray)과 섞으면 Tailwind 유틸 충돌로 라이트모드에서
+  // bg-white가 이겨 흰 배경+흰 글자로 안 보이던 문제가 있어 별도 클래스로 분리한다.
+  const btnPrimary = "shrink-0 cursor-pointer rounded-lg bg-brand-500 px-3 py-2 text-xs font-semibold text-white hover:bg-brand-600";
   const iconBtn = (active: boolean) => `flex h-9 w-9 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 dark:hover:bg-white/10 ${active ? "bg-brand-50 text-brand-500 dark:bg-brand-500/15" : ""}`;
 
   return (
@@ -505,7 +508,7 @@ function Workspace({ root, showSpaces }: { root: string; showSpaces?: boolean })
               <button onClick={toggleSelectAll} className={`flex h-5 w-5 shrink-0 items-center justify-center rounded border-[1.6px] text-[11px] ${allSelected ? "border-brand-500 bg-brand-500 text-white" : "border-gray-300 dark:border-gray-600"}`} title="전체 선택">{allSelected ? "✓" : ""}</button>
               {isBrowse && canWrite && (
                 <>
-                  <label className={btn + " cursor-pointer bg-brand-500 text-white hover:bg-brand-600 hover:text-white dark:bg-brand-500 dark:text-white"}>
+                  <label className={btnPrimary}>
                     ↑ 올리기
                     <input type="file" multiple className="hidden" onChange={(e) => { const files = Array.from(e.target.files || []); e.target.value = ""; uploadFiles(files); }} />
                   </label>
