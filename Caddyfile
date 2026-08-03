@@ -1,4 +1,4 @@
-songlim-medical.com, www.songlim-medical.com {
+songlim-medical.com {
 	encode gzip
 
 	# API 요청은 백엔드로
