@@ -3,8 +3,9 @@
 import Link from "next/link";
 
 /**
- * 대시보드용 리스트 카드. 병원/송림 메인화면 카드의 크기(높이)와 하단 "전체보기" 버튼 위치를
- * 통일하기 위한 공용 컴포넌트 — 내용이 비어있거나 5개 미만이어도 버튼은 항상 카드 하단에 고정된다.
+ * 대시보드용 리스트 카드. 병원/송림 메인화면 카드의 하단 "전체보기" 버튼 위치를 통일하기 위한
+ * 공용 컴포넌트 — 항목이 3개라 고정 높이(h-290)는 빈 공간이 많아, 최소 높이만 두고 내용에 맞춰
+ * 자라도록(min-h) 한다. 같은 행의 두 카드는 그리드 stretch로 자동 정렬된다.
  */
 export default function DashboardListCard({
   title,
@@ -24,7 +25,7 @@ export default function DashboardListCard({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex h-[290px] flex-col rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
+    <div className="flex min-h-[200px] flex-col rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
       <div className="border-b border-gray-100 px-5 py-4 dark:border-gray-800">
         <h3 className="text-base font-semibold text-gray-800 dark:text-white/90">{title}</h3>
       </div>
