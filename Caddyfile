@@ -1,0 +1,13 @@
+songlim-medical.com, www.songlim-medical.com {
+	encode gzip
+
+	# API 요청은 백엔드로
+	handle /api/* {
+		reverse_proxy backend:8010
+	}
+
+	# 나머지는 프론트엔드로
+	handle {
+		reverse_proxy frontend:3000
+	}
+}

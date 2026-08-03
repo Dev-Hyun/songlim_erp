@@ -21,3 +21,23 @@ services:
       - backend
     ports:
       - "3000:3000"
+
+  # 도메인(songlim-medical.com) HTTPS 리버스 프록시. Let's Encrypt 인증서를 자동 발급/갱신한다.
+  # /api/* → backend, 그 외 → frontend. 인증서는 caddy_data 볼륨에 보존.
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - frontend
+      - backend
+
+volumes:
+  caddy_data:
+  caddy_config:
