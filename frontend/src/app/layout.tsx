@@ -16,8 +16,8 @@ const notoSansKr = Noto_Sans_KR({
 });
 
 export const metadata: Metadata = {
-  title: "송림 ERP",
-  description: "전국 의료장비 영업 데이터 플랫폼",
+  title: { default: "송림메디칼", template: "%s | 송림메디칼" },
+  description: "송림메디칼 사내 ERP — 전국 의료장비 영업 데이터 플랫폼",
   manifest: "/manifest.json",
   icons: {
     icon: "/icons/icon-192.png",

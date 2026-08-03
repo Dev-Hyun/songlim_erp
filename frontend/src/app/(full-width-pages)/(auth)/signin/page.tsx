@@ -2,7 +2,7 @@
 import { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Next.js SignIn Page | SONGLIM - Next.js Dashboard Template",
+  title: "로그인",
   description: "This is Next.js Signin Page SONGLIM Dashboard Template",
 };
 

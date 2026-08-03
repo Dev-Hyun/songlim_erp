@@ -18,6 +18,10 @@ COOKIE_NAME = "session_token"
 # 배포 도메인이 HTTPS로 확정되면 .env에서 COOKIE_SECURE=true 로 전환
 COOKIE_SECURE = os.environ.get("COOKIE_SECURE", "false").lower() == "true"
 
+# 직원(songrim) 회원가입 시 관리자 승인 없이 바로 로그인 가능하게 할지. 기본값은 자동승인(true).
+# 다시 승인제로 되돌리려면 .env에 SIGNUP_AUTO_APPROVE_STAFF=false 를 넣고 백엔드를 재생성하면 된다.
+STAFF_AUTO_APPROVE = os.environ.get("SIGNUP_AUTO_APPROVE_STAFF", "true").lower() in ("1", "true", "yes")
+
 # 브루트포스 방어 — 특정 계정 대상 연속 로그인 실패 시 일시 잠금
 MAX_FAILED_LOGIN_ATTEMPTS = 5
 LOGIN_LOCKOUT_MINUTES = 15
@@ -104,14 +108,14 @@ async def register_staff(payload: StaffRegisterIn, response: Response, db: Async
         phone=payload.phone,
         email=payload.email,
         role="songrim",
-        is_approved=False,
+        is_approved=STAFF_AUTO_APPROVE,
     )
     db.add(user)
     await db.flush()
     db.add(StaffProfile(user_id=user.id, department=payload.department, position=payload.position))
     await db.commit()
 
-    return {"id": user.id, "username": user.username, "pending_approval": True}
+    return {"id": user.id, "username": user.username, "pending_approval": not STAFF_AUTO_APPROVE}
 
 
 @router.post("/register/hospital")

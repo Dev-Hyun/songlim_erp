@@ -33,6 +33,7 @@ export default function SignUpForm() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [pendingApproval, setPendingApproval] = useState(true);
 
   // 송림 직원
   const [email, setEmail] = useState("");
@@ -105,11 +106,12 @@ export default function SignUpForm() {
         credentials: "include",
         body: JSON.stringify(body),
       });
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
         setError(data.detail || "회원가입에 실패했습니다");
         return;
       }
+      setPendingApproval(data.pending_approval !== false);
       setSubmitted(true);
     } finally {
       setLoading(false);
@@ -121,10 +123,12 @@ export default function SignUpForm() {
       <div className="flex flex-1 w-full items-center justify-center lg:w-1/2">
         <div className="w-full max-w-md text-center">
           <h1 className="mb-3 text-title-sm font-semibold text-gray-800 dark:text-white/90">
-            회원가입 신청 완료
+            {pendingApproval ? "회원가입 신청 완료" : "회원가입 완료"}
           </h1>
           <p className="mb-6 text-sm text-gray-500 dark:text-gray-400">
-            관리자 승인 후 로그인하실 수 있습니다. 승인은 송림 담당자가 확인 후 처리합니다.
+            {pendingApproval
+              ? "관리자 승인 후 로그인하실 수 있습니다. 승인은 송림 담당자가 확인 후 처리합니다."
+              : "가입이 완료되었습니다. 바로 로그인하실 수 있습니다."}
           </p>
           <Link
             href="/signin"
