@@ -11,3 +11,9 @@ songlim-medical.com {
 		reverse_proxy frontend:3000
 	}
 }
+
+# www로 들어오면 대표 주소(songlim-medical.com)로 301 리다이렉트.
+# 가비아 DNS에 www A레코드(→101.79.25.182)를 추가하면 Caddy가 자동으로 인증서를 발급한다.
+www.songlim-medical.com {
+	redir https://songlim-medical.com{uri} permanent
+}
