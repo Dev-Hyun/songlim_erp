@@ -3,13 +3,37 @@
 from bs4 import BeautifulSoup
 
 ALLOWED_TAGS = {
-    "p", "br", "strong", "b", "em", "i", "u", "s", "h1", "h2", "h3",
-    "ul", "ol", "li", "blockquote", "a", "img", "code", "pre",
+    "p", "br", "span", "strong", "b", "em", "i", "u", "s", "h1", "h2", "h3",
+    "ul", "ol", "li", "blockquote", "a", "img", "code", "pre", "hr",
 }
 ALLOWED_ATTRS = {
     "a": {"href", "target", "rel"},
     "img": {"src", "alt"},
 }
+
+# 인라인 style로 허용할 CSS 속성만 남긴다(글자색·정렬·배경색). TipTap의 색상/정렬 기능이 이 값들을 쓴다.
+ALLOWED_STYLE_PROPS = {"color", "text-align", "background-color"}
+# style을 달 수 있는 태그(그 외 태그의 style은 제거)
+STYLE_TAGS = {"p", "h1", "h2", "h3", "span", "li", "blockquote"}
+
+
+def _clean_style(value: str) -> str:
+    """style 속성값에서 화이트리스트 CSS 속성만, 안전한 값만 남긴다."""
+    kept = []
+    for decl in value.split(";"):
+        if ":" not in decl:
+            continue
+        prop, val = decl.split(":", 1)
+        prop = prop.strip().lower()
+        val = val.strip()
+        if prop not in ALLOWED_STYLE_PROPS or not val:
+            continue
+        low = val.lower()
+        # url()/expression()/javascript: 등 위험한 값은 통째로 버린다
+        if any(bad in low for bad in ("url(", "expression", "javascript:", "</", "<")):
+            continue
+        kept.append(f"{prop}: {val}")
+    return "; ".join(kept)
 
 
 def sanitize_html(html: str | None) -> str:
@@ -25,6 +49,13 @@ def sanitize_html(html: str | None) -> str:
             continue
         allowed = ALLOWED_ATTRS.get(tag.name, set())
         for attr in list(tag.attrs):
+            if attr == "style" and tag.name in STYLE_TAGS:
+                cleaned = _clean_style(tag.get("style", ""))
+                if cleaned:
+                    tag["style"] = cleaned
+                else:
+                    del tag["style"]
+                continue
             if attr not in allowed:
                 del tag[attr]
         if tag.name == "a":
