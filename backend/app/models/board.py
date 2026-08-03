@@ -70,15 +70,3 @@ class TechComment(Base):
     created_at: Mapped[str] = mapped_column()
 
     post: Mapped["TechPost"] = relationship(back_populates="comments")
-
-
-class Suggestion(Base, TimestampMixin):
-    """건의사항 — 신규 모듈(레거시에 없음)."""
-    __tablename__ = "suggestions"
-    __table_args__ = (CheckConstraint("status IN ('접수','검토중','반영완료')", name="ck_suggestion_status"),)
-
-    id: Mapped[int] = mapped_column(primary_key=True)
-    title: Mapped[str] = mapped_column()
-    content: Mapped[str] = mapped_column()
-    status: Mapped[str] = mapped_column(default="접수")
-    created_by: Mapped[int] = mapped_column(ForeignKey("users.id"))

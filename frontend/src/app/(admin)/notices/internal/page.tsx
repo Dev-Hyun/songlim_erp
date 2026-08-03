@@ -28,6 +28,7 @@ export default function InternalNoticesPage() {
         title="회사 공지사항"
         canWrite={user?.role === "songrim"}
         createExtra={{ notice_type: "internal" }}
+        detailHrefBase="/notices"
       />
     </div>
   );

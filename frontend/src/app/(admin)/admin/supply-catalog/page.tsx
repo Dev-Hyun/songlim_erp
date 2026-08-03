@@ -12,7 +12,7 @@ export default function AdminSupplyCatalogPage() {
   return (
     <StaffOnly>
       <div>
-        <PageBreadcrumb pageTitle="소모품 카탈로그 관리" />
+        <PageBreadcrumb pageTitle="소모품 관리" />
         <div className="mb-4 flex gap-1 rounded-full bg-gray-100 p-1 dark:bg-white/[0.04]" style={{ width: "fit-content" }}>
           <button
             onClick={() => setTab("catalog")}

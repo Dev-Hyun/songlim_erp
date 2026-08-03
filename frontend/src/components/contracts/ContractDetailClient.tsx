@@ -219,7 +219,7 @@ export default function ContractDetailClient({ id }: { id: number }) {
             <span>🖼️ 계약서 사진</span>
             <label className="cursor-pointer text-brand-500">
               + 사진 첨부
-              <input type="file" accept="image/*" className="hidden" onChange={handlePhotoUpload} />
+              <input type="file" accept="image/*,.heic,.heif,.pdf,application/pdf" className="hidden" onChange={handlePhotoUpload} />
             </label>
           </div>
           <div className="grid grid-cols-2 gap-2">

@@ -22,7 +22,7 @@ from .sales_map import Hospital, Equipment, SalesNote, PersonalMemo
 from .contracts import Contract, ContractItem, ContractPhoto, ContractComment
 from .deliveries import Delivery, DeliveryItem, DeliveryPhoto, DeliveryComment
 from .inventory import InvEquipment, InvSupply
-from .board import Notice, CsTicket, CsComment, TechPost, TechComment, Suggestion
+from .board import Notice, CsTicket, CsComment, TechPost, TechComment
 from .misc import MileageLog, Bid, NewsArticle, StorageFile, StorageFolder, StorageFavorite, StorageAccess
 from .calendar import CalendarEvent, CalendarEventAssignee, CalendarEventTeam, GoogleCalendarLink
 from .audit import AuditLog
@@ -63,7 +63,6 @@ __all__ = [
     "CsComment",
     "TechPost",
     "TechComment",
-    "Suggestion",
     "MileageLog",
     "Bid",
     "NewsArticle",

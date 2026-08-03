@@ -51,14 +51,27 @@ function tightYAxis(values: number[]) {
 // 장비 수 축은 항상 정수 라벨만 표시 (yaxis는 number, xaxis는 string으로 넘어와 둘 다 대응)
 const intLabel = { formatter: (v: string | number) => Math.round(Number(v)).toLocaleString() };
 
-function SummaryCard({ label, value }: { label: string; value: number }) {
+type SummaryColor = { card: string; chip: string; value: string };
+function SummaryCard({ label, value, icon, color }: { label: string; value: number; icon: string; color: SummaryColor }) {
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-white/[0.03]">
-      <div className="text-xs text-gray-400">{label}</div>
-      <div className="mt-1 text-xl font-bold text-gray-800 dark:text-white/90">{value.toLocaleString()}</div>
+    <div className={`rounded-2xl border p-4 ${color.card}`}>
+      <div className="flex items-center gap-2">
+        <span className={`flex h-8 w-8 items-center justify-center rounded-lg text-base ${color.chip}`}>{icon}</span>
+        <div className="text-xs font-medium text-gray-500 dark:text-gray-400">{label}</div>
+      </div>
+      <div className={`mt-2 text-2xl font-extrabold ${color.value}`}>{value.toLocaleString()}</div>
     </div>
   );
 }
+
+// 통계 요약 카드가 전부 흰색이라 눈에 안 들어온다는 요청 → 카드별 강조색 부여.
+const SUMMARY_COLORS: Record<string, SummaryColor> = {
+  brand: { card: "border-brand-100 bg-brand-50 dark:border-brand-500/20 dark:bg-brand-500/10", chip: "bg-brand-500/15 text-brand-600 dark:text-brand-300", value: "text-brand-600 dark:text-brand-300" },
+  teal: { card: "border-teal-100 bg-teal-50 dark:border-teal-500/20 dark:bg-teal-500/10", chip: "bg-teal-500/15 text-teal-600 dark:text-teal-300", value: "text-teal-600 dark:text-teal-300" },
+  violet: { card: "border-violet-100 bg-violet-50 dark:border-violet-500/20 dark:bg-violet-500/10", chip: "bg-violet-500/15 text-violet-600 dark:text-violet-300", value: "text-violet-600 dark:text-violet-300" },
+  amber: { card: "border-amber-100 bg-amber-50 dark:border-amber-500/20 dark:bg-amber-500/10", chip: "bg-amber-500/15 text-amber-600 dark:text-amber-300", value: "text-amber-600 dark:text-amber-300" },
+  rose: { card: "border-rose-100 bg-rose-50 dark:border-rose-500/20 dark:bg-rose-500/10", chip: "bg-rose-500/15 text-rose-600 dark:text-rose-300", value: "text-rose-600 dark:text-rose-300" },
+};
 
 const selectClass =
   "rounded-lg border border-gray-300 bg-white px-2.5 py-1.5 text-xs text-gray-700 shadow-theme-xs focus:border-brand-300 focus:outline-none focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300";
@@ -225,11 +238,11 @@ export default function StatsClient() {
       <div ref={captureRef} className="space-y-6 bg-gray-50 p-1 dark:bg-gray-900">
         {summary && (
           <div className="grid grid-cols-2 gap-4 md:grid-cols-5">
-            <SummaryCard label="총 장비 수" value={summary.total_equipment} />
-            <SummaryCard label="보유 병원" value={summary.hospitals_with_equipment} />
-            <SummaryCard label="제조사 종류" value={summary.maker_count} />
-            <SummaryCard label="모델 종류" value={summary.model_count} />
-            <SummaryCard label="미보유 (영업대상)" value={summary.no_equipment_count} />
+            <SummaryCard label="총 장비 수" value={summary.total_equipment} icon="📦" color={SUMMARY_COLORS.brand} />
+            <SummaryCard label="보유 병원" value={summary.hospitals_with_equipment} icon="🏥" color={SUMMARY_COLORS.teal} />
+            <SummaryCard label="제조사 종류" value={summary.maker_count} icon="🏭" color={SUMMARY_COLORS.violet} />
+            <SummaryCard label="모델 종류" value={summary.model_count} icon="🔧" color={SUMMARY_COLORS.amber} />
+            <SummaryCard label="미보유 (영업대상)" value={summary.no_equipment_count} icon="🎯" color={SUMMARY_COLORS.rose} />
           </div>
         )}
 

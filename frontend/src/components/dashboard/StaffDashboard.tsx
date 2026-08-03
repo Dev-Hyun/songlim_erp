@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
+import { localISODate } from "@/lib/date";
 import DashboardListCard from "@/components/dashboard/DashboardListCard";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8010";
@@ -99,7 +100,7 @@ export default function StaffDashboard() {
       .finally(() => setLoading(false));
   }, []);
 
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayStr = localISODate();
   const myId = user?.id;
   // 홈의 "다가오는 일정"은 내가 초대된(또는 내가 만든) 일정만 노출
   const myEvents = events.filter((e) => e.created_by === myId || (e.assignee_ids || []).includes(myId ?? -1));

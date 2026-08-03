@@ -78,7 +78,7 @@ export default function AdminCatalogClient() {
       <div className="rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-white/[0.03]">
         <h3 className="mb-1 text-sm font-bold text-gray-800 dark:text-white/90">카테고리별 노출 제한</h3>
         <p className="mb-3 text-[11px] text-gray-400">지정한 카테고리는 여기 등록된 병원종별 계정에만 노출됩니다 (예: &quot;동물병원&quot; 카테고리 → 동물병원 계정만).</p>
-        <div className="mb-3 flex gap-2">
+        <div className="mb-3 flex flex-wrap gap-2">
           <input value={accessForm.category} onChange={(e) => setAccessForm({ ...accessForm, category: e.target.value })} placeholder="카테고리명" className={inputCls} />
           <select value={accessForm.hospital_type} onChange={(e) => setAccessForm({ ...accessForm, hospital_type: e.target.value })} className={inputCls}>
             {HOSPITAL_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
@@ -111,7 +111,7 @@ export default function AdminCatalogClient() {
             </button>
           </div>
         </div>
-        <table className="w-full text-xs">
+        <table className="w-full min-w-[720px] text-xs">
           <thead>
             <tr className="border-b border-gray-200 bg-gray-50 text-left text-gray-400 dark:border-gray-800 dark:bg-white/[0.02]">
               <th className="px-3 py-2">사진</th>

@@ -54,3 +54,5 @@ urllib3==2.7.0
 uvicorn==0.51.0
 watchfiles==1.2.0
 websockets==16.1
+pillow-heif==1.1.0
+PyMuPDF==1.26.5

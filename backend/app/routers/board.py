@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.audit import log_action
 from app.database import get_db
 from app.html_sanitize import sanitize_html
-from app.models import CsComment, CsTicket, HospitalProfile, Notice, Suggestion, TechComment, TechPost, User
+from app.models import CsComment, CsTicket, HospitalProfile, Notice, TechComment, TechPost, User
 from app.routers.auth import get_current_user, require_staff, require_user
 
 router = APIRouter(prefix="/api", tags=["board"])
@@ -59,6 +59,40 @@ async def create_notice(payload: NoticeIn, db: AsyncSession = Depends(get_db), u
     await db.commit()
     await db.refresh(n)
     return {"id": n.id}
+
+
+@router.get("/notices/{nid}")
+async def get_notice(nid: int, db: AsyncSession = Depends(get_db), user: Optional[User] = Depends(get_current_user)):
+    row = (
+        await db.execute(
+            select(Notice, User.display_name, User.username).join(User, User.id == Notice.created_by).where(Notice.id == nid)
+        )
+    ).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="공지를 찾을 수 없습니다")
+    n, display_name, username = row
+    # 병원 계정(또는 비로그인)은 사내용 공지를 열람할 수 없음
+    if n.notice_type == "internal" and (user is None or user.role == "hospital"):
+        raise HTTPException(status_code=404, detail="공지를 찾을 수 없습니다")
+    return {"id": n.id, "title": n.title, "content": n.content, "notice_type": n.notice_type,
+            "created_by": n.created_by, "created_by_name": display_name or username,
+            "is_mine": user is not None and n.created_by == user.id,
+            "created_at": n.created_at}
+
+
+@router.patch("/notices/{nid}")
+async def update_notice(nid: int, payload: NoticeIn, db: AsyncSession = Depends(get_db), user: User = Depends(require_user)):
+    if user.role != "songrim":
+        raise HTTPException(status_code=403, detail="권한이 없습니다")
+    n = (await db.execute(select(Notice).where(Notice.id == nid))).scalar_one_or_none()
+    if not n:
+        raise HTTPException(status_code=404, detail="공지를 찾을 수 없습니다")
+    if n.created_by != user.id and not user.is_admin:
+        raise HTTPException(status_code=403, detail="권한이 없습니다")
+    n.title = payload.title
+    n.content = sanitize_html(payload.content)
+    await db.commit()
+    return {"ok": True}
 
 
 @router.delete("/notices/{nid}")
@@ -280,6 +314,20 @@ async def get_tech_post(pid: int, db: AsyncSession = Depends(get_db), user: User
     }
 
 
+@router.patch("/tech-posts/{pid}")
+async def update_tech_post(pid: int, payload: TechPostIn, db: AsyncSession = Depends(get_db), user: User = Depends(require_staff)):
+    """수정은 작성자 본인 + 관리자만 가능."""
+    p = (await db.execute(select(TechPost).where(TechPost.id == pid))).scalar_one_or_none()
+    if not p:
+        raise HTTPException(status_code=404, detail="게시글을 찾을 수 없습니다")
+    if p.created_by != user.id and not user.is_admin:
+        raise HTTPException(status_code=403, detail="권한이 없습니다")
+    p.title = payload.title
+    p.content = sanitize_html(payload.content)
+    await db.commit()
+    return {"ok": True}
+
+
 @router.post("/tech-posts/{pid}/comments")
 async def add_tech_comment(pid: int, payload: TechCommentIn, db: AsyncSession = Depends(get_db), user: User = Depends(require_staff)):
     c = TechComment(post_id=pid, content=sanitize_html(payload.content), created_by=user.id, created_at=datetime.now(timezone.utc).isoformat())
@@ -300,58 +348,5 @@ async def delete_tech_post(pid: int, db: AsyncSession = Depends(get_db), user: U
     log_action(db, user, "post_delete", "tech_post", pid, detail=f"{p.category}: {p.title}")
     await db.execute(delete(TechComment).where(TechComment.post_id == pid))
     await db.delete(p)
-    await db.commit()
-    return {"ok": True}
-
-
-# ────────────────────────────────────────────────────────
-# 건의사항
-# ────────────────────────────────────────────────────────
-class SuggestionIn(BaseModel):
-    title: str
-    content: str
-
-
-@router.get("/suggestions")
-async def list_suggestions(db: AsyncSession = Depends(get_db), user: User = Depends(require_staff)):
-    # 익명 게시판 — 작성자는 관리자에게도 노출하지 않음 (created_by는 DB에만 보관, API 응답에서 제외).
-    # 단, 본인 글은 삭제할 수 있어야 하므로 신원은 감춘 채 is_mine만 알려준다.
-    rows = (await db.execute(select(Suggestion).order_by(Suggestion.created_at.desc()))).scalars().all()
-    return [{"id": s.id, "title": s.title, "content": s.content, "status": s.status,
-             "is_mine": s.created_by == user.id,
-             "created_at": s.created_at} for s in rows]
-
-
-@router.post("/suggestions")
-async def create_suggestion(payload: SuggestionIn, db: AsyncSession = Depends(get_db), user: User = Depends(require_staff)):
-    s = Suggestion(title=payload.title, content=sanitize_html(payload.content), created_by=user.id)
-    db.add(s)
-    await db.commit()
-    await db.refresh(s)
-    return {"id": s.id}
-
-
-@router.delete("/suggestions/{sid}")
-async def delete_suggestion(sid: int, db: AsyncSession = Depends(get_db), user: User = Depends(require_staff)):
-    """삭제는 작성자 본인 + 관리자만 가능(익명 게시판이지만 본인 글은 본인이 알아볼 수 있음)."""
-    s = (await db.execute(select(Suggestion).where(Suggestion.id == sid))).scalar_one_or_none()
-    if not s:
-        raise HTTPException(status_code=404, detail="건의사항을 찾을 수 없습니다")
-    if s.created_by != user.id and not user.is_admin:
-        raise HTTPException(status_code=403, detail="권한이 없습니다")
-    log_action(db, user, "post_delete", "suggestion", sid, detail=s.title)
-    await db.delete(s)
-    await db.commit()
-    return {"ok": True}
-
-
-@router.patch("/suggestions/{sid}/status")
-async def update_suggestion_status(sid: int, status: str, db: AsyncSession = Depends(get_db), user: User = Depends(require_staff)):
-    if status not in ("접수", "검토중", "반영완료"):
-        raise HTTPException(status_code=400, detail="잘못된 상태값입니다")
-    s = (await db.execute(select(Suggestion).where(Suggestion.id == sid))).scalar_one_or_none()
-    if not s:
-        raise HTTPException(status_code=404, detail="건의사항을 찾을 수 없습니다")
-    s.status = status
     await db.commit()
     return {"ok": True}

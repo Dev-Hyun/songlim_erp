@@ -477,6 +477,37 @@ async def list_sales_notes(
     ]
 
 
+class SalesNoteUpdateIn(BaseModel):
+    visit_date: Optional[date] = None
+    content: str
+
+
+@router.patch("/sales-notes/{note_id}")
+async def update_sales_note(
+    note_id: int, payload: SalesNoteUpdateIn, db: AsyncSession = Depends(get_db), user: User = Depends(require_staff)
+):
+    """영업노트는 전 직원이 함께 보지만 수정/삭제는 작성자 본인만 가능."""
+    note = (await db.execute(select(SalesNote).where(SalesNote.id == note_id))).scalar_one_or_none()
+    if not note or note.user_id != user.id:
+        raise HTTPException(status_code=404, detail="영업노트를 찾을 수 없습니다")
+    note.visit_date = payload.visit_date
+    note.content = payload.content
+    await db.commit()
+    return {"ok": True}
+
+
+@router.delete("/sales-notes/{note_id}")
+async def delete_sales_note(
+    note_id: int, db: AsyncSession = Depends(get_db), user: User = Depends(require_staff)
+):
+    note = (await db.execute(select(SalesNote).where(SalesNote.id == note_id))).scalar_one_or_none()
+    if not note or note.user_id != user.id:
+        raise HTTPException(status_code=404, detail="영업노트를 찾을 수 없습니다")
+    await db.delete(note)
+    await db.commit()
+    return {"ok": True}
+
+
 # ────────────────────────────────────────────────────────
 # 영업노트 탭의 개인 메모 — 제목 없이 내용만, 작성자 본인만 조회 가능
 # ────────────────────────────────────────────────────────

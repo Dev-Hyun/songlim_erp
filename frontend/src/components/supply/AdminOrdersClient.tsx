@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { localISODate } from "@/lib/date";
 import {
   AdminHospital,
   SupplyOrder,
@@ -25,7 +26,7 @@ const inputCls = "rounded-lg border border-gray-300 px-2.5 py-1.5 text-xs dark:b
 type DatePreset = "3일" | "1일" | "1주일" | "기간";
 
 function isoDate(d: Date) {
-  return d.toISOString().slice(0, 10);
+  return localISODate(d);
 }
 
 export default function AdminOrdersClient() {

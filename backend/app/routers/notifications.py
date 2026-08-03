@@ -12,7 +12,6 @@ from app.models import (
     CsTicket,
     NewsArticle,
     Notice,
-    Suggestion,
     TechPost,
     User,
 )
@@ -31,7 +30,7 @@ def _iso(v) -> str:
 
 
 async def _staff_notifications(db: AsyncSession, user: User) -> dict:
-    """송림 직원 전용 — 회사 공지사항/커뮤니티/건의사항 신규 글 + 본인이 초대된 캘린더 일정."""
+    """송림 직원 전용 — 회사 공지사항/커뮤니티 신규 글 + 본인이 초대된 캘린더 일정."""
     seen_at = user.notifications_seen_at or "1970-01-01"
     items = []
 
@@ -46,12 +45,6 @@ async def _staff_notifications(db: AsyncSession, user: User) -> dict:
     ).scalars().all()
     for p in community:
         items.append({"type": "community", "label": "커뮤니티", "title": p.title, "created_at": _iso(p.created_at), "link": "/community"})
-
-    suggestions = (
-        await db.execute(select(Suggestion).order_by(Suggestion.created_at.desc()).limit(10))
-    ).scalars().all()
-    for s in suggestions:
-        items.append({"type": "suggestion", "label": "건의사항", "title": s.title, "created_at": _iso(s.created_at), "link": "/suggestions"})
 
     invited = (
         await db.execute(
@@ -75,7 +68,7 @@ async def _staff_notifications(db: AsyncSession, user: User) -> dict:
 @router.get("")
 async def list_notifications(db: AsyncSession = Depends(get_db), user: User = Depends(require_user)):
     """병원 계정: 병원 공지사항/의료소식/공동구매/중고기기 신규 글 + 내 CS 답변.
-    송림 직원: 회사 공지사항/커뮤니티/건의사항 신규 글 + 본인이 초대된 캘린더 일정."""
+    송림 직원: 회사 공지사항/커뮤니티 신규 글 + 본인이 초대된 캘린더 일정."""
     if user.role != "hospital":
         return await _staff_notifications(db, user)
 

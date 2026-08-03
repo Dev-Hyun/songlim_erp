@@ -49,3 +49,8 @@ Thumbs.db
 
 # ── GitHub Wiki에 게시할 문서 초안 (실제 게시물은 별도 wiki 저장소, 여긴 로컬 초안 스테이징용) ──
 /docs_wiki_draft/
+
+# local dev DBs / stray artifacts
+backend/app.db
+backend/data.db.bak*
+image.png

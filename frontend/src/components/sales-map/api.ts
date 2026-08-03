@@ -164,3 +164,21 @@ export async function createSalesNote(payload: {
   if (!res.ok) throw new Error("영업노트 작성 실패");
   return res.json();
 }
+
+export async function updateSalesNote(
+  id: number,
+  payload: { visit_date?: string | null; content: string }
+): Promise<void> {
+  const res = await fetch(`${API}/api/sales-notes/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error("영업노트 수정 실패");
+}
+
+export async function deleteSalesNote(id: number): Promise<void> {
+  const res = await fetch(`${API}/api/sales-notes/${id}`, { method: "DELETE", credentials: "include" });
+  if (!res.ok) throw new Error("영업노트 삭제 실패");
+}

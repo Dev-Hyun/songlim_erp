@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useDropzone } from "react-dropzone";
+import { useDropzone, FileWithPath } from "react-dropzone";
 import { DndProvider, useDrag, useDrop } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import { useAuth } from "@/context/AuthContext";
@@ -115,6 +115,7 @@ function StorageItem({
   onOpen,
   onToggleFavorite,
   onRenameCommit,
+  onRenameClose,
   onDelete,
   onCopy,
   onDropItem,
@@ -129,6 +130,7 @@ function StorageItem({
   onOpen: () => void;
   onToggleFavorite: () => void;
   onRenameCommit?: (name: string) => void;
+  onRenameClose?: () => void;
   onDelete?: () => void;
   onCopy?: () => void;
   onDropItem?: (item: DragItem) => void;
@@ -141,6 +143,10 @@ function StorageItem({
   useEffect(() => {
     if (renaming) { inputRef.current?.focus(); inputRef.current?.select(); }
   }, [renaming]);
+  // F2 등 부모가 autoRename을 켜면(이미 마운트된 항목이라도) 이름변경 모드로 진입.
+  useEffect(() => {
+    if (autoRename) { setRenameValue(node.name); setRenaming(true); }
+  }, [autoRename, node.name]);
 
   const [{ isDragging }, dragRef] = useDrag({
     type: ITEM_TYPE,
@@ -157,6 +163,7 @@ function StorageItem({
 
   function commit() {
     setRenaming(false);
+    onRenameClose?.();
     const t = renameValue.trim();
     if (t && t !== node.name) onRenameCommit?.(t);
   }
@@ -170,7 +177,7 @@ function StorageItem({
       ref={inputRef}
       value={renameValue}
       onChange={(e) => setRenameValue(e.target.value)}
-      onKeyDown={(e) => { if (e.key === "Enter") commit(); if (e.key === "Escape") { setRenaming(false); setRenameValue(node.name); } }}
+      onKeyDown={(e) => { e.stopPropagation(); if (e.key === "Enter") commit(); if (e.key === "Escape") { setRenaming(false); setRenameValue(node.name); onRenameClose?.(); } }}
       onBlur={commit}
       onClick={(e) => e.stopPropagation()}
       className="min-w-0 flex-1 rounded border border-brand-400 bg-white px-1.5 py-0.5 text-sm dark:bg-gray-900"
@@ -275,6 +282,7 @@ function Workspace({ root, showSpaces }: { root: string; showSpaces?: boolean })
   const [transfer, setTransfer] = useState<{ label: string; pct: number } | null>(null);
   const [justCreatedFolderId, setJustCreatedFolderId] = useState<number | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [renameKey, setRenameKey] = useState<string | null>(null); // F2로 이름변경 진입시킬 대상 key
 
   const isBrowse = view === "all";
   const canWrite = effectiveSpace === "personal" ? true : !!user;
@@ -379,18 +387,47 @@ function Workspace({ root, showSpaces }: { root: string; showSpaces?: boolean })
     load();
   }
 
-  async function uploadFiles(files: File[]) {
-    for (let i = 0; i < files.length; i++) {
-      const f = files[i];
-      const label = files.length > 1 ? `업로드 중 (${i + 1}/${files.length}) · ${f.name}` : `업로드 중 · ${f.name}`;
+  // rel = "폴더/하위폴더/파일.ext" 형태의 상대경로. 폴더 세그먼트를 만나면 순서대로 폴더를 만들고
+  // (한 번의 업로드 안에서 같은 경로는 캐시로 1회만 생성) 파일을 그 폴더에 올린다. 평범한 파일은
+  // rel이 파일명뿐이라 현재 폴더에 그대로 올라간다 — 즉 바탕화면에서 폴더를 통째로 올리면 폴더명과
+  // 하위 폴더 구조가 그대로 재현된다.
+  async function uploadEntries(entries: { file: File; rel: string }[]) {
+    if (entries.length === 0) return;
+    const folderCache = new Map<string, number>();
+    for (let i = 0; i < entries.length; i++) {
+      const { file, rel } = entries[i];
+      const segs = rel.split("/").filter(Boolean);
+      const fileName = segs.pop() || file.name;
+      let parentId = folderId;
+      let acc = "";
+      for (const seg of segs) {
+        acc += "/" + seg;
+        const cached = folderCache.get(acc);
+        if (cached !== undefined) { parentId = cached; continue; }
+        const res = await createFolder(root, effectiveSpace, parentId, seg, ownerId);
+        folderCache.set(acc, res.id);
+        parentId = res.id;
+      }
+      const label = entries.length > 1 ? `업로드 중 (${i + 1}/${entries.length}) · ${fileName}` : `업로드 중 · ${fileName}`;
       setTransfer({ label, pct: 0 });
-      await uploadFileWithProgress(root, effectiveSpace, folderId, f, ownerId, (pct) => setTransfer({ label, pct }));
+      // 폴더 업로드 시 브라우저가 파일명에 상대경로를 남기는 경우가 있어, 항상 마지막 세그먼트(순수 파일명)로
+      // 올린다 — 저장 키에 "/"가 섞여 서버 저장이 실패하는 것을 방지.
+      const upFile = fileName === file.name ? file : new File([file], fileName, { type: file.type, lastModified: file.lastModified });
+      await uploadFileWithProgress(root, effectiveSpace, parentId, upFile, ownerId, (pct) => setTransfer({ label, pct }));
     }
     setTransfer(null);
     load();
   }
+
+  // 폴더 선택(webkitdirectory) 시 webkitRelativePath에 구조가 들어오고, 일반 파일 선택 시엔 비어 있어 파일명만 쓴다.
+  function uploadFiles(files: File[]) {
+    return uploadEntries(files.map((f) => ({ file: f, rel: f.webkitRelativePath || f.name })));
+  }
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    onDrop: (accepted: File[]) => { if (isBrowse) uploadFiles(accepted); },
+    // 폴더를 드롭하면 react-dropzone이 하위까지 재귀 탐색해 각 파일의 path에 상대경로를 채워준다.
+    onDrop: (accepted: FileWithPath[]) => {
+      if (isBrowse) uploadEntries(accepted.map((f) => ({ file: f, rel: f.path || f.name })));
+    },
     noClick: true,
     disabled: !isBrowse,
   });
@@ -434,6 +471,24 @@ function Workspace({ root, showSpaces }: { root: string; showSpaces?: boolean })
     setSelection(new Set());
     load();
   }
+
+  // 자료실 키보드 단축키 — 선택 항목 1개에 F2(이름변경), 선택 항목에 Delete(삭제).
+  // 텍스트 입력(이름변경/검색) 중에는 무시하되 체크박스 포커스 상태에선 동작.
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (!isBrowse || !canWrite) return;
+      const el = e.target as HTMLElement | null;
+      const tag = el?.tagName;
+      const isTextEntry = tag === "TEXTAREA" || el?.isContentEditable ||
+        (tag === "INPUT" && !["checkbox", "radio", "button", "submit"].includes((el as HTMLInputElement).type));
+      if (isTextEntry) return;
+      if (e.key === "F2") { if (selection.size === 1) setRenameKey(Array.from(selection)[0]); }
+      else if (e.key === "Delete") { handleBulkDelete(); }
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isBrowse, canWrite, selection, sorted]);
 
   const allSelected = sorted.length > 0 && sorted.every((n) => selection.has(n.key));
   function toggleSelectAll() { setSelection(allSelected ? new Set() : new Set(sorted.map((n) => n.key))); }
@@ -512,6 +567,16 @@ function Workspace({ root, showSpaces }: { root: string; showSpaces?: boolean })
                     ↑ 올리기
                     <input type="file" multiple className="hidden" onChange={(e) => { const files = Array.from(e.target.files || []); e.target.value = ""; uploadFiles(files); }} />
                   </label>
+                  <label className={btn}>
+                    ↑ 폴더 올리기
+                    <input
+                      type="file"
+                      multiple
+                      className="hidden"
+                      onChange={(e) => { const files = Array.from(e.target.files || []); e.target.value = ""; uploadFiles(files); }}
+                      {...({ webkitdirectory: "" } as unknown as React.InputHTMLAttributes<HTMLInputElement>)}
+                    />
+                  </label>
                   <button onClick={handleNewFolder} className={btn}>+ 새 폴더</button>
                 </>
               )}
@@ -565,9 +630,10 @@ function Workspace({ root, showSpaces }: { root: string; showSpaces?: boolean })
                       <input type="checkbox" checked={selection.has(n.key)} onChange={() => toggleCheck(n.key)} onClick={(e) => e.stopPropagation()} className="absolute left-3 top-3 z-10 h-3.5 w-3.5" />
                       <StorageItem
                         node={n} layout="grid" selected={selection.has(n.key)} draggable={isBrowse && canWrite} isDropTarget={isBrowse && n.kind === "folder" && canWrite}
-                        autoRename={justCreatedFolderId === n.id && n.kind === "folder"}
+                        autoRename={(justCreatedFolderId === n.id && n.kind === "folder") || renameKey === n.key}
                         onSelect={() => selectNode(n.key)} onOpen={() => openNode(n)} onToggleFavorite={() => onToggleFav(n)}
                         onRenameCommit={isBrowse && canWrite ? (name) => renameNode(n, name) : undefined}
+                        onRenameClose={() => { setRenameKey(null); setJustCreatedFolderId(null); }}
                         onDelete={isBrowse && canWrite ? () => deleteNode(n) : undefined}
                         onCopy={isBrowse && canWrite ? () => copyNode(n) : undefined}
                         onDropItem={(item) => handleMoveTarget(item, n.id)}
@@ -586,9 +652,10 @@ function Workspace({ root, showSpaces }: { root: string; showSpaces?: boolean })
                       <div className="min-w-0 flex-1">
                         <StorageItem
                           node={n} layout="list" selected={selection.has(n.key)} draggable={isBrowse && canWrite} isDropTarget={isBrowse && n.kind === "folder" && canWrite}
-                          autoRename={justCreatedFolderId === n.id && n.kind === "folder"}
+                          autoRename={(justCreatedFolderId === n.id && n.kind === "folder") || renameKey === n.key}
                           onSelect={() => selectNode(n.key)} onOpen={() => openNode(n)} onToggleFavorite={() => onToggleFav(n)}
                           onRenameCommit={isBrowse && canWrite ? (name) => renameNode(n, name) : undefined}
+                        onRenameClose={() => { setRenameKey(null); setJustCreatedFolderId(null); }}
                           onDelete={isBrowse && canWrite ? () => deleteNode(n) : undefined}
                           onCopy={isBrowse && canWrite ? () => copyNode(n) : undefined}
                           onDropItem={(item) => handleMoveTarget(item, n.id)}

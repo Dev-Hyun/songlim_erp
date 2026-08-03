@@ -1,10 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { localISODate } from "@/lib/date";
 import {
   fetchEquipmentCatalog,
   fetchSalesNotes,
   createSalesNote,
+  updateSalesNote,
+  deleteSalesNote,
   registerManualEquipment,
   updateManualEquipment,
   deleteManualEquipment,
@@ -26,7 +29,10 @@ export default function HospitalDetailPanel({ detail, loading, category, onClose
   const [tab, setTab] = useState<EquipmentCategory>(category);
   const [notes, setNotes] = useState<SalesNoteItem[]>([]);
   const [noteText, setNoteText] = useState("");
-  const [noteDate, setNoteDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [noteDate, setNoteDate] = useState(() => localISODate());
+  const [noteEditingId, setNoteEditingId] = useState<number | null>(null);
+  const [noteEditText, setNoteEditText] = useState("");
+  const [noteEditDate, setNoteEditDate] = useState("");
   const [showManualForm, setShowManualForm] = useState(false);
   const [manualCatalog, setManualCatalog] = useState<{ manufacturer: string | null; model: string | null }[]>([]);
   const [manualMaker, setManualMaker] = useState("");
@@ -76,6 +82,19 @@ export default function HospitalDetailPanel({ detail, loading, category, onClose
     } finally {
       setSaving(false);
     }
+  }
+
+  async function saveNoteEdit() {
+    if (!hospitalId || noteEditingId == null || !noteEditText.trim()) return;
+    await updateSalesNote(noteEditingId, { content: noteEditText.trim(), visit_date: noteEditDate || null });
+    setNoteEditingId(null);
+    setNotes(await fetchSalesNotes(hospitalId));
+  }
+
+  async function removeNote(id: number) {
+    if (!hospitalId || !confirm("이 영업노트를 삭제하시겠습니까?")) return;
+    await deleteSalesNote(id);
+    setNotes(await fetchSalesNotes(hospitalId));
   }
 
   async function submitManualEquipment() {
@@ -286,8 +305,53 @@ export default function HospitalDetailPanel({ detail, loading, category, onClose
           {notes.length === 0 && <div className="text-xs text-gray-400">아직 노트가 없습니다</div>}
           {notes.map((n) => (
             <div key={n.id} className="rounded-lg border border-gray-100 bg-yellow-50/60 p-2.5 text-xs dark:border-gray-800 dark:bg-white/[0.02]">
-              <div className="mb-1 text-[10px] text-gray-400">{n.visit_date || n.created_at?.slice(0, 10)}</div>
-              <div className="whitespace-pre-wrap text-gray-700 dark:text-gray-300">{n.content}</div>
+              {noteEditingId === n.id ? (
+                <div className="space-y-1.5">
+                  <input
+                    type="date"
+                    value={noteEditDate}
+                    onChange={(e) => setNoteEditDate(e.target.value)}
+                    className="rounded-lg border border-gray-300 px-2 py-1 text-[11px] dark:border-gray-700 dark:bg-gray-900"
+                  />
+                  <textarea
+                    value={noteEditText}
+                    onChange={(e) => setNoteEditText(e.target.value)}
+                    className="min-h-[54px] w-full rounded-lg border border-gray-300 px-2 py-1.5 text-xs dark:border-gray-700 dark:bg-gray-900"
+                  />
+                  <div className="flex justify-end gap-1.5">
+                    <button onClick={() => setNoteEditingId(null)} className="rounded-md border border-gray-300 px-2 py-1 text-[11px] font-semibold text-gray-600 dark:border-gray-700 dark:text-gray-300">
+                      취소
+                    </button>
+                    <button onClick={saveNoteEdit} className="rounded-md bg-brand-500 px-2 py-1 text-[11px] font-bold text-white">
+                      저장
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="mb-1 flex items-center justify-between">
+                    <span className="text-[10px] text-gray-400">{n.visit_date || n.created_at?.slice(0, 10)}</span>
+                    {user && n.user_id === user.id && (
+                      <span className="flex gap-1.5">
+                        <button
+                          onClick={() => {
+                            setNoteEditingId(n.id);
+                            setNoteEditText(n.content);
+                            setNoteEditDate(n.visit_date || "");
+                          }}
+                          className="text-[10px] font-semibold text-gray-500 hover:underline dark:text-gray-400"
+                        >
+                          수정
+                        </button>
+                        <button onClick={() => removeNote(n.id)} className="text-[10px] font-semibold text-error-500 hover:underline">
+                          삭제
+                        </button>
+                      </span>
+                    )}
+                  </div>
+                  <div className="whitespace-pre-wrap text-gray-700 dark:text-gray-300">{n.content}</div>
+                </>
+              )}
             </div>
           ))}
         </div>

@@ -108,6 +108,11 @@ export default function InventoryClient({ category }: { category: "지멘스" | 
     />
   );
 
+  // 두 재고 페이지(초음파=지멘스 / 장비=타사)가 색이 같아 구분이 안 된다는 요청 → 카테고리별 강조색 부여.
+  const ac = category === "지멘스"
+    ? { tab: "bg-brand-500", add: "bg-brand-500 hover:bg-brand-600", head: "bg-brand-50 text-brand-700 dark:bg-brand-500/10 dark:text-brand-300", rowHover: "hover:bg-brand-50/60 dark:hover:bg-brand-500/[0.06]", bar: "border-t-4 border-brand-500" }
+    : { tab: "bg-teal-500", add: "bg-teal-500 hover:bg-teal-600", head: "bg-teal-50 text-teal-700 dark:bg-teal-500/10 dark:text-teal-300", rowHover: "hover:bg-teal-50/60 dark:hover:bg-teal-500/[0.06]", bar: "border-t-4 border-teal-500" };
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-white/[0.03]">
@@ -116,7 +121,7 @@ export default function InventoryClient({ category }: { category: "지멘스" | 
             <button
               key={t}
               onClick={() => setItemType(t)}
-              className={`rounded-full px-3 py-1.5 text-xs font-bold ${itemType === t ? "bg-brand-500 text-white" : "text-gray-500"}`}
+              className={`rounded-full px-3 py-1.5 text-xs font-bold ${itemType === t ? `${ac.tab} text-white` : "text-gray-500"}`}
             >
               {t}
             </button>
@@ -128,18 +133,18 @@ export default function InventoryClient({ category }: { category: "지멘스" | 
           placeholder="이름/위치/시리얼/비고 검색..."
           className="w-56 rounded-full border border-gray-300 bg-gray-50 px-3.5 py-1.5 text-xs focus:border-brand-500 focus:outline-none dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300"
         />
-        <button onClick={addRow} className="ml-auto rounded-full bg-brand-500 px-4 py-1.5 text-xs font-bold text-white">
+        <button onClick={addRow} className={`ml-auto rounded-full ${ac.add} px-4 py-1.5 text-xs font-bold text-white`}>
           + 행 추가
         </button>
       </div>
 
-      <div className="overflow-x-auto rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
+      <div className={`overflow-x-auto rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03] ${ac.bar}`}>
         {loading ? (
           <div className="p-8 text-center text-sm text-gray-400">불러오는 중...</div>
         ) : (
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-bold uppercase tracking-wide text-gray-500 dark:border-gray-800 dark:bg-white/[0.04] dark:text-gray-400">
+              <tr className={`border-b-2 border-gray-200 text-left text-xs font-bold uppercase tracking-wide dark:border-gray-800 ${ac.head}`}>
                 {showGrade && <th className="w-16 px-2 py-3">등급</th>}
                 <th className="w-32 px-2 py-3">이름</th>
                 {showManufacturer && <th className="w-28 px-2 py-3">제조사</th>}
@@ -159,7 +164,7 @@ export default function InventoryClient({ category }: { category: "지멘스" | 
                   key={row.id}
                   className={`border-b border-gray-100 dark:border-gray-800 ${
                     idx % 2 === 1 ? "bg-gray-50/60 dark:bg-white/[0.015]" : ""
-                  } hover:bg-brand-50/50 dark:hover:bg-brand-500/[0.06]`}
+                  } ${ac.rowHover}`}
                 >
                   {showGrade && <td className="px-2 py-1">{gradeCell(row)}</td>}
                   <td className="px-2 py-1 font-medium text-gray-700 dark:text-gray-200">{cell(row, "name", "장비명", "min-w-[60px]")}</td>
@@ -172,7 +177,17 @@ export default function InventoryClient({ category }: { category: "지멘스" | 
                   {showManufacturer && <td className="px-2 py-1">{cell(row, "purchase_from", "", "min-w-[80px]")}</td>}
                   {showOpened && (
                     <td className="px-2 py-1 text-center">
-                      <button onClick={() => toggleOpened(row)}>{row.is_opened ? "✅" : "⬜"}</button>
+                      <button
+                        onClick={() => toggleOpened(row)}
+                        className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${
+                          row.is_opened
+                            ? "bg-orange-100 text-orange-600 dark:bg-orange-500/15 dark:text-orange-400"
+                            : "bg-success-50 text-success-600 dark:bg-success-500/15 dark:text-success-400"
+                        }`}
+                        title="클릭하여 개봉 상태 변경"
+                      >
+                        {row.is_opened ? "개봉" : "미개봉"}
+                      </button>
                     </td>
                   )}
                   <td className="px-2 py-1 text-center">

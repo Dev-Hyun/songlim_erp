@@ -96,7 +96,7 @@ export default function ContractCreateClient() {
           >
             {ocrLoading ? "인식 중..." : "📷 계약서 사진으로 자동입력"}
           </button>
-          <input ref={ocrInputRef} type="file" accept="image/*" className="hidden" onChange={handleOcr} />
+          <input ref={ocrInputRef} type="file" accept="image/*,.heic,.heif,.pdf,application/pdf" className="hidden" onChange={handleOcr} />
         </div>
 
         {ocrRaw !== null && (

@@ -16,7 +16,7 @@ ALLOWED_EXT = {".png", ".jpg", ".jpeg", ".gif", ".webp"}
 
 @router.post("/image")
 async def upload_post_image(file: UploadFile = File(...), _: User = Depends(require_staff)):
-    """공지사항/CS/커뮤니티/건의사항/소모품 카탈로그 등에 삽입할 이미지 업로드. 직원만 업로드 가능.
+    """공지사항/CS/커뮤니티/소모품 카탈로그 등에 삽입할 이미지 업로드. 직원만 업로드 가능.
     용량 절감을 위해 1600px 이내로 리사이즈하고 WebP로 변환한다(GIF 애니메이션은 원본 보존)."""
     ext = os.path.splitext(file.filename or "")[1].lower()
     if ext not in ALLOWED_EXT:

@@ -31,6 +31,9 @@ export default function CommunityDetailClient({ id }: { id: number }) {
   const [comments, setComments] = useState<Comment[]>([]);
   const [commentText, setCommentText] = useState("");
   const [commentEditorKey, setCommentEditorKey] = useState(0);
+  const [editing, setEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState("");
+  const [editContent, setEditContent] = useState("");
   const { user } = useAuth();
   const router = useRouter();
 
@@ -55,6 +58,25 @@ export default function CommunityDetailClient({ id }: { id: number }) {
     router.push("/community");
   }
 
+  function startEdit() {
+    if (!post) return;
+    setEditTitle(post.title);
+    setEditContent(post.content);
+    setEditing(true);
+  }
+
+  async function saveEdit() {
+    if (!editTitle.trim()) return;
+    await fetch(`${API}/api/tech-posts/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ title: editTitle, content: editContent }),
+    });
+    setEditing(false);
+    load();
+  }
+
   async function submitComment() {
     if (isCommentEmpty(commentText)) return;
     await fetch(`${API}/api/tech-posts/${id}/comments`, {
@@ -76,21 +98,48 @@ export default function CommunityDetailClient({ id }: { id: number }) {
         <button onClick={() => router.push("/community")} className="text-xs font-semibold text-gray-500 hover:text-brand-500">
           ← 목록으로
         </button>
-        {(post.is_mine || user?.is_admin) && (
-          <button onClick={deletePost} className="text-xs font-semibold text-error-500 hover:underline">
-            삭제
-          </button>
+        {(post.is_mine || user?.is_admin) && !editing && (
+          <div className="flex gap-3">
+            <button onClick={startEdit} className="text-xs font-semibold text-gray-500 hover:text-brand-500 hover:underline">
+              수정
+            </button>
+            <button onClick={deletePost} className="text-xs font-semibold text-error-500 hover:underline">
+              삭제
+            </button>
+          </div>
         )}
       </div>
       <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
-        <h2 className="text-lg font-bold text-gray-800 dark:text-white/90">{post.title}</h2>
-        <div className="mt-1 text-xs text-gray-400">
-          {post.created_by_name} · {post.created_at?.slice(0, 16).replace("T", " ")} · 조회 {post.views}
-        </div>
-        <div
-          className="prose prose-sm dark:prose-invert mt-4 max-w-none text-sm text-gray-700 dark:text-gray-300"
-          dangerouslySetInnerHTML={{ __html: post.content || "" }}
-        />
+        {editing ? (
+          <div className="space-y-2">
+            <input
+              value={editTitle}
+              onChange={(e) => setEditTitle(e.target.value)}
+              placeholder="제목"
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
+            />
+            <RichTextEditor value={editContent} onChange={setEditContent} placeholder="내용" />
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setEditing(false)} className="rounded-lg border border-gray-300 px-4 py-1.5 text-sm font-semibold text-gray-600 dark:border-gray-700 dark:text-gray-300">
+                취소
+              </button>
+              <button onClick={saveEdit} className="rounded-lg bg-brand-500 px-4 py-1.5 text-sm font-bold text-white">
+                저장
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <h2 className="text-lg font-bold text-gray-800 dark:text-white/90">{post.title}</h2>
+            <div className="mt-1 text-xs text-gray-400">
+              {post.created_by_name} · {post.created_at?.slice(0, 16).replace("T", " ")} · 조회 {post.views}
+            </div>
+            <div
+              className="prose prose-sm dark:prose-invert mt-4 max-w-none text-sm text-gray-700 dark:text-gray-300"
+              dangerouslySetInnerHTML={{ __html: post.content || "" }}
+            />
+          </>
+        )}
       </div>
 
       <div className="rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-white/[0.03]">

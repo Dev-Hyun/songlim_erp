@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import { useAuth } from "@/context/AuthContext";
+import { localISODate } from "@/lib/date";
 import StaffOnly from "@/components/auth/StaffOnly";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8010";
@@ -24,16 +25,16 @@ export default function MileagePage() {
   const [logs, setLogs] = useState<MileageLogItem[]>([]);
   const [lastVehicle, setLastVehicle] = useState("");
   const [loading, setLoading] = useState(true);
-  const [logDate, setLogDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [logDate, setLogDate] = useState(() => localISODate());
   const [prevKm, setPrevKm] = useState("");
   const [finalKm, setFinalKm] = useState("");
   const [nonbizKm, setNonbizKm] = useState("");
   const [purpose, setPurpose] = useState("");
   const [vehicle, setVehicle] = useState("");
   const now = new Date();
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
+  const monthStart = localISODate(new Date(now.getFullYear(), now.getMonth(), 1));
   const [exFrom, setExFrom] = useState(monthStart);
-  const [exTo, setExTo] = useState(now.toISOString().slice(0, 10));
+  const [exTo, setExTo] = useState(localISODate(now));
 
   function load() {
     setLoading(true);

@@ -193,6 +193,9 @@ async def ocr_contract(file: UploadFile = File(...), _: User = Depends(require_s
         raise HTTPException(status_code=503, detail="OCR이 아직 설정되지 않았습니다 (CLOVA_OCR_INVOKE_URL/SECRET 미설정)")
     ext = os.path.splitext(file.filename or "")[1].lower().lstrip(".") or "jpg"
     content = await file.read()
+    # 아이폰 HEIC / PDF는 클로바 OCR가 바로 못 받으므로 JPEG로 변환해서 넘긴다(갤럭시 jpg/png은 그대로).
+    from app.image_utils import ensure_ocr_compatible
+    content, ext = ensure_ocr_compatible(content, ext)
     try:
         fields = clova_ocr.run_ocr(content, ext)
     except Exception as e:  # noqa: BLE001 — 네트워크/타임아웃 등 원인을 그대로 사용자에게 안내

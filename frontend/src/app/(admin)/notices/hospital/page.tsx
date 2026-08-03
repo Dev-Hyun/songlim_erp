@@ -15,6 +15,7 @@ export default function HospitalNoticesPage() {
         title="병원 공지사항"
         canWrite={user?.role === "songrim"}
         createExtra={{ notice_type: "hospital" }}
+        detailHrefBase="/notices"
       />
     </div>
   );

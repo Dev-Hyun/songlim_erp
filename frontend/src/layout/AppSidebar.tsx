@@ -71,10 +71,9 @@ const navItems: NavItem[] = [
     icon: <FolderIcon />,
     name: "사내 정보",
     subItems: [
-      { name: "클라우드 NAS", path: "/storage", pro: false },
+      { name: "자료실", path: "/storage", pro: false },
       { name: "사내 문서 서식", path: "/documents", pro: false },
       { name: "커뮤니티", path: "/community", pro: false },
-      { name: "건의사항", path: "/suggestions", pro: false },
     ],
   },
   {
@@ -114,7 +113,7 @@ const othersItems: NavItem[] = [
   },
   {
     icon: <BoxCubeIcon />,
-    name: "소모품 카탈로그 관리",
+    name: "소모품 관리",
     path: "/admin/supply-catalog",
   },
   {

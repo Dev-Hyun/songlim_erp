@@ -182,7 +182,7 @@ export default function AdminPage() {
 
       <div className="rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-white/[0.03]">
         <h2 className="mb-3 text-base font-bold text-gray-800 dark:text-white/90">등급 관리 (할인율)</h2>
-        <p className="mb-3 text-[11px] text-gray-400">사은품 등급/구간 설정은 소모품 카탈로그 관리 → 사은품 관리 탭으로 옮겨졌습니다.</p>
+        <p className="mb-3 text-[11px] text-gray-400">사은품 등급/구간 설정은 소모품 관리 → 사은품 관리 탭으로 옮겨졌습니다.</p>
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-gray-200 text-left text-xs text-gray-400 dark:border-gray-800">

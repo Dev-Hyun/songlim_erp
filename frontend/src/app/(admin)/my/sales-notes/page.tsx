@@ -5,6 +5,8 @@ import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import { useAuth } from "@/context/AuthContext";
 import {
   fetchAllSalesNotes,
+  updateSalesNote,
+  deleteSalesNote,
   fetchPersonalMemos,
   createPersonalMemo,
   updatePersonalMemo,
@@ -40,6 +42,9 @@ export default function MySalesNotesPage() {
   const [notesLoading, setNotesLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<"desc" | "asc">("desc");
+  const [editingNoteId, setEditingNoteId] = useState<number | null>(null);
+  const [editNoteContent, setEditNoteContent] = useState("");
+  const [editNoteDate, setEditNoteDate] = useState("");
 
   const [memos, setMemos] = useState<PersonalMemoItem[]>([]);
   const [memosLoading, setMemosLoading] = useState(true);
@@ -80,6 +85,25 @@ export default function MySalesNotesPage() {
     if (tab === "memo" && user) loadMemos();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, user]);
+
+  function startEditNote(n: SalesNoteItem) {
+    setEditingNoteId(n.id);
+    setEditNoteContent(n.content);
+    setEditNoteDate(n.visit_date || "");
+  }
+
+  async function saveEditNote() {
+    if (editingNoteId == null || !editNoteContent.trim()) return;
+    await updateSalesNote(editingNoteId, { content: editNoteContent.trim(), visit_date: editNoteDate || null });
+    setEditingNoteId(null);
+    loadNotes();
+  }
+
+  async function handleDeleteNote(id: number) {
+    if (!confirm("이 영업노트를 삭제하시겠습니까?")) return;
+    await deleteSalesNote(id);
+    loadNotes();
+  }
 
   async function handleAddMemo() {
     if (!newMemo.trim()) return;
@@ -180,9 +204,46 @@ export default function MySalesNotesPage() {
                                 {n.author_name || "-"}
                               </span>
                             </div>
-                            <span className="shrink-0 text-xs text-gray-400">{n.created_at?.slice(11, 16)}</span>
+                            <div className="flex shrink-0 items-center gap-2">
+                              {n.user_id === user.id && editingNoteId !== n.id && (
+                                <>
+                                  <button onClick={() => startEditNote(n)} className="text-xs font-semibold text-gray-500 hover:underline dark:text-gray-400">
+                                    수정
+                                  </button>
+                                  <button onClick={() => handleDeleteNote(n.id)} className="text-xs font-semibold text-error-500 hover:underline">
+                                    삭제
+                                  </button>
+                                </>
+                              )}
+                              <span className="text-xs text-gray-400">{n.created_at?.slice(11, 16)}</span>
+                            </div>
                           </div>
-                          <div className="whitespace-pre-wrap text-sm text-gray-600 dark:text-gray-300">{n.content}</div>
+                          {editingNoteId === n.id ? (
+                            <div>
+                              <input
+                                type="date"
+                                value={editNoteDate}
+                                onChange={(e) => setEditNoteDate(e.target.value)}
+                                className="mb-2 rounded-lg border border-gray-300 bg-transparent px-2 py-1 text-xs text-gray-800 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
+                              />
+                              <textarea
+                                value={editNoteContent}
+                                onChange={(e) => setEditNoteContent(e.target.value)}
+                                rows={3}
+                                className="w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-sm text-gray-800 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
+                              />
+                              <div className="mt-2 flex justify-end gap-2">
+                                <button onClick={() => setEditingNoteId(null)} className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-600 dark:border-gray-700 dark:text-gray-300">
+                                  취소
+                                </button>
+                                <button onClick={saveEditNote} className="rounded-lg bg-brand-500 px-3 py-1.5 text-xs font-bold text-white">
+                                  저장
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="whitespace-pre-wrap text-sm text-gray-600 dark:text-gray-300">{n.content}</div>
+                          )}
                         </div>
                       ))}
                     </div>
