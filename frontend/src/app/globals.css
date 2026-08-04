@@ -849,3 +849,17 @@ span.flatpickr-weekday,
   opacity: 0.8;
   cursor: grabbing; /* Changes the cursor to indicate dragging */
 }
+
+/* 다크모드: 에디터/게시글 본문에서 명시적으로 '검정'으로 지정된 인라인 글자색은 다크 배경에
+   묻혀 안 보이므로 밝은색으로 치환한다. 빨강·파랑 등 유채색 인라인 색상은 그대로 유지된다.
+   (기본 글자색은 prose dark:prose-invert가 이미 밝게 처리) */
+.dark .prose [style*="color: #111827"],
+.dark .prose [style*="color:#111827"],
+.dark .prose [style*="color: #000000"],
+.dark .prose [style*="color:#000000"],
+.dark .prose [style*="color: rgb(17, 24, 39)"],
+.dark .prose [style*="color: rgb(0, 0, 0)"],
+.dark .prose [style*="color: black"],
+.dark .prose [style*="color:black"] {
+  color: #e5e7eb !important;
+}
