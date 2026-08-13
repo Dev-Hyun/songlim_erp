@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useDropzone, FileWithPath } from "react-dropzone";
 import { DndProvider, useDrag, useDrop } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import { useAuth } from "@/context/AuthContext";
@@ -30,6 +29,7 @@ import {
 } from "./api";
 import StoragePermissionsModal from "./StoragePermissionsModal";
 import { FileTypeIcon, FolderGlyph } from "./FileTypeIcon";
+import { UploadEntry, normalizeRel, readDroppedTree, snapshotDataTransfer } from "./dropUpload";
 
 const ITEM_TYPE = "storage-node";
 
@@ -92,6 +92,11 @@ function fileKindLabel(name: string) {
   return map[ext] || (ext ? `${ext.toUpperCase()} 파일` : "파일");
 }
 
+/** OS(탐색기)에서 끌어온 파일 드래그인지 — 내부 항목 이동(react-dnd)과 구분하는 기준. */
+function isFileDragEvent(e: React.DragEvent) {
+  return Array.from(e.dataTransfer?.types || []).includes("Files");
+}
+
 function StarButton({ on, onClick }: { on: boolean; onClick: (e: React.MouseEvent) => void }) {
   return (
     <button
@@ -119,6 +124,7 @@ function StorageItem({
   onDelete,
   onCopy,
   onDropItem,
+  onDropFiles,
 }: {
   node: Node;
   layout: "list" | "grid";
@@ -134,8 +140,10 @@ function StorageItem({
   onDelete?: () => void;
   onCopy?: () => void;
   onDropItem?: (item: DragItem) => void;
+  onDropFiles?: (e: React.DragEvent) => void;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [fileOver, setFileOver] = useState(false);
   const [renaming, setRenaming] = useState(!!autoRename);
   const [renameValue, setRenameValue] = useState(node.name);
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -204,15 +212,32 @@ function StorageItem({
 
   const setRefs = (el: HTMLDivElement | null) => { dragRef(el); if (isDropTarget) dropRef(el); };
 
+  // 폴더 타일에 탐색기 파일/폴더를 직접 떨어뜨릴 수 있게 하는 네이티브 핸들러 (내부 항목 이동은 react-dnd가 처리).
+  const fileDropProps = onDropFiles
+    ? {
+        onDragOver: (e: React.DragEvent) => {
+          if (!isFileDragEvent(e)) return;
+          e.preventDefault();
+          e.stopPropagation();
+          e.dataTransfer.dropEffect = "copy";
+          setFileOver(true);
+        },
+        onDragLeave: () => setFileOver(false),
+        onDrop: (e: React.DragEvent) => { setFileOver(false); onDropFiles(e); },
+      }
+    : {};
+  const highlight = isOver || fileOver;
+
   if (layout === "grid") {
     return (
       <div
         ref={setRefs}
         onClick={onSelect}
         onDoubleClick={onOpen}
+        {...fileDropProps}
         className={`group relative flex cursor-pointer flex-col items-center gap-2 rounded-xl border-[1.5px] p-4 text-center transition ${
           selected ? "border-brand-300 bg-brand-50 dark:border-brand-500/40 dark:bg-brand-500/10" : "border-transparent hover:bg-gray-50 dark:hover:bg-white/[0.03]"
-        } ${isOver ? "border-brand-300 bg-brand-50 dark:bg-brand-500/10" : ""} ${isDragging ? "opacity-40" : ""}`}
+        } ${highlight ? "border-brand-300 bg-brand-50 dark:bg-brand-500/10" : ""} ${isDragging ? "opacity-40" : ""}`}
       >
         <div className="absolute right-2 top-2 flex items-center" onClick={(e) => e.stopPropagation()}>
           <StarButton on={node.is_favorite} onClick={onToggleFavorite} />
@@ -230,9 +255,10 @@ function StorageItem({
       ref={setRefs}
       onClick={onSelect}
       onDoubleClick={onOpen}
+      {...fileDropProps}
       className={`group grid cursor-pointer grid-cols-[1fr_150px_96px_auto] items-center gap-3 rounded-lg border-[1.5px] px-3 py-2.5 transition ${
         selected ? "border-brand-300 bg-brand-50 dark:border-brand-500/40 dark:bg-brand-500/10" : "border-transparent hover:bg-gray-50 dark:hover:bg-white/[0.03]"
-      } ${isOver ? "border-brand-300 bg-brand-50 dark:bg-brand-500/10" : ""} ${isDragging ? "opacity-40" : ""}`}
+      } ${highlight ? "border-brand-300 bg-brand-50 dark:bg-brand-500/10" : ""} ${isDragging ? "opacity-40" : ""}`}
     >
       <div className="flex min-w-0 items-center gap-2.5">
         <span className="flex h-6 w-6 shrink-0 items-center justify-center">{icon}</span>
@@ -387,28 +413,41 @@ function Workspace({ root, showSpaces }: { root: string; showSpaces?: boolean })
     load();
   }
 
-  // rel = "폴더/하위폴더/파일.ext" 형태의 상대경로. 폴더 세그먼트를 만나면 순서대로 폴더를 만들고
-  // (한 번의 업로드 안에서 같은 경로는 캐시로 1회만 생성) 파일을 그 폴더에 올린다. 평범한 파일은
-  // rel이 파일명뿐이라 현재 폴더에 그대로 올라간다 — 즉 바탕화면에서 폴더를 통째로 올리면 폴더명과
-  // 하위 폴더 구조가 그대로 재현된다.
-  async function uploadEntries(entries: { file: File; rel: string }[]) {
-    if (entries.length === 0) return;
-    const folderCache = new Map<string, number>();
-    for (let i = 0; i < entries.length; i++) {
-      const { file, rel } = entries[i];
-      const segs = rel.split("/").filter(Boolean);
-      const fileName = segs.pop() || file.name;
-      let parentId = folderId;
-      let acc = "";
-      for (const seg of segs) {
-        acc += "/" + seg;
-        const cached = folderCache.get(acc);
-        if (cached !== undefined) { parentId = cached; continue; }
-        const res = await createFolder(root, effectiveSpace, parentId, seg, ownerId);
-        folderCache.set(acc, res.id);
-        parentId = res.id;
-      }
-      const label = entries.length > 1 ? `업로드 중 (${i + 1}/${entries.length}) · ${fileName}` : `업로드 중 · ${fileName}`;
+  // rel = "폴더/하위폴더/파일.ext" 형태의 상대경로. 경로에 폴더 세그먼트가 있으면 순서대로 폴더를
+  // 만들고(한 번의 업로드 안에서 같은 경로는 캐시로 1회만 생성) 그 폴더에 파일을 올린다. rel이
+  // 파일명뿐이면 현재 폴더에 그대로 올라간다 — 파일 하나만 올릴 때 폴더가 생기지 않는 이유.
+  // dirs는 파일이 없는 빈 폴더까지 포함한 전체 폴더 목록이라, 폴더를 통째로 올리면 하위 구조가
+  // 빈 폴더까지 그대로 재현된다.
+  async function uploadTree(entries: UploadEntry[], dirs: string[] = [], dest: number | null = folderId) {
+    const cleanDirs = dirs.map(normalizeRel).filter(Boolean);
+    const cleanEntries = entries
+      .map((e) => ({ file: e.file, rel: normalizeRel(e.rel) || e.file.name }))
+      .filter((e) => e.rel);
+    if (cleanEntries.length === 0 && cleanDirs.length === 0) return;
+
+    // 경로 → 폴더 id 캐시. ""는 업로드 대상 폴더(현재 열려 있는 폴더, 또는 파일을 떨어뜨린 폴더).
+    const cache = new Map<string, number | null>([["", dest]]);
+    async function ensureFolder(path: string): Promise<number | null> {
+      const hit = cache.get(path);
+      if (hit !== undefined) return hit;
+      const cut = path.lastIndexOf("/");
+      const parentId = await ensureFolder(cut < 0 ? "" : path.slice(0, cut));
+      const res = await createFolder(root, effectiveSpace, parentId, path.slice(cut + 1), ownerId, true);
+      cache.set(path, res.id);
+      return res.id;
+    }
+
+    if (cleanDirs.length > 0) {
+      setTransfer({ label: `폴더 만드는 중 · ${cleanDirs.length}개`, pct: 0 });
+      for (const dir of cleanDirs) await ensureFolder(dir);
+    }
+
+    for (let i = 0; i < cleanEntries.length; i++) {
+      const { file, rel } = cleanEntries[i];
+      const cut = rel.lastIndexOf("/");
+      const fileName = rel.slice(cut + 1);
+      const parentId = cut < 0 ? dest : await ensureFolder(rel.slice(0, cut));
+      const label = cleanEntries.length > 1 ? `업로드 중 (${i + 1}/${cleanEntries.length}) · ${fileName}` : `업로드 중 · ${fileName}`;
       setTransfer({ label, pct: 0 });
       // 폴더 업로드 시 브라우저가 파일명에 상대경로를 남기는 경우가 있어, 항상 마지막 세그먼트(순수 파일명)로
       // 올린다 — 저장 키에 "/"가 섞여 서버 저장이 실패하는 것을 방지.
@@ -421,16 +460,55 @@ function Workspace({ root, showSpaces }: { root: string; showSpaces?: boolean })
 
   // 폴더 선택(webkitdirectory) 시 webkitRelativePath에 구조가 들어오고, 일반 파일 선택 시엔 비어 있어 파일명만 쓴다.
   function uploadFiles(files: File[]) {
-    return uploadEntries(files.map((f) => ({ file: f, rel: f.webkitRelativePath || f.name })));
+    return uploadTree(files.map((f) => ({ file: f, rel: f.webkitRelativePath || f.name })));
   }
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    // 폴더를 드롭하면 react-dropzone이 하위까지 재귀 탐색해 각 파일의 path에 상대경로를 채워준다.
-    onDrop: (accepted: FileWithPath[]) => {
-      if (isBrowse) uploadEntries(accepted.map((f) => ({ file: f, rel: f.path || f.name })));
-    },
-    noClick: true,
-    disabled: !isBrowse,
-  });
+
+  // ── 바깥(탐색기)에서 끌어다 놓기 ──
+  // 내부 항목 이동(react-dnd)과 섞이지 않도록 OS 파일 드래그("Files" 타입)일 때만 가로챈다.
+  const [dragActive, setDragActive] = useState(false);
+  const dragDepth = useRef(0);
+  const acceptsDrop = isBrowse && canWrite;
+  function isFileDrag(e: React.DragEvent) {
+    return acceptsDrop && isFileDragEvent(e);
+  }
+  function onDragEnter(e: React.DragEvent) {
+    if (!isFileDrag(e)) return;
+    e.preventDefault();
+    dragDepth.current += 1;
+    setDragActive(true);
+  }
+  function onDragOver(e: React.DragEvent) {
+    if (!isFileDrag(e)) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "copy";
+  }
+  function onDragLeave(e: React.DragEvent) {
+    if (!isFileDrag(e)) return;
+    dragDepth.current = Math.max(0, dragDepth.current - 1);
+    if (dragDepth.current === 0) setDragActive(false);
+  }
+  // DataTransfer는 핸들러가 끝나면 무효화되므로 await 이전에 동기적으로 확보한 뒤 하위 구조를 훑는다.
+  async function dropInto(dt: DataTransfer, dest: number | null) {
+    const snap = snapshotDataTransfer(dt);
+    const tree = await readDroppedTree(snap.roots, snap.files);
+    await uploadTree(tree.entries, tree.dirs, dest);
+  }
+  async function onDrop(e: React.DragEvent) {
+    if (!isFileDrag(e)) return;
+    e.preventDefault();
+    dragDepth.current = 0;
+    setDragActive(false);
+    await dropInto(e.dataTransfer, folderId);
+  }
+  // 폴더 타일 위에 떨어뜨리면 그 폴더 안으로 — 탐색기와 동일. (컨테이너 핸들러와 중복 실행되지 않도록 전파를 끊는다)
+  function onDropOnFolder(e: React.DragEvent, target: Node) {
+    if (!isFileDrag(e)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    dragDepth.current = 0;
+    setDragActive(false);
+    dropInto(e.dataTransfer, target.id);
+  }
 
   async function handleNewFolder() {
     const res = await createFolder(root, effectiveSpace, folderId, "새 폴더", ownerId);
@@ -501,9 +579,10 @@ function Workspace({ root, showSpaces }: { root: string; showSpaces?: boolean })
 
   return (
     <DndProvider backend={HTML5Backend}>
-      <div className="grid grid-cols-1 gap-0 overflow-hidden rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900 lg:grid-cols-[220px_1fr]" style={{ minHeight: "70vh" }}>
+      {/* 화면 높이에 고정된 틀 — 파일이 늘어나도 바깥 페이지가 길어지지 않고 목록 영역만 스크롤된다. */}
+      <div className="grid h-[calc(100vh-11.5rem)] min-h-[520px] grid-cols-1 gap-0 overflow-hidden rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900 lg:grid-cols-[220px_1fr]">
         {/* ── sidebar ── */}
-        <aside className={`z-40 flex flex-col border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-950/40 max-lg:fixed max-lg:inset-y-0 max-lg:left-0 max-lg:w-64 max-lg:border-r max-lg:bg-gray-50 max-lg:shadow-xl max-lg:transition-transform dark:max-lg:bg-gray-900 lg:border-r ${sidebarOpen ? "max-lg:translate-x-0" : "max-lg:-translate-x-full"}`}>
+        <aside className={`z-40 flex min-h-0 flex-col border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-950/40 max-lg:fixed max-lg:inset-y-0 max-lg:left-0 max-lg:w-64 max-lg:border-r max-lg:bg-gray-50 max-lg:shadow-xl max-lg:transition-transform dark:max-lg:bg-gray-900 lg:border-r ${sidebarOpen ? "max-lg:translate-x-0" : "max-lg:-translate-x-full"}`}>
           <div className="flex-1 overflow-y-auto p-3">
             {showSpaces && (
               <div className="mb-3 flex gap-1 rounded-full bg-gray-200/70 p-1 dark:bg-white/[0.06]">
@@ -538,9 +617,14 @@ function Workspace({ root, showSpaces }: { root: string; showSpaces?: boolean })
         {sidebarOpen && <div className="fixed inset-0 z-30 bg-gray-900/40 lg:hidden" onClick={() => setSidebarOpen(false)} />}
 
         {/* ── main ── */}
-        <div {...getRootProps()} className="flex min-w-0 flex-col">
-          <input {...getInputProps()} />
-          <div className="border-b border-gray-100 px-4 pt-4 dark:border-gray-800 sm:px-6">
+        <div
+          className="flex min-h-0 min-w-0 flex-col"
+          onDragEnter={onDragEnter}
+          onDragOver={onDragOver}
+          onDragLeave={onDragLeave}
+          onDrop={onDrop}
+        >
+          <div className="shrink-0 border-b border-gray-100 px-4 pt-4 dark:border-gray-800 sm:px-6">
             <div className="flex min-w-0 items-center gap-1 text-xs">
               {view === "all" && (
                 <>
@@ -616,12 +700,12 @@ function Workspace({ root, showSpaces }: { root: string; showSpaces?: boolean })
 
           {/* content + detail */}
           <div className="flex min-h-0 flex-1">
-            <div className={`min-w-0 flex-1 overflow-y-auto p-3 sm:p-4 ${isDragActive ? "bg-brand-50/40 dark:bg-brand-500/5" : ""}`}>
+            <div className={`min-w-0 flex-1 overflow-y-auto p-3 sm:p-4 ${dragActive ? "bg-brand-50/40 ring-2 ring-inset ring-brand-300 dark:bg-brand-500/5 dark:ring-brand-500/40" : ""}`}>
               {loading ? (
                 <div className="p-10 text-center text-sm text-gray-400">불러오는 중...</div>
               ) : sorted.length === 0 ? (
                 <div className="p-14 text-center text-sm text-gray-400">
-                  {view === "fav" ? "즐겨찾기한 항목이 없습니다." : view === "recent-open" ? "최근 열어본 파일이 없습니다." : view === "recent-up" ? "최근 올린 파일이 없습니다." : "폴더가 비어 있습니다. 파일을 끌어다 놓아 업로드할 수 있습니다."}
+                  {view === "fav" ? "즐겨찾기한 항목이 없습니다." : view === "recent-open" ? "최근 열어본 파일이 없습니다." : view === "recent-up" ? "최근 올린 파일이 없습니다." : "폴더가 비어 있습니다. 파일이나 폴더를 끌어다 놓아 업로드할 수 있습니다."}
                 </div>
               ) : layout === "grid" ? (
                 <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6">
@@ -637,6 +721,7 @@ function Workspace({ root, showSpaces }: { root: string; showSpaces?: boolean })
                         onDelete={isBrowse && canWrite ? () => deleteNode(n) : undefined}
                         onCopy={isBrowse && canWrite ? () => copyNode(n) : undefined}
                         onDropItem={(item) => handleMoveTarget(item, n.id)}
+                        onDropFiles={acceptsDrop && n.kind === "folder" ? (e) => onDropOnFolder(e, n) : undefined}
                       />
                     </label>
                   ))}
@@ -659,6 +744,7 @@ function Workspace({ root, showSpaces }: { root: string; showSpaces?: boolean })
                           onDelete={isBrowse && canWrite ? () => deleteNode(n) : undefined}
                           onCopy={isBrowse && canWrite ? () => copyNode(n) : undefined}
                           onDropItem={(item) => handleMoveTarget(item, n.id)}
+                          onDropFiles={acceptsDrop && n.kind === "folder" ? (e) => onDropOnFolder(e, n) : undefined}
                         />
                       </div>
                     </div>

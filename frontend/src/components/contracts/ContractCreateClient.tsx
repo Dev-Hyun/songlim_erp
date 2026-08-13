@@ -27,14 +27,19 @@ export default function ContractCreateClient() {
     setOcrRaw(null);
     try {
       const { parsed, raw_text } = await ocrContract(file);
+      // items는 배열이라 폼 문자열에 섞으면 안 되므로 분리해 상품 표로 넣는다.
+      const { items: ocrItems, ...scalars } = parsed;
       // 인식된 값만 폼에 채우고(빈 값은 유지), 숫자 금액은 문자열로 보관
       setForm((prev) => {
         const next = { ...prev };
-        for (const [k, v] of Object.entries(parsed)) {
+        for (const [k, v] of Object.entries(scalars)) {
           if (v !== undefined && v !== null && v !== "") next[k] = String(v);
         }
         return next;
       });
+      if (ocrItems?.length) {
+        setItems(ocrItems.map((it) => ({ name: it.name || "", qty: it.qty || "", note: it.note || "" })));
+      }
       setOcrRaw(raw_text || "");
     } catch (err) {
       alert(err instanceof Error ? err.message : "OCR 처리에 실패했습니다");
@@ -76,6 +81,8 @@ export default function ContractCreateClient() {
         sale_amount_note: form.sale_amount_note,
         etc_note: form.etc_note,
         customer_request: form.customer_request,
+        payment_account: form.payment_account,
+        account_holder: form.account_holder,
         items: items.filter((it) => it.name.trim()).map((it) => ({ name: it.name, qty: it.qty || undefined, note: it.note || undefined })),
       });
       router.push(`/contracts/${id}`);
@@ -153,6 +160,8 @@ export default function ContractCreateClient() {
         <div className="grid grid-cols-2 gap-3">
           {field("sale_amount", "판매금액(원)", "number")}
           {field("sale_amount_note", "금액 비고")}
+          {field("payment_account", "고객지불계좌")}
+          {field("account_holder", "예금주")}
         </div>
         <div className="mt-3 grid grid-cols-2 gap-3">
           <div>

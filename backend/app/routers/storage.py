@@ -323,6 +323,9 @@ class FolderCreateIn(BaseModel):
     parent_id: Optional[int] = None
     name: str
     owner_id: Optional[int] = None
+    # 폴더 업로드용 — 같은 부모에 같은 이름의 폴더가 이미 있으면 그걸 재사용한다(윈도우 탐색기의 폴더 병합).
+    # 이게 없으면 같은 폴더를 다시 올릴 때마다 동명의 폴더가 계속 늘어난다.
+    reuse_existing: bool = False
 
 
 @router.post("/folders")
@@ -335,10 +338,24 @@ async def create_folder(payload: FolderCreateIn, db: AsyncSession = Depends(get_
     parent = await _get_folder_or_404(db, payload.parent_id) if payload.parent_id else None
     await _check_access(parent, payload.space, effective_owner, user, db, write=True)
 
+    name = payload.name.strip() or "새 폴더"
+    if payload.reuse_existing:
+        existing = (
+            await db.execute(
+                select(StorageFolder).where(
+                    StorageFolder.root == payload.root, StorageFolder.space == payload.space,
+                    StorageFolder.owner_id == effective_owner, StorageFolder.parent_id == payload.parent_id,
+                    StorageFolder.name == name,
+                )
+            )
+        ).scalars().first()
+        if existing:
+            return {"id": existing.id}
+
     now = _now()
     f = StorageFolder(
         root=payload.root, space=payload.space, owner_id=effective_owner, parent_id=payload.parent_id,
-        name=payload.name.strip() or "새 폴더", created_by=user.id, created_at=now, updated_at=now,
+        name=name, created_by=user.id, created_at=now, updated_at=now,
     )
     db.add(f)
     await db.commit()

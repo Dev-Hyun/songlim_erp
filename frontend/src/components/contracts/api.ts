@@ -21,6 +21,8 @@ export interface ContractCreatePayload {
   sale_amount_note?: string;
   etc_note?: string;
   customer_request?: string;
+  payment_account?: string;
+  account_holder?: string;
   items?: { name: string; qty?: string; note?: string }[];
 }
 
@@ -73,6 +75,8 @@ export async function updateContract(
     etc_note: string;
     customer_request: string;
     install_date: string;
+    payment_account: string;
+    account_holder: string;
     items: { name: string; qty?: string; note?: string }[];
   }>
 ) {

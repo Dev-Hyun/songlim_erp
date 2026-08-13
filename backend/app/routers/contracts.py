@@ -44,6 +44,8 @@ class ContractCreateIn(BaseModel):
     etc_note: Optional[str] = None
     customer_request: Optional[str] = None
     install_date: Optional[str] = None
+    payment_account: Optional[str] = None
+    account_holder: Optional[str] = None
     items: list[ContractItemIn] = []
 
 
@@ -62,6 +64,8 @@ class ContractUpdateIn(BaseModel):
     etc_note: Optional[str] = None
     customer_request: Optional[str] = None
     install_date: Optional[str] = None
+    payment_account: Optional[str] = None
+    account_holder: Optional[str] = None
     items: Optional[list[ContractItemIn]] = None
 
 
@@ -77,6 +81,7 @@ def _serialize(c: Contract) -> dict:
         "buyer_address": c.buyer_address, "buyer_phone": c.buyer_phone, "buyer_mobile": c.buyer_mobile,
         "buyer_fax": c.buyer_fax, "sale_amount": c.sale_amount, "sale_amount_note": c.sale_amount_note,
         "etc_note": c.etc_note, "customer_request": c.customer_request, "install_date": c.install_date,
+        "payment_account": c.payment_account, "account_holder": c.account_holder,
         "created_at": c.created_at, "updated_at": c.updated_at,
     }
 
@@ -101,6 +106,7 @@ async def create_contract(payload: ContractCreateIn, db: AsyncSession = Depends(
         buyer_mobile=payload.buyer_mobile, buyer_fax=payload.buyer_fax, sale_amount=payload.sale_amount,
         sale_amount_note=payload.sale_amount_note, etc_note=payload.etc_note,
         customer_request=payload.customer_request, install_date=payload.install_date,
+        payment_account=payload.payment_account, account_holder=payload.account_holder,
     )
     db.add(c)
     await db.flush()

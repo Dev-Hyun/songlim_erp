@@ -32,6 +32,8 @@ class Contract(Base, TimestampMixin):
     etc_note: Mapped[Optional[str]] = mapped_column(default=None)
     customer_request: Mapped[Optional[str]] = mapped_column(default=None)
     install_date: Mapped[Optional[str]] = mapped_column(default=None)
+    payment_account: Mapped[Optional[str]] = mapped_column(default=None)  # 고객지불계좌
+    account_holder: Mapped[Optional[str]] = mapped_column(default=None)  # 예금주
 
     items: Mapped[list["ContractItem"]] = relationship(back_populates="contract", cascade="all, delete-orphan")
     photos: Mapped[list["ContractPhoto"]] = relationship(back_populates="contract", cascade="all, delete-orphan")

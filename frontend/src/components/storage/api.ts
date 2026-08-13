@@ -39,12 +39,13 @@ export function browse(root: string, space: string, folderId: number | null, own
   return fetch(`${API}/api/storage/browse?${qs.toString()}`, { credentials: "include" }).then((r) => j(r));
 }
 
-export function createFolder(root: string, space: string, parentId: number | null, name: string, ownerId?: number) {
+/** reuseExisting: 폴더 업로드 시 같은 이름의 폴더가 이미 있으면 새로 만들지 않고 그 폴더에 합친다. */
+export function createFolder(root: string, space: string, parentId: number | null, name: string, ownerId?: number, reuseExisting = false) {
   return fetch(`${API}/api/storage/folders`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     credentials: "include",
-    body: JSON.stringify({ root, space, parent_id: parentId, name, owner_id: ownerId }),
+    body: JSON.stringify({ root, space, parent_id: parentId, name, owner_id: ownerId, reuse_existing: reuseExisting }),
   }).then((r) => j<{ id: number }>(r));
 }
 

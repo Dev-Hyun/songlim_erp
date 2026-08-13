@@ -47,6 +47,8 @@ export interface ContractDetail {
     etc_note: string | null;
     customer_request: string | null;
     install_date: string | null;
+    payment_account: string | null;
+    account_holder: string | null;
   };
   items: ContractItemRow[];
   photos: ContractPhotoRow[];

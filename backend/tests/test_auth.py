@@ -17,16 +17,18 @@ async def _make_user(db_session, username: str, password: str, role: str = "song
     return user
 
 
-async def test_register_staff_requires_approval(client):
+async def test_register_staff_auto_approved(client):
+    """직원 가입은 승인 대기 없이 바로 로그인된다(SIGNUP_AUTO_APPROVE_STAFF 기본값 true).
+    승인 대기로 되돌리려면 서버 환경변수 SIGNUP_AUTO_APPROVE_STAFF=false."""
     res = await client.post("/api/auth/register/staff", json={
         "username": "newstaff1", "password": "pw1234", "display_name": "새직원",
         "department": "영업", "position": "사원",
     })
     assert res.status_code == 200
-    assert res.json()["pending_approval"] is True
+    assert res.json()["pending_approval"] is False
 
     login_res = await client.post("/api/auth/login", json={"username": "newstaff1", "password": "pw1234"})
-    assert login_res.status_code == 403
+    assert login_res.status_code == 200
 
 
 async def test_login_wrong_password_then_success(client, db_session):

@@ -71,6 +71,8 @@ export default function ContractDetailClient({ id }: { id: number }) {
       sale_amount_note: String(form.sale_amount_note || ""),
       etc_note: String(form.etc_note || ""),
       customer_request: String(form.customer_request || ""),
+      payment_account: String(form.payment_account || ""),
+      account_holder: String(form.account_holder || ""),
       items: items.map((it) => ({ name: it.name, qty: it.qty || undefined, note: it.note || undefined })),
     });
     setEditing(false);
@@ -208,6 +210,8 @@ export default function ContractDetailClient({ id }: { id: number }) {
           <div className="mt-3 grid grid-cols-2 gap-3">
             {field("customer_request", "고객요구사항")}
             {field("etc_note", "기타")}
+            {field("payment_account", "고객지불계좌")}
+            {field("account_holder", "예금주")}
           </div>
           {!editing && <div className="mt-2 text-xl font-bold text-brand-500">₩{c.sale_amount.toLocaleString()}</div>}
         </div>
