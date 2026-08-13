@@ -7,3 +7,8 @@ data.db
 data.db-shm
 data.db-wal
 data.db.bak_*
+data.db.bak.*
+# 서버의 일일 백업 크론이 쌓는 디렉터리(수 GB) — 여기 빠져 있어서 빌드마다 이미지로 통째로
+# 복사되다가 디스크를 채워 배포가 실패했다.
+backups/
+uploads/
