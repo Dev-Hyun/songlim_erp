@@ -13,7 +13,7 @@ function Field({ label, value }: { label: string; value?: string | null }) {
   return (
     <div>
       <p className="mb-2 text-xs leading-normal text-gray-500 dark:text-gray-400">{label}</p>
-      <p className="text-sm font-medium text-gray-800 dark:text-white/90">{value || "-"}</p>
+      <p className="text-ui font-medium text-gray-800 dark:text-white/90">{value || "-"}</p>
     </div>
   );
 }
@@ -70,7 +70,7 @@ export default function UserInfoCard() {
   }
 
   return (
-    <div className="p-5 border border-gray-200 rounded-2xl dark:border-gray-800 lg:p-6">
+    <div className="p-5 border border-gray-200 rounded-card dark:border-gray-800 lg:p-6">
       <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
         <div className="w-full">
           <h4 className="text-lg font-semibold text-gray-800 dark:text-white/90 lg:mb-6">
@@ -103,7 +103,7 @@ export default function UserInfoCard() {
 
         <button
           onClick={openEdit}
-          className="flex w-full items-center justify-center gap-2 rounded-full border border-gray-300 bg-white px-4 py-3 text-sm font-medium text-gray-700 shadow-theme-xs hover:bg-gray-50 hover:text-gray-800 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-white/[0.03] dark:hover:text-gray-200 lg:inline-flex lg:w-auto"
+          className="flex w-full items-center justify-center gap-2 rounded-full border border-gray-300 bg-white px-4 py-3 text-ui font-medium text-gray-700 shadow-card hover:bg-gray-50 hover:text-gray-800 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-white/[0.03] dark:hover:text-gray-200 lg:inline-flex lg:w-auto"
         >
           수정
         </button>
@@ -115,7 +115,7 @@ export default function UserInfoCard() {
             <h4 className="mb-2 text-2xl font-semibold text-gray-800 dark:text-white/90">
               정보 수정
             </h4>
-            <p className="mb-6 text-sm text-gray-500 dark:text-gray-400 lg:mb-7">
+            <p className="mb-6 text-ui text-gray-500 dark:text-gray-400 lg:mb-7">
               회원가입 시 입력한 정보를 최신 상태로 수정할 수 있습니다.
             </p>
           </div>

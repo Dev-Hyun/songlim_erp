@@ -50,6 +50,10 @@ export default function SalesMapClient() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [showRequery, setShowRequery] = useState(false);
   const [exporting, setExporting] = useState(false);
+  // 같은 좌표에 겹친 마커를 클릭했을 때 그 좌표의 병원 id 목록 (목록 패널을 그 그룹으로 좁힘)
+  const [stackIds, setStackIds] = useState<number[] | null>(null);
+  // 백엔드가 500건에서 잘라 보내면 사용자에게 알려준다 (잘린 걸 모르면 누락/병합으로 오해)
+  const [truncated, setTruncated] = useState(false);
 
   useEffect(() => {
     function onResize() {
@@ -120,6 +124,8 @@ export default function SalesMapClient() {
         });
         setHospitals(data);
         setSearchMode(isSearch);
+        setTruncated(data.length >= 500);
+        setStackIds(null);
         renderMarkers(data);
       } finally {
         setLoadingList(false);
@@ -128,12 +134,31 @@ export default function SalesMapClient() {
     [category, sido, sigungu, maker, model]
   );
 
-  function iconFor(h: Pick<HospitalListItem, "has_equipment" | "is_member">, selected: boolean) {
+  function iconFor(
+    h: Pick<HospitalListItem, "has_equipment" | "is_member">,
+    selected: boolean,
+    count = 1
+  ) {
     const naver = window.naver;
     return {
-      content: makeMarkerSvg(h, selected),
+      content: makeMarkerSvg(h, selected, count),
       anchor: new naver.maps.Point(24 * MARKER_ANCHOR_RATIO.x * (selected ? 1.25 : 1), 30 * MARKER_ANCHOR_RATIO.y * (selected ? 1.25 : 1)),
     };
+  }
+
+  // 지오코딩 특성상 한 건물(메디컬빌딩)의 병원들은 좌표가 완전히 동일하다. 마커를 병원마다
+  // 하나씩 찍으면 완벽히 겹쳐서 "한 곳"처럼 보이고 맨 위 한 곳만 클릭된다.
+  // 좌표별로 묶어 마커 하나 + 개수 배지를 찍고, 누르면 그 좌표의 병원만 목록에 펼친다.
+  function groupByPosition(list: HospitalListItem[]) {
+    const groups = new Map<string, HospitalListItem[]>();
+    for (const h of list) {
+      if (!h.lat || !h.lng) continue;
+      const key = `${h.lat},${h.lng}`;
+      const g = groups.get(key);
+      if (g) g.push(h);
+      else groups.set(key, [h]);
+    }
+    return [...groups.values()];
   }
 
   function renderMarkers(list: HospitalListItem[]) {
@@ -141,20 +166,32 @@ export default function SalesMapClient() {
     if (!naver || !mapRef.current) return;
     markersRef.current.forEach((m) => m.setMap(null));
     selectedMarkerRef.current = null;
-    markersRef.current = list
-      .filter((h) => h.lat && h.lng)
-      .map((h) => {
-        const marker = new naver.maps.Marker({
-          position: new naver.maps.LatLng(h.lat, h.lng),
-          icon: iconFor(h, false),
-          title: h.name,
-          zIndex: h.is_member ? 200 : h.has_equipment ? 100 : 50,
-          map: mapRef.current,
-        });
-        marker._hospData = h;
-        naver.maps.Event.addListener(marker, "click", () => selectHospital(h.id));
-        return marker;
+    markersRef.current = groupByPosition(list).map((group) => {
+      // 배지/색은 그룹에서 가장 눈에 띄어야 하는 병원 기준 (회원 > 장비보유)
+      const rep =
+        group.find((h) => h.is_member) || group.find((h) => h.has_equipment) || group[0];
+      const marker = new naver.maps.Marker({
+        position: new naver.maps.LatLng(group[0].lat, group[0].lng),
+        icon: iconFor(rep, false, group.length),
+        title: group.length > 1 ? `${group[0].name} 외 ${group.length - 1}곳` : group[0].name,
+        zIndex: rep.is_member ? 200 : rep.has_equipment ? 100 : 50,
+        map: mapRef.current,
       });
+      marker._hosps = group;
+      marker._rep = rep;
+      naver.maps.Event.addListener(marker, "click", () => {
+        if (group.length > 1) {
+          setStackIds(group.map((h) => h.id));
+          setSelectedId(null);
+          setDetail(null);
+          highlightMarker(null);
+        } else {
+          setStackIds(null);
+          selectHospital(group[0].id);
+        }
+      });
+      return marker;
+    });
   }
 
   // 지도 스크립트 로드 후 1회 초기화
@@ -198,15 +235,15 @@ export default function SalesMapClient() {
     const naver = window.naver;
     if (!naver) return;
     if (selectedMarkerRef.current) {
-      const prevData = selectedMarkerRef.current._hospData;
-      selectedMarkerRef.current.setIcon(iconFor(prevData, false));
-      selectedMarkerRef.current.setZIndex(prevData.is_member ? 200 : prevData.has_equipment ? 100 : 50);
+      const prev = selectedMarkerRef.current;
+      selectedMarkerRef.current.setIcon(iconFor(prev._rep, false, prev._hosps.length));
+      selectedMarkerRef.current.setZIndex(prev._rep.is_member ? 200 : prev._rep.has_equipment ? 100 : 50);
       selectedMarkerRef.current = null;
     }
     if (id == null) return;
-    const marker = markersRef.current.find((m) => m._hospData?.id === id);
+    const marker = markersRef.current.find((m) => m._hosps?.some((h: HospitalListItem) => h.id === id));
     if (marker) {
-      marker.setIcon(iconFor(marker._hospData, true));
+      marker.setIcon(iconFor(marker._rep, true, marker._hosps.length));
       marker.setZIndex(500);
       selectedMarkerRef.current = marker;
     }
@@ -238,6 +275,10 @@ export default function SalesMapClient() {
     highlightMarker(null);
   }
 
+  function clearStack() {
+    setStackIds(null);
+  }
+
   function doSearch() {
     if (!searchInput.trim()) return;
     loadHospitals({ nameSearch: searchInput.trim() });
@@ -250,6 +291,7 @@ export default function SalesMapClient() {
     setMaker("");
     setModel("");
     setSearchMode(false);
+    setStackIds(null);
     loadHospitals();
   }
 
@@ -307,19 +349,15 @@ export default function SalesMapClient() {
         />
       )}
 
-      <div className="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
+      <div className="surface-card">
         {/* 필터 바 */}
-        <div className="flex flex-wrap items-center gap-2 border-b border-gray-200 px-4 py-3 dark:border-gray-800">
-          <div className="flex gap-1 rounded-full bg-gray-100 p-1 dark:bg-white/[0.04]">
+        <div className="toolbar">
+          <div className="seg">
             {CATS.map((c) => (
               <button
                 key={c}
                 onClick={() => setCategory(c)}
-                className={`rounded-full px-3 py-1.5 text-xs font-bold transition ${
-                  category === c
-                    ? "bg-brand-500 text-white"
-                    : "text-gray-500 hover:text-gray-700 dark:text-gray-400"
-                }`}
+                className={`seg-item ${category === c ? "seg-item-on" : ""}`}
               >
                 {CATEGORY_LABEL[c]}
               </button>
@@ -329,7 +367,7 @@ export default function SalesMapClient() {
           <select
             value={sido}
             onChange={(e) => setSido(e.target.value)}
-            className="rounded-lg border border-gray-300 bg-white px-2.5 py-1.5 text-xs dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300"
+            className="field"
           >
             <option value="">전체 시도</option>
             {sidoList.map((s) => (
@@ -343,7 +381,7 @@ export default function SalesMapClient() {
             value={sigungu}
             onChange={(e) => setSigungu(e.target.value)}
             disabled={!sido}
-            className="rounded-lg border border-gray-300 bg-white px-2.5 py-1.5 text-xs disabled:opacity-40 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300"
+            className="field disabled:opacity-40"
           >
             <option value="">전체 시군구</option>
             {sigunguList.map((s) => (
@@ -359,7 +397,7 @@ export default function SalesMapClient() {
               setMaker(e.target.value);
               setModel("");
             }}
-            className="rounded-lg border border-gray-300 bg-white px-2.5 py-1.5 text-xs dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300"
+            className="field"
           >
             <option value="">전체 제조사</option>
             {makerList.map((m) => (
@@ -373,7 +411,7 @@ export default function SalesMapClient() {
             value={model}
             onChange={(e) => setModel(e.target.value)}
             title={model || "전체 모델명"}
-            className="w-32 truncate rounded-lg border border-gray-300 bg-white px-2.5 py-1.5 text-xs dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300"
+            className="field w-32 truncate"
           >
             <option value="">전체 모델명</option>
             {modelList.map((m) => (
@@ -389,18 +427,18 @@ export default function SalesMapClient() {
               onChange={(e) => setSearchInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && doSearch()}
               placeholder="병원명 검색..."
-              className="w-44 rounded-full border border-gray-300 bg-gray-50 px-3.5 py-1.5 text-xs focus:border-brand-500 focus:bg-white focus:outline-none dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300"
+              className="field w-44"
             />
             <button
               onClick={doSearch}
-              className="rounded-full bg-brand-500 px-3.5 py-1.5 text-xs font-bold text-white"
+              className="btn btn-primary"
             >
               검색
             </button>
             {searchMode && (
               <button
                 onClick={exitSearch}
-                className="rounded-full border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-500 dark:border-gray-700"
+                className="btn btn-default"
               >
                 초기화
               </button>
@@ -408,7 +446,7 @@ export default function SalesMapClient() {
             <button
               onClick={exportExcel}
               disabled={exporting}
-              className="rounded-full bg-success-500 px-3.5 py-1.5 text-xs font-bold text-white disabled:opacity-50"
+              className="btn btn-default"
             >
               {exporting ? "생성 중..." : "📊 Excel"}
             </button>
@@ -424,10 +462,12 @@ export default function SalesMapClient() {
               selectedId={selectedId}
               onSelect={selectHospital}
               loading={loadingList}
-              showAddress
+              stackIds={stackIds}
+              onClearStack={clearStack}
+              truncated={truncated}
             />
             {selectedId && (
-              <div className="absolute inset-0 z-10 bg-white dark:bg-gray-900">
+              <div className="surface-rail absolute inset-0 z-10">
                 <HospitalDetailPanel
                   detail={detail}
                   loading={detailLoading}
@@ -444,20 +484,23 @@ export default function SalesMapClient() {
         ) : (
           /* 본문: 목록 | 지도 | 상세 */
           <div className="flex h-[calc(100vh-260px)] min-h-[520px]">
-            <div className="w-[300px] shrink-0 border-r border-gray-200 dark:border-gray-800">
+            <div className="hairline w-[300px] shrink-0 border-r">
               <HospitalListPanel
                 category={category}
                 hospitals={hospitals}
                 selectedId={selectedId}
                 onSelect={selectHospital}
                 loading={loadingList}
+                stackIds={stackIds}
+                onClearStack={clearStack}
+                truncated={truncated}
               />
             </div>
 
             <div className="relative flex-1">
               <div ref={mapDivRef} className="h-full w-full" />
               {scriptError && (
-                <div className="absolute inset-0 flex items-center justify-center bg-white p-8 text-center text-sm text-error-500 dark:bg-gray-900">
+                <div className="surface-rail absolute inset-0 flex items-center justify-center p-8 text-center text-ui text-error-600 dark:text-error-400">
                   ⚠ 네이버 지도 로드 실패
                   <br />
                   NCP 콘솔에서 Web 서비스 URL(localhost:3000 등)이 등록되어 있는지 확인해주세요.
@@ -466,19 +509,19 @@ export default function SalesMapClient() {
               {showRequery && !searchMode && (
                 <button
                   onClick={() => loadHospitals()}
-                  className="absolute left-1/2 top-3 -translate-x-1/2 rounded-full border border-gray-200 bg-white px-4 py-2 text-xs font-bold text-gray-700 shadow-lg hover:bg-brand-500 hover:text-white dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
+                  className="btn btn-default absolute left-1/2 top-3 -translate-x-1/2 shadow-lg"
                 >
                   🔍 이 지역 재검색
                 </button>
               )}
               <button
                 onClick={locate}
-                className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 bg-white shadow-md dark:border-gray-700 dark:bg-gray-800"
+                className="surface-card absolute right-3 top-3 flex h-9 w-9 items-center justify-center shadow-md"
                 title="내 위치"
               >
                 📍
               </button>
-              <div className="absolute bottom-3 right-3 rounded-lg bg-white/95 px-3 py-2 text-[11px] shadow-md dark:bg-gray-800/95 dark:text-gray-300">
+              <div className="surface-card fg-base absolute bottom-3 right-3 px-2.5 py-2 text-ui-xs shadow-md">
                 <div className="mb-1 flex items-center gap-1.5">
                   <span className="h-2.5 w-2.5 rounded-full bg-brand-500" /> 장비 보유
                 </div>
@@ -486,14 +529,14 @@ export default function SalesMapClient() {
                   <span className="h-2.5 w-2.5 rounded-full bg-gray-400" /> 장비 미보유
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <span className="rounded-full bg-success-50 px-1.5 text-[9px] font-bold text-success-600 dark:bg-success-500/15 dark:text-success-400">회원</span>
+                  <span className="chip"><span className="dot bg-success-500" />회원</span>
                   회원가입 병원
                 </div>
               </div>
             </div>
 
             {selectedId && (
-              <div className="w-[380px] shrink-0 border-l border-gray-200 dark:border-gray-800">
+              <div className="hairline w-[380px] shrink-0 border-l">
                 <HospitalDetailPanel
                   detail={detail}
                   loading={detailLoading}

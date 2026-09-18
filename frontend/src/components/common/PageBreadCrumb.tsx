@@ -1,50 +1,33 @@
-import Link from "next/link";
 import React from "react";
 
-interface BreadcrumbProps {
+interface PageHeaderProps {
   pageTitle: string;
+  /** 제목 아래 한 줄 설명(선택) */
+  description?: React.ReactNode;
+  /** 우측 정렬 액션 영역(선택) */
+  actions?: React.ReactNode;
 }
 
-const PageBreadcrumb: React.FC<BreadcrumbProps> = ({ pageTitle }) => {
+/**
+ * 페이지 최상단 헤더. 34개 라우트가 공유한다.
+ * 밀도형 기준: 제목 18px/semibold, 아래 여백 16px(기존 24px), 얇은 구분선으로
+ * 본문과 분리한다. 기존의 "Home >" 브레드크럼은 정보량이 없어 제거하고
+ * 대신 설명/액션 슬롯을 둔다.
+ */
+const PageBreadcrumb: React.FC<PageHeaderProps> = ({
+  pageTitle,
+  description,
+  actions,
+}) => {
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
-      <h2
-        className="text-xl font-semibold text-gray-800 dark:text-white/90"
-        x-text="pageName"
-      >
-        {pageTitle}
-      </h2>
-      <nav>
-        <ol className="flex items-center gap-1.5">
-          <li>
-            <Link
-              className="inline-flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400"
-              href="/"
-            >
-              Home
-              <svg
-                className="stroke-current"
-                width="17"
-                height="16"
-                viewBox="0 0 17 16"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path
-                  d="M6.0765 12.667L10.2432 8.50033L6.0765 4.33366"
-                  stroke=""
-                  strokeWidth="1.2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </Link>
-          </li>
-          <li className="text-sm text-gray-800 dark:text-white/90">
-            {pageTitle}
-          </li>
-        </ol>
-      </nav>
+    <div className="mb-4 flex flex-wrap items-end justify-between gap-2 border-b border-gray-200 pb-3 dark:border-gray-800">
+      <div className="min-w-0">
+        <h1 className="page-title truncate">{pageTitle}</h1>
+        {description && (
+          <p className="fg-muted mt-1 text-ui">{description}</p>
+        )}
+      </div>
+      {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
     </div>
   );
 };

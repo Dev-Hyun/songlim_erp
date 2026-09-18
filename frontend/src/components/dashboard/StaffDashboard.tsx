@@ -57,10 +57,10 @@ function StatCard({ label, value, href, accent }: { label: string; value: number
   return (
     <Link
       href={href}
-      className="flex flex-col justify-between rounded-2xl border border-gray-200 bg-white p-5 transition hover:-translate-y-0.5 hover:shadow-md dark:border-gray-800 dark:bg-white/[0.03]"
+      className="flex flex-col justify-between rounded-card border border-gray-200 bg-white p-5 transition hover:-translate-y-0.5 hover:shadow-md dark:border-gray-800 dark:bg-white/[0.03]"
     >
       <span className="text-xs font-semibold text-gray-400">{label}</span>
-      <span className={`mt-2 text-3xl font-extrabold ${accent}`}>{value}</span>
+      <span className={`mt-2 text-3xl font-semibold ${accent}`}>{value}</span>
     </Link>
   );
 }
@@ -117,11 +117,11 @@ export default function StaffDashboard() {
   return (
     <div className="grid grid-cols-12 gap-4 md:gap-6">
       <div className="col-span-12">
-        <h1 className="text-xl font-bold text-gray-800 dark:text-white/90">
+        <h1 className="page-title">
           안녕하세요, {greetName}
           {user?.position ? ` ${user.position}` : ""}님 👋
         </h1>
-        <p className="mt-1 text-sm text-gray-400">오늘도 좋은 하루 되세요.</p>
+        <p className="mt-1 text-ui text-gray-400">오늘도 좋은 하루 되세요.</p>
       </div>
 
       <div className="col-span-12 grid grid-cols-2 gap-4 md:gap-6 xl:grid-cols-4">
@@ -135,9 +135,9 @@ export default function StaffDashboard() {
         <DashboardListCard title="다가오는 일정" href="/calendar" footerLabel="전체 캘린더 보기" loading={loading} isEmpty={upcomingEvents.length === 0} emptyText="예정된 일정이 없습니다">
           <ul className="space-y-3">
             {upcomingEvents.map((e) => (
-              <li key={e.id} className="flex items-center justify-between text-sm">
-                <span className="truncate font-medium text-gray-700 dark:text-gray-200">{e.title}</span>
-                <span className="ml-3 shrink-0 text-xs text-gray-400">{e.start_at.replace("T", " ").slice(0, 16)}</span>
+              <li key={e.id} className="flex items-center justify-between text-ui">
+                <span className="fg-base truncate font-medium">{e.title}</span>
+                <span className="ml-3 shrink-0 fg-subtle text-ui-sm">{e.start_at.replace("T", " ").slice(0, 16)}</span>
               </li>
             ))}
           </ul>
@@ -148,9 +148,9 @@ export default function StaffDashboard() {
         <DashboardListCard title="회사 공지사항" href="/notices/internal" footerLabel="전체 공지사항 보기" loading={loading} isEmpty={notices.length === 0} emptyText="등록된 공지가 없습니다">
           <ul className="space-y-3">
             {notices.slice(0, 3).map((n) => (
-              <li key={n.id} className="flex items-center justify-between text-sm">
-                <span className="truncate font-medium text-gray-700 dark:text-gray-200">{n.title}</span>
-                <span className="ml-3 shrink-0 text-xs text-gray-400">{timeAgo(n.created_at)}</span>
+              <li key={n.id} className="flex items-center justify-between text-ui">
+                <span className="fg-base truncate font-medium">{n.title}</span>
+                <span className="ml-3 shrink-0 fg-subtle text-ui-sm">{timeAgo(n.created_at)}</span>
               </li>
             ))}
           </ul>
@@ -161,12 +161,12 @@ export default function StaffDashboard() {
         <DashboardListCard title="최근 계약 진행 현황" href="/contracts" footerLabel="전체 계약 보기" loading={loading} isEmpty={contracts.length === 0} emptyText="등록된 계약이 없습니다">
           <ul className="space-y-3">
             {contracts.slice(0, 3).map((c) => (
-              <li key={c.id} className="flex items-center justify-between text-sm">
+              <li key={c.id} className="flex items-center justify-between text-ui">
                 <div className="min-w-0">
-                  <div className="truncate font-medium text-gray-700 dark:text-gray-200">{c.title}</div>
-                  <div className="text-xs text-gray-400">{c.buyer_hospital || "-"}</div>
+                  <div className="fg-base truncate font-medium">{c.title}</div>
+                  <div className="fg-subtle text-ui-sm">{c.buyer_hospital || "-"}</div>
                 </div>
-                <span className={`ml-3 shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold ${CONTRACT_BADGE[c.status] || ""}`}>
+                <span className={`ml-3 shrink-0 rounded-full px-2 py-0.5 text-ui-xs font-medium ${CONTRACT_BADGE[c.status] || ""}`}>
                   {c.status}
                 </span>
               </li>
@@ -179,12 +179,12 @@ export default function StaffDashboard() {
         <DashboardListCard title="최근 CS 접수" href="/cs" footerLabel="전체 CS 보기" loading={loading} isEmpty={csTickets.length === 0} emptyText="접수된 CS가 없습니다">
           <ul className="space-y-3">
             {csTickets.slice(0, 3).map((t) => (
-              <li key={t.id} className="flex items-center justify-between text-sm">
+              <li key={t.id} className="flex items-center justify-between text-ui">
                 <div className="min-w-0">
-                  <div className="truncate font-medium text-gray-700 dark:text-gray-200">{t.title}</div>
-                  <div className="text-xs text-gray-400">{t.created_by_name}</div>
+                  <div className="fg-base truncate font-medium">{t.title}</div>
+                  <div className="fg-subtle text-ui-sm">{t.created_by_name}</div>
                 </div>
-                <span className={`ml-3 shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold ${CS_BADGE[t.status] || ""}`}>
+                <span className={`ml-3 shrink-0 rounded-full px-2 py-0.5 text-ui-xs font-medium ${CS_BADGE[t.status] || ""}`}>
                   {t.status}
                 </span>
               </li>

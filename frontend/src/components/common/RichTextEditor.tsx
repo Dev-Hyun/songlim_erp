@@ -98,13 +98,13 @@ export default function RichTextEditor({ value, onChange, placeholder, minHeight
   if (!editor) return null;
 
   return (
-    <div className="rounded-lg border border-gray-300 dark:border-gray-700">
+    <div className="rounded-control border border-gray-300 dark:border-gray-700">
       <div className="flex flex-wrap items-center gap-0.5 border-b border-gray-200 bg-gray-50 px-2 py-1.5 dark:border-gray-800 dark:bg-white/[0.02]">
         <ToolbarButton title="제목 1" active={editor.isActive("heading", { level: 1 })} onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}>H1</ToolbarButton>
         <ToolbarButton title="제목 2" active={editor.isActive("heading", { level: 2 })} onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}>H2</ToolbarButton>
         <ToolbarButton title="제목 3" active={editor.isActive("heading", { level: 3 })} onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}>H3</ToolbarButton>
         <Divider />
-        <ToolbarButton title="굵게" active={editor.isActive("bold")} onClick={() => editor.chain().focus().toggleBold().run()}><span className="font-extrabold">B</span></ToolbarButton>
+        <ToolbarButton title="굵게" active={editor.isActive("bold")} onClick={() => editor.chain().focus().toggleBold().run()}><span className="font-semibold">B</span></ToolbarButton>
         <ToolbarButton title="기울임" active={editor.isActive("italic")} onClick={() => editor.chain().focus().toggleItalic().run()}><span className="italic">I</span></ToolbarButton>
         <ToolbarButton title="밑줄" active={editor.isActive("underline")} onClick={() => editor.chain().focus().toggleUnderline().run()}><span className="underline">U</span></ToolbarButton>
         <ToolbarButton title="취소선" active={editor.isActive("strike")} onClick={() => editor.chain().focus().toggleStrike().run()}><span className="line-through">S</span></ToolbarButton>
@@ -146,7 +146,7 @@ export default function RichTextEditor({ value, onChange, placeholder, minHeight
         <ToolbarButton title="사진 추가" onClick={() => fileInputRef.current?.click()}>🖼</ToolbarButton>
         <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageSelect} />
       </div>
-      <div style={{ minHeight }} className="px-3 py-2 text-sm">
+      <div style={{ minHeight }} className="px-3 py-2 text-ui">
         <EditorContent editor={editor} />
       </div>
     </div>

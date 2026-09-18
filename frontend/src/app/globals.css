@@ -164,6 +164,36 @@
   --drop-shadow-4xl:
     0 35px 35px rgba(0, 0, 0, 0.25), 0 45px 65px rgba(0, 0, 0, 0.15);
 
+  /* ── 데이터 밀도형(Dense enterprise) 디자인 토큰 ──────────────────────────
+     기존 템플릿은 카드 반경 16px / 본문 14px / 카드 패딩 24px 기준의 여유로운
+     레이아웃이었다. ERP는 표·목록이 핵심이라 한 화면에 더 많은 행이 들어가도록
+     반경·패딩·폰트 스케일을 한 단계 촘촘하게 다시 정의한다. */
+
+  /* 타이포 스케일 — 11 / 12 / 13(기본) / 14 / 15 / 18 / 22 */
+  --text-ui-xs: 11px;
+  --text-ui-xs--line-height: 16px;
+  --text-ui-sm: 12px;
+  --text-ui-sm--line-height: 18px;
+  --text-ui: 13px;
+  --text-ui--line-height: 20px;
+  --text-ui-md: 14px;
+  --text-ui-md--line-height: 20px;
+  --text-ui-lg: 15px;
+  --text-ui-lg--line-height: 22px;
+  --text-ui-xl: 18px;
+  --text-ui-xl--line-height: 24px;
+  --text-ui-2xl: 22px;
+  --text-ui-2xl--line-height: 28px;
+
+  /* 반경 — 카드 8px, 컨트롤 6px (기존 16px/9999px 대체) */
+  --radius-card: 8px;
+  --radius-control: 6px;
+
+  /* 그림자 — 떠 있는 카드가 아니라 경계선으로 위계를 만들기 때문에 최소화 */
+  --shadow-card: 0 1px 2px 0 rgb(16 24 40 / 0.04);
+  --shadow-pop:
+    0 8px 24px -6px rgb(16 24 40 / 0.12), 0 2px 6px -2px rgb(16 24 40 / 0.06);
+
   --z-index-1: 1;
   --z-index-9: 9;
   --z-index-99: 99;
@@ -194,32 +224,32 @@
     cursor: pointer;
   }
   body {
-    @apply relative font-normal font-outfit z-1 bg-gray-50 text-gray-800 dark:text-white/90;
+    @apply relative font-normal font-outfit z-1 bg-gray-50 text-gray-800 dark:bg-gray-950 dark:text-gray-100;
   }
 }
 
 @utility menu-item {
-  @apply relative flex items-center w-full gap-3 px-3 py-2 font-medium rounded-lg text-theme-sm;
+  @apply relative flex items-center w-full gap-2.5 px-2.5 py-1.5 font-medium rounded-control text-ui;
 }
 
 @utility menu-item-active {
-  @apply bg-brand-50 text-brand-500 dark:bg-brand-500/[0.12] dark:text-brand-400;
+  @apply bg-gray-100 text-gray-900 dark:bg-white/[0.07] dark:text-white;
 }
 
 @utility menu-item-inactive {
-  @apply text-gray-700 hover:bg-gray-100 group-hover:text-gray-700 dark:text-gray-300 dark:hover:bg-white/5 dark:hover:text-gray-300;
+  @apply text-gray-600 hover:bg-gray-100 hover:text-gray-900 group-hover:text-gray-900 dark:text-gray-400 dark:hover:bg-white/[0.04] dark:hover:text-gray-100;
 }
 
 @utility menu-item-icon {
-  @apply text-gray-500 group-hover:text-gray-700 dark:text-gray-400;
+  @apply text-gray-400 group-hover:text-gray-600 dark:text-gray-500;
 }
 
 @utility menu-item-icon-active {
-  @apply text-brand-500 dark:text-brand-400;
+  @apply text-gray-900 dark:text-white;
 }
 
 @utility menu-item-icon-inactive {
-  @apply text-gray-500 group-hover:text-gray-700 dark:text-gray-400 dark:group-hover:text-gray-300;
+  @apply text-gray-400 group-hover:text-gray-600 dark:text-gray-500 dark:group-hover:text-gray-300;
 }
 
 @utility menu-item-arrow {
@@ -227,23 +257,23 @@
 }
 
 @utility menu-item-arrow-active {
-  @apply rotate-180 text-brand-500 dark:text-brand-400;
+  @apply rotate-180 text-gray-500 dark:text-gray-300;
 }
 
 @utility menu-item-arrow-inactive {
-  @apply text-gray-500 group-hover:text-gray-700 dark:text-gray-400 dark:group-hover:text-gray-300;
+  @apply text-gray-400 group-hover:text-gray-600 dark:text-gray-500 dark:group-hover:text-gray-300;
 }
 
 @utility menu-dropdown-item {
-  @apply relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-theme-sm font-medium;
+  @apply relative flex items-center gap-2 rounded-control px-2.5 py-1.5 text-ui font-normal;
 }
 
 @utility menu-dropdown-item-active {
-  @apply bg-brand-50 text-brand-500 dark:bg-brand-500/[0.12] dark:text-brand-400;
+  @apply bg-gray-100 font-medium text-gray-900 dark:bg-white/[0.07] dark:text-white;
 }
 
 @utility menu-dropdown-item-inactive {
-  @apply text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/5;
+  @apply text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-white/[0.04] dark:hover:text-gray-100;
 }
 
 @utility menu-dropdown-badge {
@@ -279,6 +309,175 @@
   &::-webkit-scrollbar-thumb {
     @apply bg-gray-200 rounded-full dark:bg-gray-700;
   }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   데이터 밀도형 공용 프리미티브 (클래스 세트)
+   ------------------------------------------------------------------------
+   라이트/다크 팔레트를 여기 한 곳에서만 정의한다. 컴포넌트에서 개별적으로
+   dark: 변형을 쓰지 말고 아래 클래스를 쓰면 두 테마가 항상 같이 움직인다.
+
+   ⚠ 다크 함정: dark variant가 `&:is(.dark *)` 클래스 기반이라, 최상위 표면에
+   반투명(dark:bg-white/[0.03])을 쓰면 뒤 레이어가 비쳐 "라이트처럼" 보인다.
+   그래서 surface-card/surface-rail은 불투명색(gray-900)만 쓰고, 반투명은
+   카드 안에 중첩되는 surface-sub/surface-inset에만 허용한다.
+
+   표면 위계: 캔버스 gray-50/gray-950 → 카드 white/gray-900 → 중첩 gray-50/white 3%
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ── 표면 ── */
+@utility surface-app {
+  @apply bg-gray-50 dark:bg-gray-950;
+}
+/* 최상위 카드. 불투명 배경 + 1px 경계선 + 거의 없는 그림자 */
+@utility surface-card {
+  @apply rounded-card border border-gray-200 bg-white shadow-card dark:border-gray-800 dark:bg-gray-900;
+}
+/* 사이드바/헤더처럼 화면에 붙는 크롬 표면 (반경 없음) */
+@utility surface-rail {
+  @apply bg-white dark:bg-gray-900;
+}
+/* 카드 안에 중첩되는 옅은 패널 (칸반 컬럼, 요약 블록 등) */
+@utility surface-sub {
+  @apply bg-gray-50 dark:bg-white/[0.03];
+}
+/* 입력/코드처럼 파인 느낌이 필요한 영역 */
+@utility surface-inset {
+  @apply bg-gray-100 dark:bg-white/[0.06];
+}
+
+/* ── 경계선 ── */
+@utility hairline {
+  @apply border-gray-200 dark:border-gray-800;
+}
+/* 표 행 구분선처럼 더 약해야 하는 선 */
+@utility hairline-soft {
+  @apply border-gray-100 dark:border-gray-800;
+}
+
+/* ── 글자 위계 (색으로 강조하지 않고 회색 계조로만) ── */
+@utility fg-strong {
+  @apply text-gray-900 dark:text-white;
+}
+@utility fg-base {
+  @apply text-gray-700 dark:text-gray-200;
+}
+@utility fg-muted {
+  @apply text-gray-500 dark:text-gray-400;
+}
+@utility fg-subtle {
+  @apply text-gray-400 dark:text-gray-500;
+}
+/* 표 헤더·라벨용 소형 대문자급 라벨 */
+@utility label-eyebrow {
+  @apply text-ui-xs font-medium tracking-[0.04em] text-gray-500 dark:text-gray-400;
+}
+
+/* ── 제목 ── */
+@utility page-title {
+  @apply text-ui-xl font-semibold tracking-[-0.01em] text-gray-900 dark:text-white;
+}
+@utility card-title {
+  @apply text-ui-lg font-semibold tracking-[-0.01em] text-gray-900 dark:text-white;
+}
+
+/* ── 카드 내부 슬롯 ── */
+@utility card-head {
+  @apply flex min-h-11 flex-wrap items-center gap-2 border-b border-gray-200 px-4 py-2.5 dark:border-gray-800;
+}
+@utility card-body {
+  @apply p-4;
+}
+/* 필터/검색/액션이 한 줄로 앉는 툴바 (카드 최상단) */
+@utility toolbar {
+  @apply flex flex-wrap items-center gap-2 border-b border-gray-200 px-3 py-2.5 dark:border-gray-800;
+}
+
+/* ── 표 / 목록 ── */
+@utility table-dense {
+  @apply w-full border-separate border-spacing-0 text-ui;
+}
+@utility th-dense {
+  @apply whitespace-nowrap border-b border-gray-200 bg-gray-50 px-3 py-2 text-left text-ui-xs font-medium tracking-[0.04em] text-gray-500 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-400;
+}
+/* 스크롤 컨테이너 안의 표 헤더를 고정할 때만 함께 붙인다 */
+@utility th-sticky {
+  @apply sticky top-0 z-10;
+}
+@utility td-dense {
+  @apply border-b border-gray-100 px-3 py-2 align-middle text-ui text-gray-700 dark:border-gray-800 dark:text-gray-300;
+}
+@utility row-hover {
+  @apply transition-colors hover:bg-gray-50 dark:hover:bg-white/[0.03];
+}
+/* 표가 아닌 div 목록의 한 행 — 36~40px 높이 유지 */
+@utility list-row {
+  @apply flex w-full items-center gap-3 border-b border-gray-100 px-3 py-2 text-left transition-colors last:border-0 hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-white/[0.03];
+}
+@utility empty-state {
+  @apply px-4 py-10 text-center text-ui text-gray-400 dark:text-gray-500;
+}
+
+/* ── 컨트롤 ── */
+@utility field {
+  @apply h-8 rounded-control border border-gray-300 bg-white px-2.5 text-ui text-gray-800 transition-colors placeholder:text-gray-400 focus:border-gray-400 focus:outline-none dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100 dark:placeholder:text-gray-500 dark:focus:border-gray-600;
+}
+@utility field-lg {
+  @apply h-9 rounded-control border border-gray-300 bg-white px-3 text-ui-md text-gray-800 transition-colors placeholder:text-gray-400 focus:border-gray-400 focus:outline-none dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100 dark:placeholder:text-gray-500 dark:focus:border-gray-600;
+}
+/* 높이를 고정하지 않는 입력(가변 행 높이 표 셀, textarea 등) */
+@utility field-auto {
+  @apply rounded-control border border-gray-300 bg-white px-2.5 py-1.5 text-ui text-gray-800 transition-colors placeholder:text-gray-400 focus:border-gray-400 focus:outline-none dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100 dark:placeholder:text-gray-500 dark:focus:border-gray-600;
+}
+@utility btn {
+  @apply inline-flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-control px-2.5 text-ui font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-45;
+}
+/* 화면당 하나뿐인 주요 액션. 강조색 대신 진한 중성색을 쓴다 */
+@utility btn-primary {
+  @apply bg-gray-900 text-white hover:bg-gray-700 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-200;
+}
+@utility btn-default {
+  @apply border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-white/[0.06];
+}
+@utility btn-ghost {
+  @apply text-gray-500 hover:bg-gray-100 hover:text-gray-800 dark:text-gray-400 dark:hover:bg-white/[0.06] dark:hover:text-gray-100;
+}
+@utility btn-danger {
+  @apply border border-error-200 bg-white text-error-600 hover:bg-error-50 dark:border-error-500/30 dark:bg-transparent dark:text-error-400 dark:hover:bg-error-500/10;
+}
+@utility icon-btn {
+  @apply inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-control text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-800 dark:text-gray-400 dark:hover:bg-white/[0.06] dark:hover:text-gray-100;
+}
+@utility icon-btn-on {
+  @apply bg-gray-100 text-gray-900 dark:bg-white/[0.08] dark:text-white;
+}
+
+/* ── 세그먼트 토글 (브랜드색 알약 버튼 대체) ── */
+@utility seg {
+  @apply inline-flex h-8 shrink-0 items-center gap-0.5 rounded-control border border-gray-200 bg-gray-100 p-0.5 dark:border-gray-800 dark:bg-gray-950;
+}
+@utility seg-item {
+  @apply inline-flex h-7 items-center gap-1 rounded-[4px] px-2.5 text-ui font-medium text-gray-500 transition-colors hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-100;
+}
+@utility seg-item-on {
+  @apply bg-white text-gray-900 shadow-card dark:bg-gray-800 dark:text-white;
+}
+
+/* ── 상태 표시 ── */
+/* 색 면적을 최소화하기 위해 기본은 중성 칩 + 작은 색 점으로 상태를 구분한다 */
+@utility chip {
+  @apply inline-flex shrink-0 items-center gap-1.5 rounded-control border border-gray-200 bg-white px-1.5 py-0.5 text-ui-xs font-medium text-gray-600 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300;
+}
+@utility chip-quiet {
+  @apply inline-flex shrink-0 items-center gap-1 rounded-control bg-gray-100 px-1.5 py-0.5 text-ui-xs font-medium text-gray-500 dark:bg-white/[0.06] dark:text-gray-400;
+}
+@utility dot {
+  @apply h-1.5 w-1.5 shrink-0 rounded-full;
+}
+
+/* ── 링크 ── */
+@utility link-quiet {
+  @apply text-gray-600 underline-offset-2 transition-colors hover:text-gray-900 hover:underline dark:text-gray-300 dark:hover:text-white;
 }
 
 .dark .custom-scrollbar::-webkit-scrollbar-thumb {

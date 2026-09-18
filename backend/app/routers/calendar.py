@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.google_calendar_sync import push_create_event, push_delete_event
 from app.models import CalendarEvent, CalendarEventAssignee, CalendarEventTeam, StaffProfile, User
+from app.routers.kakao_bridge import enqueue as kakao_enqueue
 from app.routers.auth import require_staff
 
 router = APIRouter(prefix="/api/calendar-events", tags=["calendar"])
@@ -73,6 +74,12 @@ async def create_event(payload: CalendarEventIn, db: AsyncSession = Depends(get_
         db.add(CalendarEventAssignee(event_id=e.id, user_id=uid, created_at=now_iso))
     for team in payload.teams:
         db.add(CalendarEventTeam(event_id=e.id, team=team))
+    # 단톡방 알림 — 공유 일정만. 개인 일정까지 단톡방에 뿌리면 소음이 된다.
+    if e.is_shared:
+        await kakao_enqueue(
+            db, "calendar_created",
+            f"[송림 ERP] 새 일정 등록\n· {e.title}\n· {e.start_at} ~ {e.end_at}\n· 등록: {user.display_name}",
+        )
     await db.commit()
 
     google_event_id = await push_create_event(db, user.id, e)
@@ -101,6 +108,11 @@ async def update_event(eid: int, payload: CalendarEventIn, db: AsyncSession = De
         db.add(CalendarEventAssignee(event_id=eid, user_id=uid, created_at=now_iso))
     for team in payload.teams:
         db.add(CalendarEventTeam(event_id=eid, team=team))
+    if e.is_shared:
+        await kakao_enqueue(
+            db, "calendar_updated",
+            f"[송림 ERP] 일정 변경\n· {e.title}\n· {e.start_at} ~ {e.end_at}\n· 수정: {user.display_name}",
+        )
     await db.commit()
     return {"ok": True}
 

@@ -25,15 +25,15 @@ export default function DashboardListCard({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex min-h-[200px] flex-col rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
+    <div className="flex min-h-[200px] flex-col surface-card">
       <div className="border-b border-gray-100 px-5 py-4 dark:border-gray-800">
         <h3 className="text-base font-semibold text-gray-800 dark:text-white/90">{title}</h3>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
         {loading ? (
-          <div className="py-6 text-center text-sm text-gray-400">불러오는 중...</div>
+          <div className="py-6 text-center text-ui text-gray-400">불러오는 중...</div>
         ) : isEmpty ? (
-          <div className="py-6 text-center text-sm text-gray-400">{emptyText}</div>
+          <div className="py-6 text-center text-ui text-gray-400">{emptyText}</div>
         ) : (
           children
         )}

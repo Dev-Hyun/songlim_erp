@@ -125,14 +125,14 @@ export default function SignUpForm() {
           <h1 className="mb-3 text-title-sm font-semibold text-gray-800 dark:text-white/90">
             {pendingApproval ? "회원가입 신청 완료" : "회원가입 완료"}
           </h1>
-          <p className="mb-6 text-sm text-gray-500 dark:text-gray-400">
+          <p className="fg-muted mb-6 text-ui">
             {pendingApproval
               ? "관리자 승인 후 로그인하실 수 있습니다. 승인은 송림 담당자가 확인 후 처리합니다."
               : "가입이 완료되었습니다. 바로 로그인하실 수 있습니다."}
           </p>
           <Link
             href="/signin"
-            className="inline-block rounded-lg bg-brand-500 px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-600"
+            className="btn btn-primary px-5"
           >
             로그인 페이지로
           </Link>
@@ -146,7 +146,7 @@ export default function SignUpForm() {
       <div className="w-full max-w-md sm:pt-10 mx-auto mb-5">
         <Link
           href="/signin"
-          className="inline-flex items-center text-sm text-gray-500 transition-colors hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+          className="inline-flex items-center text-ui text-gray-500 transition-colors hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
         >
           <ChevronLeftIcon />
           로그인으로
@@ -160,22 +160,18 @@ export default function SignUpForm() {
             </h1>
           </div>
 
-          <div className="mb-5 flex rounded-lg bg-gray-100 p-1 dark:bg-white/[0.04]">
+          <div className="seg mb-5 w-full">
             <button
               type="button"
               onClick={() => setRole("songrim")}
-              className={`flex-1 rounded-md py-2 text-sm font-semibold transition ${
-                role === "songrim" ? "bg-white shadow dark:bg-gray-800 dark:text-white" : "text-gray-500"
-              }`}
+              className={`seg-item flex-1 justify-center ${role === "songrim" ? "seg-item-on" : ""}`}
             >
               송림 직원
             </button>
             <button
               type="button"
               onClick={() => setRole("hospital")}
-              className={`flex-1 rounded-md py-2 text-sm font-semibold transition ${
-                role === "hospital" ? "bg-white shadow dark:bg-gray-800 dark:text-white" : "text-gray-500"
-              }`}
+              className={`seg-item flex-1 justify-center ${role === "hospital" ? "seg-item-on" : ""}`}
             >
               병원 회원
             </button>
@@ -184,7 +180,7 @@ export default function SignUpForm() {
           <form onSubmit={handleSubmit}>
             <div className="space-y-5">
               {error && (
-                <div className="rounded-lg bg-error-50 px-4 py-2 text-sm text-error-600 dark:bg-error-500/15 dark:text-error-400">
+                <div className="rounded-control bg-error-50 px-4 py-2 text-ui text-error-600 dark:bg-error-500/15 dark:text-error-400">
                   {error}
                 </div>
               )}
@@ -218,28 +214,28 @@ export default function SignUpForm() {
                         type="button"
                         onClick={searchHospital}
                         disabled={searching || !hospitalName.trim()}
-                        className="shrink-0 rounded-lg border border-gray-300 px-4 text-sm font-semibold text-gray-600 disabled:opacity-40 dark:border-gray-700 dark:text-gray-300"
+                        className="btn-default shrink-0 rounded-control px-4 text-ui font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-45"
                       >
                         {searching ? "검색 중..." : "검색"}
                       </button>
                     </div>
                     {matchedYkiho && (
-                      <p className="mt-1 text-xs text-success-600 dark:text-success-400">✓ 검색결과에서 선택됨 — 영업지도에 회원 배지로 표시됩니다</p>
+                      <p className="mt-1 text-ui-sm text-success-600 dark:text-success-400">✓ 검색결과에서 선택됨 — 영업지도에 회원 배지로 표시됩니다</p>
                     )}
                     {searchResults !== null && (
-                      <div className="absolute z-10 mt-1 max-h-64 w-full overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-900">
+                      <div className="surface-card absolute z-10 mt-1 max-h-64 w-full overflow-y-auto shadow-pop">
                         {searchResults.length === 0 ? (
-                          <div className="px-4 py-3 text-xs text-gray-400">검색결과 없음, 직접 입력해주세요</div>
+                          <div className="px-4 py-3 fg-subtle text-ui-sm">검색결과 없음, 직접 입력해주세요</div>
                         ) : (
                           searchResults.map((h, i) => (
                             <button
                               type="button"
                               key={`${h.ykiho}-${i}`}
                               onClick={() => selectHospital(h)}
-                              className="block w-full px-4 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-white/5"
+                              className="row-hover block w-full px-4 py-2 text-left text-ui"
                             >
-                              <div className="font-semibold text-gray-800 dark:text-white/90">{h.name}</div>
-                              <div className="text-xs text-gray-400">{h.sido} {h.sigungu}{h.tel ? ` · ${h.tel}` : ""}</div>
+                              <div className="fg-strong font-medium">{h.name}</div>
+                              <div className="fg-subtle text-ui-sm">{h.sido} {h.sigungu}{h.tel ? ` · ${h.tel}` : ""}</div>
                             </button>
                           ))
                         )}
@@ -353,7 +349,7 @@ export default function SignUpForm() {
           </form>
 
           <div className="mt-5">
-            <p className="text-sm font-normal text-center text-gray-700 dark:text-gray-400 sm:text-start">
+            <p className="text-ui font-normal text-center text-gray-700 dark:text-gray-400 sm:text-start">
               이미 계정이 있으신가요?{" "}
               <Link href="/signin" className="text-brand-500 hover:text-brand-600 dark:text-brand-400">
                 로그인

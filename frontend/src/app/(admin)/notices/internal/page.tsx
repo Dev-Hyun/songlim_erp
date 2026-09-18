@@ -13,7 +13,7 @@ export default function InternalNoticesPage() {
     return (
       <div>
         <PageBreadcrumb pageTitle="회사 공지사항" />
-        <div className="rounded-2xl border border-gray-200 bg-white p-8 text-center text-sm text-gray-400 dark:border-gray-800 dark:bg-white/[0.03]">
+        <div className="surface-card empty-state">
           접근 권한이 없습니다
         </div>
       </div>

@@ -4,27 +4,24 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { fetchDeliveries, updateDelivery } from "./api";
 import { DeliveryListItem } from "./types";
+import { localISODate } from "@/lib/date";
 
-const DEMO_RESULT_COLOR: Record<string, string> = {
-  예정: "bg-gray-100 text-gray-500 dark:bg-white/10 dark:text-gray-400",
-  진행중: "bg-warning-50 text-warning-600 dark:bg-warning-500/15 dark:text-warning-400",
-  성공: "bg-success-50 text-success-600 dark:bg-success-500/15 dark:text-success-400",
-  실패: "bg-error-50 text-error-600 dark:bg-error-500/15 dark:text-error-400",
+// 상태는 셀렉트 왼쪽의 작은 색 점으로만 구분한다(배경을 전부 칠하는 알약 배지 대체).
+const DEMO_RESULT_DOT: Record<string, string> = {
+  "": "bg-gray-300 dark:bg-gray-600",
+  예정: "bg-gray-400 dark:bg-gray-500",
+  진행중: "bg-warning-500",
+  성공: "bg-success-500",
+  실패: "bg-error-500",
 };
 
 const DEMO_STATUSES = ["예정", "진행중", "성공", "실패"] as const;
 const MAINT_STATUSES = ["유지보수 진행중", "유지보수 만료"] as const;
 
-const MAINT_COLOR: Record<string, string> = {
-  "유지보수 진행중": "bg-success-50 text-success-600 dark:bg-success-500/15 dark:text-success-400",
-  "유지보수 만료": "bg-error-50 text-error-600 dark:bg-error-500/15 dark:text-error-400",
+const MAINT_DOT: Record<string, string> = {
+  "유지보수 진행중": "bg-success-500",
+  "유지보수 만료": "bg-error-500",
 };
-
-// 로컬(KST) 달력 날짜를 YYYY-MM-DD로. toISOString()은 UTC로 변환하면서 자정~오전9시 사이에
-// 하루 밀리는 문제가 있어(한국은 UTC+9) 쓰지 않는다.
-function localISODate(date: Date): string {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-}
 
 // warranty_end(Warranty 종료일) 기준으로 유지보수 진행중/만료를 계산한다. 날짜가 없으면 아직 만료되지 않은 것으로 취급.
 function maintenanceStatus(d: DeliveryListItem): string {
@@ -44,31 +41,37 @@ function StatusPicker({
   if (d.site_type === "demo") {
     const current = d.demo_result || "";
     return (
-      <select
-        value={current}
-        onClick={(e) => e.stopPropagation()}
-        onChange={(e) => onSetDemoResult(d, e.target.value)}
-        className={`cursor-pointer rounded-full border-0 px-2.5 py-1 text-xs font-bold ${DEMO_RESULT_COLOR[current] || "bg-gray-100 text-gray-500 dark:bg-white/10"}`}
-      >
-        <option value="">미정</option>
-        {DEMO_STATUSES.map((s) => (
-          <option key={s} value={s}>{s}</option>
-        ))}
-      </select>
+      <span className="inline-flex items-center gap-1.5">
+        <span className={`dot ${DEMO_RESULT_DOT[current] || DEMO_RESULT_DOT[""]}`} />
+        <select
+          value={current}
+          onClick={(e) => e.stopPropagation()}
+          onChange={(e) => onSetDemoResult(d, e.target.value)}
+          className="field h-7 cursor-pointer px-1.5 text-ui-sm"
+        >
+          <option value="">미정</option>
+          {DEMO_STATUSES.map((s) => (
+            <option key={s} value={s}>{s}</option>
+          ))}
+        </select>
+      </span>
     );
   }
   const current = maintenanceStatus(d);
   return (
-    <select
-      value={current}
-      onClick={(e) => e.stopPropagation()}
-      onChange={(e) => onSetMaintenance(d, e.target.value)}
-      className={`cursor-pointer rounded-full border-0 px-2.5 py-1 text-xs font-bold ${MAINT_COLOR[current]}`}
-    >
-      {MAINT_STATUSES.map((s) => (
-        <option key={s} value={s}>{s}</option>
-      ))}
-    </select>
+    <span className="inline-flex items-center gap-1.5">
+      <span className={`dot ${MAINT_DOT[current]}`} />
+      <select
+        value={current}
+        onClick={(e) => e.stopPropagation()}
+        onChange={(e) => onSetMaintenance(d, e.target.value)}
+        className="field h-7 cursor-pointer px-1.5 text-ui-sm"
+      >
+        {MAINT_STATUSES.map((s) => (
+          <option key={s} value={s}>{s}</option>
+        ))}
+      </select>
+    </span>
   );
 }
 
@@ -128,9 +131,9 @@ export default function DeliveriesListClient() {
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-white/[0.03]">
-        <div className="flex gap-1 rounded-full bg-gray-100 p-1 dark:bg-white/[0.04]">
+    <div className="space-y-3">
+      <div className="surface-card flex flex-wrap items-center gap-2 px-3 py-2.5">
+        <div className="seg">
           {[
             { v: "delivery", l: "납품 & 관리" },
             { v: "demo", l: "DEMO" },
@@ -138,30 +141,30 @@ export default function DeliveriesListClient() {
             <button
               key={t.v}
               onClick={() => selectSiteType(t.v as "delivery" | "demo")}
-              className={`rounded-full px-3 py-1.5 text-xs font-bold ${siteType === t.v ? "bg-brand-500 text-white" : "text-gray-500"}`}
+              className={`seg-item ${siteType === t.v ? "seg-item-on" : ""}`}
             >
               {t.l}
             </button>
           ))}
         </div>
-        <div className="flex gap-1 rounded-full bg-gray-100 p-1 dark:bg-white/[0.04]">
+        <div className="seg">
           <button
             onClick={() => setView("list")}
-            className={`rounded-full px-3 py-1.5 text-xs font-bold ${view === "list" ? "bg-brand-500 text-white" : "text-gray-500"}`}
+            className={`seg-item ${view === "list" ? "seg-item-on" : ""}`}
           >
-            ☰ 목록
+            목록
           </button>
           <button
             onClick={() => setView("kanban")}
-            className={`rounded-full px-3 py-1.5 text-xs font-bold ${view === "kanban" ? "bg-brand-500 text-white" : "text-gray-500"}`}
+            className={`seg-item ${view === "kanban" ? "seg-item-on" : ""}`}
           >
-            ⬛ 칸반
+            칸반
           </button>
         </div>
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="rounded-lg border border-gray-300 bg-white px-2.5 py-1.5 text-xs dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300"
+          className="field"
         >
           <option value="">전체 상태</option>
           {statuses.map((s) => (
@@ -171,18 +174,25 @@ export default function DeliveriesListClient() {
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="병원명 검색..."
-          className="w-52 rounded-full border border-gray-300 bg-gray-50 px-3.5 py-1.5 text-xs focus:border-brand-500 focus:outline-none dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300"
+          placeholder="병원명 검색"
+          className="field w-40 sm:w-52"
         />
-        <button onClick={handleCreate} className="ml-auto rounded-full bg-brand-500 px-4 py-1.5 text-xs font-bold text-white">
-          + 새 납품 등록
+        <span className="fg-subtle ml-auto hidden text-ui-sm sm:block">{filtered.length}건</span>
+        <button onClick={handleCreate} className="btn btn-primary ml-auto sm:ml-0">
+          새 납품 등록
         </button>
       </div>
 
-      {loading && <div className="p-8 text-center text-sm text-gray-400">불러오는 중...</div>}
+      {loading && <div className="surface-card empty-state">불러오는 중...</div>}
 
       {!loading && view === "list" && (
-        <div className="space-y-2">
+        <div className="surface-card overflow-hidden">
+          <div className="hidden gap-3 border-b border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-800 dark:bg-gray-900 sm:grid sm:grid-cols-[1fr_96px_88px_150px]">
+            <span className="label-eyebrow">병원</span>
+            <span className="label-eyebrow">구분</span>
+            <span className="label-eyebrow">설치일</span>
+            <span className="label-eyebrow text-right">상태</span>
+          </div>
           {filtered.map((d) => (
             <div
               key={d.id}
@@ -190,38 +200,33 @@ export default function DeliveriesListClient() {
               tabIndex={0}
               onClick={() => router.push(`/deliveries/${d.id}`)}
               onKeyDown={(e) => { if (e.key === "Enter") router.push(`/deliveries/${d.id}`); }}
-              className="flex w-full cursor-pointer items-center gap-3 rounded-xl border border-gray-200 bg-white p-4 text-left transition hover:border-brand-300 dark:border-gray-800 dark:bg-white/[0.03]"
+              className="grid w-full cursor-pointer grid-cols-[1fr_auto] items-center gap-3 border-b border-gray-100 px-3 py-2 text-left transition-colors last:border-0 hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-white/[0.03] sm:grid-cols-[1fr_96px_88px_150px]"
             >
-              <div className="min-w-0 flex-1">
-                <div className="truncate text-sm font-semibold text-gray-800 dark:text-white/90">{d.hospital_name}</div>
-                <div className="mt-1 text-xs text-gray-400">설치일 {d.installation_date || "-"}</div>
-              </div>
-              <div className="flex shrink-0 items-center gap-1.5">
-                <span
-                  className={`rounded-full px-2.5 py-1 text-xs font-bold ${
-                    d.site_type === "demo"
-                      ? "bg-brand-50 text-brand-600 dark:bg-brand-500/15 dark:text-brand-400"
-                      : "bg-success-50 text-success-600 dark:bg-success-500/15 dark:text-success-400"
-                  }`}
-                >
-                  {d.site_type === "demo" ? "DEMO" : "납품 & 관리"}
-                </span>
+              <span className="fg-strong min-w-0 truncate text-ui font-medium">{d.hospital_name}</span>
+              <span className="hidden sm:block">
+                <span className="chip-quiet">{d.site_type === "demo" ? "DEMO" : "납품·관리"}</span>
+              </span>
+              <span className="fg-subtle hidden text-ui-sm tabular-nums sm:block">{d.installation_date || "-"}</span>
+              <span className="flex justify-end" onClick={(e) => e.stopPropagation()}>
                 <StatusPicker d={d} onSetDemoResult={quickSetDemoResult} onSetMaintenance={quickSetMaintenance} />
-              </div>
+              </span>
             </div>
           ))}
-          {filtered.length === 0 && <div className="p-8 text-center text-sm text-gray-400">등록된 건이 없습니다</div>}
+          {filtered.length === 0 && <div className="empty-state">등록된 건이 없습니다</div>}
         </div>
       )}
 
       {!loading && view === "kanban" && (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
           {statuses.map((s) => (
-            <div key={s} className="rounded-2xl bg-gray-50 p-3 dark:bg-white/[0.02]">
-              <div className="mb-2 text-xs font-bold text-gray-500">
-                {s} ({filtered.filter((d) => statusOf(d) === s).length})
+            <div key={s} className="surface-sub rounded-card border border-gray-200 p-2 dark:border-gray-800">
+              <div className="mb-2 flex items-center gap-1.5 px-1 py-0.5">
+                <span className="fg-base text-ui font-medium">{s}</span>
+                <span className="fg-subtle text-ui-sm tabular-nums">
+                  {filtered.filter((d) => statusOf(d) === s).length}
+                </span>
               </div>
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 {filtered
                   .filter((d) => statusOf(d) === s)
                   .map((d) => (
@@ -231,11 +236,11 @@ export default function DeliveriesListClient() {
                       tabIndex={0}
                       onClick={() => router.push(`/deliveries/${d.id}`)}
                       onKeyDown={(e) => { if (e.key === "Enter") router.push(`/deliveries/${d.id}`); }}
-                      className="w-full cursor-pointer rounded-lg border-l-4 bg-white p-3 text-left text-xs shadow-sm dark:bg-gray-900 border-brand-500"
+                      className="w-full cursor-pointer rounded-control border border-gray-200 bg-white px-2.5 py-2 text-left transition-colors hover:border-gray-300 dark:border-gray-800 dark:bg-gray-900 dark:hover:border-gray-700"
                     >
-                      <div className="font-semibold text-gray-800 dark:text-white/90">{d.hospital_name}</div>
-                      <div className="mt-1 text-gray-400">설치일 {d.installation_date || "-"}</div>
-                      <div className="mt-2" onClick={(e) => e.stopPropagation()}>
+                      <div className="fg-strong truncate text-ui font-medium">{d.hospital_name}</div>
+                      <div className="fg-subtle mt-0.5 text-ui-sm">설치일 {d.installation_date || "-"}</div>
+                      <div className="mt-1.5" onClick={(e) => e.stopPropagation()}>
                         <StatusPicker d={d} onSetDemoResult={quickSetDemoResult} onSetMaintenance={quickSetMaintenance} />
                       </div>
                     </div>

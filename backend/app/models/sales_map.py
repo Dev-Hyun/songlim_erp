@@ -21,6 +21,7 @@ class Hospital(Base, TimestampMixin):
     lat: Mapped[Optional[float]] = mapped_column(default=None)
     lng: Mapped[Optional[float]] = mapped_column(default=None)
     ykiho: Mapped[Optional[str]] = mapped_column(default=None)  # 심평원 고유코드 (공공데이터 임포트용, 회원가입과 무관)
+    estb_date: Mapped[Optional[str]] = mapped_column(default=None)  # 개설일자 YYYY-MM-DD (심평원 estbDd)
 
     # 회원가입 연동 — 병원명 검색 매칭 성공 시 signup 흐름에서 채워짐
     hospital_profile_id: Mapped[Optional[int]] = mapped_column(
@@ -37,20 +38,29 @@ class Hospital(Base, TimestampMixin):
 
 
 class Equipment(Base):
-    """장비 보유 현황. category: us(초음파)/xray/ct/mri/bmd(골밀도)/carm(C-Arm).
-    source='manual'인 경우 회원가입 병원(동물병원, 2026 신규개원 등)에 직원이 직접 등록한 건."""
+    """장비 보유 현황.
+
+    category: 레거시 6종은 짧은 코드(us/xray/ct/mri/bmd/carm)를 그대로 쓰고, 심평원 전체
+    장비군 임포트로 들어온 나머지 분류는 장비대분류코드(예: 'C108')를 쓴다. 값 집합이 195종+로
+    늘어나 CHECK 제약은 제거했다 — 표시용 한글명은 category_name에 들어 있다.
+    source='manual'인 경우 회원가입 병원(동물병원, 2026 신규개원 등)에 직원이 직접 등록한 건,
+    source='hira_2025'는 심평원 '의료장비 상세 현황' 2025-12-31 스냅샷."""
     __tablename__ = "equipment"
     __table_args__ = (
-        CheckConstraint("category IN ('us','xray','ct','mri','bmd','carm')", name="ck_equipment_category"),
-        CheckConstraint("source IN ('import','manual')", name="ck_equipment_source"),
+        CheckConstraint("source IN ('import','manual','hira_2025')", name="ck_equipment_source"),
         Index("idx_eq_hosp_cat", "hospital_id", "category"),
         Index("idx_eq_cat_year", "category", "year"),
         Index("idx_eq_series", "model_series"),
+        Index("idx_eq_cat_name", "category", "category_name"),
+        Index("idx_eq_year_cat_cover", "year", "category", "hospital_id", "model", "eq_count"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     hospital_id: Mapped[int] = mapped_column(ForeignKey("hospitals.id"))
     category: Mapped[str] = mapped_column()
+    category_name: Mapped[Optional[str]] = mapped_column(default=None)  # 장비대분류명 (심평원 원본 한글명)
+    category_code: Mapped[Optional[str]] = mapped_column(default=None)  # 장비대분류코드
+    subcategory_name: Mapped[Optional[str]] = mapped_column(default=None)  # 장비세분류명
     year: Mapped[int] = mapped_column()
     manufacturer: Mapped[Optional[str]] = mapped_column(default=None)
     model: Mapped[Optional[str]] = mapped_column(default=None)

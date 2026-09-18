@@ -55,7 +55,7 @@ export default function NotificationDropdown() {
   return (
     <div className="relative">
       <button
-        className="relative dropdown-toggle flex items-center justify-center text-gray-500 transition-colors bg-white border border-gray-200 rounded-full hover:text-gray-700 h-11 w-11 hover:bg-gray-100 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-white"
+        className="icon-btn dropdown-toggle relative"
         onClick={handleClick}
       >
         <span
@@ -83,10 +83,10 @@ export default function NotificationDropdown() {
       <Dropdown
         isOpen={isOpen}
         onClose={closeDropdown}
-        className="absolute right-0 mt-[17px] flex h-[480px] w-[calc(100vw-2rem)] max-w-[350px] flex-col rounded-2xl border border-gray-200 bg-white p-3 shadow-theme-lg dark:border-gray-800 dark:bg-gray-dark sm:w-[361px] sm:max-w-none"
+        className="surface-card absolute right-0 mt-2 flex h-[440px] w-[calc(100vw-2rem)] max-w-[340px] flex-col p-2 shadow-pop sm:w-[340px] sm:max-w-none"
       >
-        <div className="flex items-center justify-between pb-3 mb-3 border-b border-gray-100 dark:border-gray-700">
-          <h5 className="text-lg font-semibold text-gray-800 dark:text-gray-200">
+        <div className="mb-2 flex items-center justify-between border-b border-gray-200 px-1 pb-2 dark:border-gray-800">
+          <h5 className="card-title">
             알림
           </h5>
           <button
@@ -111,7 +111,7 @@ export default function NotificationDropdown() {
         </div>
         {!isHospital || items.length === 0 ? (
           <div className="flex flex-1 flex-col items-center justify-center text-center text-gray-400 dark:text-gray-500">
-            <p className="text-sm">새로운 알림이 없습니다</p>
+            <p className="text-ui">새로운 알림이 없습니다</p>
           </div>
         ) : (
           <ul className="flex flex-1 flex-col gap-1 overflow-y-auto custom-scrollbar">
@@ -120,11 +120,11 @@ export default function NotificationDropdown() {
                 <Link
                   href={it.link}
                   onClick={closeDropdown}
-                  className="flex flex-col gap-0.5 rounded-lg px-2 py-2.5 hover:bg-gray-100 dark:hover:bg-gray-800"
+                  className="flex flex-col gap-0.5 rounded-control px-2 py-1.5 hover:bg-gray-50 dark:hover:bg-white/[0.04]"
                 >
-                  <span className="text-xs font-medium text-brand-500">{it.label}</span>
-                  <span className="truncate text-sm text-gray-700 dark:text-gray-300">{it.title}</span>
-                  <span className="text-xs text-gray-400">{timeAgo(it.created_at)}</span>
+                  <span className="label-eyebrow">{it.label}</span>
+                  <span className="fg-base truncate text-ui">{it.title}</span>
+                  <span className="fg-subtle text-ui-xs">{timeAgo(it.created_at)}</span>
                 </Link>
               </li>
             ))}

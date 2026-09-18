@@ -42,7 +42,7 @@ export default function DeliveryDetailClient({ id }: { id: number }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
-  if (!detail) return <div className="p-8 text-center text-sm text-gray-400">불러오는 중...</div>;
+  if (!detail) return <div className="empty-state">불러오는 중...</div>;
   const d = detail.delivery;
   const isDemo = d.site_type === "demo";
 
@@ -92,15 +92,15 @@ export default function DeliveryDetailClient({ id }: { id: number }) {
     load();
   }
 
-  const inputClass = "w-full rounded-lg border border-gray-300 px-2.5 py-1.5 text-sm dark:border-gray-700 dark:bg-gray-900";
+  const inputClass = "w-full field-auto";
 
   const field = (key: string, label: string, type = "text") => (
     <div>
-      <label className="mb-1 block text-xs font-semibold text-gray-400">{label}</label>
+      <label className="label-eyebrow mb-1 block">{label}</label>
       {editing ? (
         <input type={type} value={form[key] || ""} onChange={(e) => setForm({ ...form, [key]: e.target.value })} className={inputClass} />
       ) : (
-        <div className="text-sm text-gray-700 dark:text-gray-300">{(d as unknown as Record<string, unknown>)[key] as string || "-"}</div>
+        <div className="text-ui text-gray-700 dark:text-gray-300">{(d as unknown as Record<string, unknown>)[key] as string || "-"}</div>
       )}
     </div>
   );
@@ -108,17 +108,17 @@ export default function DeliveryDetailClient({ id }: { id: number }) {
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
       <div className="space-y-4 lg:col-span-2">
-        <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
+        <div className="surface-card p-4">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-            <h2 className="text-lg font-bold text-gray-800 dark:text-white/90">🔬 초음파 & 유지보수 현황</h2>
+            <h2 className="card-title">🔬 초음파 & 유지보수 현황</h2>
             <div className="flex items-center gap-2">
               <span
-                className={`rounded-full px-3 py-1.5 text-xs font-bold text-white ${isDemo ? "bg-brand-500" : "bg-success-500"}`}
+                className={`rounded-full px-3 py-1.5 text-xs font-medium text-white ${isDemo ? "bg-brand-500" : "bg-success-500"}`}
               >
                 {isDemo ? "DEMO" : "납품 & 관리"}
               </span>
               {editing ? (
-                <button onClick={saveEdits} className="rounded-full bg-brand-500 px-3 py-1.5 text-xs font-bold text-white">저장</button>
+                <button onClick={saveEdits} className="rounded-full bg-brand-500 px-3 py-1.5 text-xs font-medium text-white">저장</button>
               ) : (
                 <button onClick={() => setEditing(true)} className="rounded-full border border-gray-300 px-3 py-1.5 text-xs font-semibold dark:border-gray-700">수정</button>
               )}
@@ -131,7 +131,7 @@ export default function DeliveryDetailClient({ id }: { id: number }) {
           <div className="grid grid-cols-2 gap-3">
             {field("hospital_name", "병원명")}
             <div>
-              <label className="mb-1 block text-xs font-semibold text-gray-400">구분</label>
+              <label className="label-eyebrow mb-1 block">구분</label>
               {editing ? (
                 <select value={form.hospital_type || "의원"} onChange={(e) => setForm({ ...form, hospital_type: e.target.value })} className={inputClass}>
                   <option value="의원">의원</option>
@@ -139,7 +139,7 @@ export default function DeliveryDetailClient({ id }: { id: number }) {
                   <option value="종합병원">종합병원</option>
                 </select>
               ) : (
-                <div className="text-sm text-gray-700 dark:text-gray-300">{d.hospital_type || "-"}</div>
+                <div className="text-ui text-gray-700 dark:text-gray-300">{d.hospital_type || "-"}</div>
               )}
             </div>
             {field("installation_date", isDemo ? "DEMO 시작일자" : "설치일자", "date")}
@@ -159,7 +159,7 @@ export default function DeliveryDetailClient({ id }: { id: number }) {
 
           {isDemo ? (
             <div className="mt-3">
-              <label className="mb-1 block text-xs font-semibold text-gray-400">DEMO 결과</label>
+              <label className="label-eyebrow mb-1 block">DEMO 결과</label>
               {editing ? (
                 <select value={form.demo_result || ""} onChange={(e) => setForm({ ...form, demo_result: e.target.value })} className={inputClass}>
                   <option value="">선택 안 함</option>
@@ -169,12 +169,12 @@ export default function DeliveryDetailClient({ id }: { id: number }) {
                   <option value="실패">실패</option>
                 </select>
               ) : (
-                <div className="text-sm text-gray-700 dark:text-gray-300">{d.demo_result || "-"}</div>
+                <div className="text-ui text-gray-700 dark:text-gray-300">{d.demo_result || "-"}</div>
               )}
             </div>
           ) : (
             <div className="mt-3">
-              <label className="mb-1 block text-xs font-semibold text-gray-400">유지보수</label>
+              <label className="label-eyebrow mb-1 block">유지보수</label>
               {editing ? (
                 <select value={form.maintenance || ""} onChange={(e) => setForm({ ...form, maintenance: e.target.value })} className={inputClass}>
                   <option value="">선택 안 함</option>
@@ -182,16 +182,16 @@ export default function DeliveryDetailClient({ id }: { id: number }) {
                   <option value="X">X (해당 없음)</option>
                 </select>
               ) : (
-                <div className="text-sm text-gray-700 dark:text-gray-300">{d.maintenance || "-"}</div>
+                <div className="text-ui text-gray-700 dark:text-gray-300">{d.maintenance || "-"}</div>
               )}
             </div>
           )}
 
-          <div className="mb-2 mt-5 text-xs font-bold uppercase text-gray-400">장비 품목</div>
+          <div className="mb-2 mt-5 text-xs font-medium uppercase text-gray-400">장비 품목</div>
           <div className="overflow-x-auto">
-          <table className="w-full min-w-[560px] text-sm">
+          <table className="w-full min-w-[560px] text-ui">
             <thead>
-              <tr className="border-b border-gray-200 text-left text-xs text-gray-400 dark:border-gray-800">
+              <tr className="border-b border-gray-200 text-left fg-subtle text-ui-sm dark:border-gray-800">
                 <th className="py-1.5">Description</th>
                 <th className="py-1.5">S/N</th>
                 <th className="py-1.5">개별단가</th>
@@ -204,10 +204,10 @@ export default function DeliveryDetailClient({ id }: { id: number }) {
                 <tr key={i} className="border-b border-gray-100 dark:border-gray-800">
                   {editing ? (
                     <>
-                      <td><input value={it.description || ""} onChange={(e) => setItems(items.map((x, j) => (j === i ? { ...x, description: e.target.value } : x)))} className="w-full rounded border border-gray-300 px-1.5 py-1 text-xs dark:border-gray-700 dark:bg-gray-900" /></td>
-                      <td><input value={it.serial_no || ""} onChange={(e) => setItems(items.map((x, j) => (j === i ? { ...x, serial_no: e.target.value } : x)))} className="w-full rounded border border-gray-300 px-1.5 py-1 text-xs dark:border-gray-700 dark:bg-gray-900" /></td>
-                      <td><input type="number" value={it.price ?? ""} onChange={(e) => setItems(items.map((x, j) => (j === i ? { ...x, price: e.target.value ? Number(e.target.value) : null } : x)))} className="w-full rounded border border-gray-300 px-1.5 py-1 text-xs dark:border-gray-700 dark:bg-gray-900" /></td>
-                      <td><input value={it.sys_id || ""} onChange={(e) => setItems(items.map((x, j) => (j === i ? { ...x, sys_id: e.target.value } : x)))} className="w-full rounded border border-gray-300 px-1.5 py-1 text-xs dark:border-gray-700 dark:bg-gray-900" /></td>
+                      <td><input value={it.description || ""} onChange={(e) => setItems(items.map((x, j) => (j === i ? { ...x, description: e.target.value } : x)))} className="field-auto w-full px-1.5 py-0.5 text-ui-sm" /></td>
+                      <td><input value={it.serial_no || ""} onChange={(e) => setItems(items.map((x, j) => (j === i ? { ...x, serial_no: e.target.value } : x)))} className="field-auto w-full px-1.5 py-0.5 text-ui-sm" /></td>
+                      <td><input type="number" value={it.price ?? ""} onChange={(e) => setItems(items.map((x, j) => (j === i ? { ...x, price: e.target.value ? Number(e.target.value) : null } : x)))} className="field-auto w-full px-1.5 py-0.5 text-ui-sm" /></td>
+                      <td><input value={it.sys_id || ""} onChange={(e) => setItems(items.map((x, j) => (j === i ? { ...x, sys_id: e.target.value } : x)))} className="field-auto w-full px-1.5 py-0.5 text-ui-sm" /></td>
                       <td><button onClick={() => setItems(items.filter((_, j) => j !== i))} className="text-error-500">×</button></td>
                     </>
                   ) : (
@@ -235,8 +235,8 @@ export default function DeliveryDetailClient({ id }: { id: number }) {
       </div>
 
       <div className="space-y-4">
-        <div className="rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-white/[0.03]">
-          <div className="mb-2 flex items-center justify-between text-xs font-bold uppercase text-gray-400">
+        <div className="surface-card p-3">
+          <div className="mb-2 flex items-center justify-between text-xs font-medium uppercase text-gray-400">
             <span>🖼️ 사진</span>
             <label className="cursor-pointer text-brand-500">
               + 사진 첨부
@@ -251,10 +251,10 @@ export default function DeliveryDetailClient({ id }: { id: number }) {
                 src={photoUrl(id, p.id)}
                 alt=""
                 onClick={() => setLightboxPhotoId(p.id)}
-                className="h-24 w-full cursor-zoom-in rounded-lg object-cover"
+                className="h-24 w-full cursor-zoom-in rounded-control object-cover"
               />
             ))}
-            {detail.photos.length === 0 && <div className="col-span-2 py-4 text-center text-xs text-gray-400">사진 없음</div>}
+            {detail.photos.length === 0 && <div className="col-span-2 py-4 text-center fg-subtle text-ui-sm">사진 없음</div>}
           </div>
         </div>
 
@@ -266,28 +266,28 @@ export default function DeliveryDetailClient({ id }: { id: number }) {
           />
         )}
 
-        <div className="rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-white/[0.03]">
-          <div className="mb-2 text-xs font-bold uppercase text-gray-400">💬 메모</div>
+        <div className="surface-card p-3">
+          <div className="mb-2 text-xs font-medium uppercase text-gray-400">💬 메모</div>
           <div className="mb-3 space-y-2">
             {detail.comments.map((cm) => (
-              <div key={cm.id} className="rounded-lg bg-gray-50 p-2 text-xs dark:bg-white/[0.02]">
+              <div key={cm.id} className="rounded-control bg-gray-50 p-2 text-xs dark:bg-white/[0.02]">
                 <div className="mb-1 text-[10px] text-gray-400">{cm.created_at?.slice(0, 16)}</div>
                 <div className="text-gray-700 dark:text-gray-300">{cm.content}</div>
               </div>
             ))}
-            {detail.comments.length === 0 && <div className="text-xs text-gray-400">메모 없음</div>}
+            {detail.comments.length === 0 && <div className="fg-subtle text-ui-sm">메모 없음</div>}
           </div>
           {user ? (
             <div className="space-y-2">
               <textarea
                 value={commentText}
                 onChange={(e) => setCommentText(e.target.value)}
-                className="min-h-[60px] w-full rounded-lg border border-gray-300 px-2.5 py-1.5 text-xs dark:border-gray-700 dark:bg-gray-900"
+                className="min-h-[60px] w-full rounded-control border border-gray-300 px-2.5 py-1.5 text-xs dark:border-gray-700 dark:bg-gray-900"
               />
-              <button onClick={submitComment} className="rounded-lg bg-brand-500 px-3 py-1.5 text-xs font-bold text-white">등록</button>
+              <button onClick={submitComment} className="btn btn-primary">등록</button>
             </div>
           ) : (
-            <div className="text-center text-xs text-gray-400">로그인이 필요합니다</div>
+            <div className="text-center fg-subtle text-ui-sm">로그인이 필요합니다</div>
           )}
         </div>
       </div>

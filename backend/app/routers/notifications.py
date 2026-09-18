@@ -40,12 +40,6 @@ async def _staff_notifications(db: AsyncSession, user: User) -> dict:
     for n in notices:
         items.append({"type": "notice", "label": "회사 공지사항", "title": n.title, "created_at": _iso(n.created_at), "link": "/notices/internal"})
 
-    community = (
-        await db.execute(select(TechPost).where(TechPost.category == "general").order_by(TechPost.created_at.desc()).limit(10))
-    ).scalars().all()
-    for p in community:
-        items.append({"type": "community", "label": "커뮤니티", "title": p.title, "created_at": _iso(p.created_at), "link": "/community"})
-
     invited = (
         await db.execute(
             select(CalendarEvent, CalendarEventAssignee.created_at)

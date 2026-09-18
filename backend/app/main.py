@@ -20,6 +20,7 @@ from app.routers import (
     deliveries,
     google_calendar,
     inventory,
+    med_stats,
     misc,
     notifications,
     sales_map,
@@ -27,6 +28,7 @@ from app.routers import (
     storage,
     supply,
     uploads,
+    kakao_bridge,
 )
 
 setup_logging()
@@ -49,6 +51,7 @@ app.middleware("http")(request_logging_middleware)
 app.include_router(auth.router)
 app.include_router(sales_map.router)
 app.include_router(stats.router)
+app.include_router(med_stats.router)
 app.include_router(contracts.router)
 app.include_router(deliveries.router)
 app.include_router(inventory.router)
@@ -62,6 +65,7 @@ app.include_router(supply.router)
 app.include_router(uploads.router)
 app.include_router(storage.router)
 app.include_router(notifications.router)
+app.include_router(kakao_bridge.router)
 
 
 @app.get("/api/health")

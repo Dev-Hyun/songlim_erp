@@ -2,14 +2,28 @@ import React, { ReactNode } from "react";
 
 interface ButtonProps {
   children: ReactNode; // Button text or content
-  size?: "sm" | "md"; // Button size
-  variant?: "primary" | "outline"; // Button variant
+  size?: "sm" | "md" | "lg"; // Button size
+  variant?: "primary" | "outline" | "ghost" | "danger"; // Button variant
   startIcon?: ReactNode; // Icon before the text
   endIcon?: ReactNode; // Icon after the text
   onClick?: () => void; // Click handler
   disabled?: boolean; // Disabled state
-  className?: string; // Disabled state
+  className?: string;
 }
+
+// 밀도형 기준 높이: sm 28px / md 32px / lg 36px (기존 pill 형태 44~48px 대체)
+const sizeClasses = {
+  sm: "h-7 px-2 text-ui-sm",
+  md: "h-8 px-2.5 text-ui",
+  lg: "h-9 px-3.5 text-ui-md",
+};
+
+const variantClasses = {
+  primary: "btn-primary",
+  outline: "btn-default",
+  ghost: "btn-ghost",
+  danger: "btn-danger",
+};
 
 const Button: React.FC<ButtonProps> = ({
   children,
@@ -21,27 +35,9 @@ const Button: React.FC<ButtonProps> = ({
   className = "",
   disabled = false,
 }) => {
-  // Size Classes
-  const sizeClasses = {
-    sm: "px-4 py-3 text-sm",
-    md: "px-5 py-3.5 text-sm",
-  };
-
-  // Variant Classes
-  const variantClasses = {
-    primary:
-      "bg-brand-500 text-white shadow-theme-xs hover:bg-brand-600 disabled:bg-brand-300",
-    outline:
-      "bg-white text-gray-700 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-400 dark:ring-gray-700 dark:hover:bg-white/[0.03] dark:hover:text-gray-300",
-  };
-
   return (
     <button
-      className={`inline-flex items-center justify-center font-medium gap-2 rounded-lg transition ${className} ${
-        sizeClasses[size]
-      } ${variantClasses[variant]} ${
-        disabled ? "cursor-not-allowed opacity-50" : ""
-      }`}
+      className={`btn ${sizeClasses[size]} ${variantClasses[variant]} ${className}`}
       onClick={onClick}
       disabled={disabled}
     >

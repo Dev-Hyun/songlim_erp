@@ -39,13 +39,13 @@ export default function PhotoLightbox({ src, filename, onClose }: Props) {
         src={src}
         alt=""
         onClick={(e) => e.stopPropagation()}
-        className="max-h-[85vh] max-w-[90vw] rounded-lg object-contain shadow-2xl"
+        className="max-h-[85vh] max-w-[90vw] rounded-control object-contain shadow-2xl"
       />
       <div className="absolute right-6 top-6 flex gap-2" onClick={(e) => e.stopPropagation()}>
         <button
           onClick={handleDownload}
           disabled={downloading}
-          className="rounded-full bg-white/90 px-4 py-2 text-xs font-bold text-gray-800 hover:bg-white disabled:opacity-50"
+          className="rounded-full bg-white/90 px-4 py-2 text-xs font-medium text-gray-800 hover:bg-white disabled:opacity-50"
         >
           {downloading ? "다운로드 중..." : "⬇ 원본 다운로드"}
         </button>

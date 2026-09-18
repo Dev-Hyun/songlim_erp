@@ -39,7 +39,7 @@ const AvatarText: React.FC<AvatarTextProps> = ({ name, className = "" }) => {
         name
       )}`}
     >
-      <span className="text-sm font-medium">{initials}</span>
+      <span className="text-ui font-medium">{initials}</span>
     </div>
   );
 };

@@ -87,44 +87,44 @@ export default function MileagePage() {
     window.open(`${API}/api/mileage-logs/export?${qs.toString()}`, "_blank");
   }
 
-  if (authLoading) return <div className="p-8 text-center text-sm text-gray-400">불러오는 중...</div>;
+  if (authLoading) return <div className="empty-state">불러오는 중...</div>;
 
   return (
     <StaffOnly>
     <div>
       <PageBreadcrumb pageTitle="운행일지" />
       {!user ? (
-        <div className="rounded-2xl border border-gray-200 bg-white p-8 text-center text-sm text-gray-400 dark:border-gray-800 dark:bg-white/[0.03]">
+        <div className="surface-card empty-state">
           로그인이 필요합니다
         </div>
       ) : (
         <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-3 rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-white/[0.03] sm:grid-cols-7">
-            <input type="date" value={logDate} onChange={(e) => setLogDate(e.target.value)} className="rounded-lg border border-gray-300 px-2.5 py-1.5 text-sm dark:border-gray-700 dark:bg-gray-900" />
-            <input type="number" value={prevKm} onChange={(e) => setPrevKm(e.target.value)} placeholder={`주행전 km (기본 ${lastKm})`} className="rounded-lg border border-gray-300 px-2.5 py-1.5 text-sm dark:border-gray-700 dark:bg-gray-900" />
-            <input type="number" value={finalKm} onChange={(e) => setFinalKm(e.target.value)} placeholder="주행후 km" className="rounded-lg border border-gray-300 px-2.5 py-1.5 text-sm dark:border-gray-700 dark:bg-gray-900" />
-            <input type="number" value={nonbizKm} onChange={(e) => setNonbizKm(e.target.value)} placeholder="비업무용 km(선택)" className="rounded-lg border border-gray-300 px-2.5 py-1.5 text-sm dark:border-gray-700 dark:bg-gray-900" />
-            <input value={purpose} onChange={(e) => setPurpose(e.target.value)} placeholder="운행 목적" className="rounded-lg border border-gray-300 px-2.5 py-1.5 text-sm dark:border-gray-700 dark:bg-gray-900" />
-            <input value={vehicle} onChange={(e) => setVehicle(e.target.value)} placeholder="차량번호" className="rounded-lg border border-gray-300 px-2.5 py-1.5 text-sm dark:border-gray-700 dark:bg-gray-900" />
-            <button onClick={submit} className="rounded-lg bg-brand-500 px-3 py-1.5 text-sm font-bold text-white">등록</button>
+          <div className="grid grid-cols-2 gap-3 surface-card p-3 sm:grid-cols-7">
+            <input type="date" value={logDate} onChange={(e) => setLogDate(e.target.value)} className="field-auto" />
+            <input type="number" value={prevKm} onChange={(e) => setPrevKm(e.target.value)} placeholder={`주행전 km (기본 ${lastKm})`} className="field-auto" />
+            <input type="number" value={finalKm} onChange={(e) => setFinalKm(e.target.value)} placeholder="주행후 km" className="field-auto" />
+            <input type="number" value={nonbizKm} onChange={(e) => setNonbizKm(e.target.value)} placeholder="비업무용 km(선택)" className="field-auto" />
+            <input value={purpose} onChange={(e) => setPurpose(e.target.value)} placeholder="운행 목적" className="field-auto" />
+            <input value={vehicle} onChange={(e) => setVehicle(e.target.value)} placeholder="차량번호" className="field-auto" />
+            <button onClick={submit} className="rounded-control bg-brand-500 px-3 py-1.5 text-ui font-medium text-white">등록</button>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-gray-200 bg-white p-3 text-sm dark:border-gray-800 dark:bg-white/[0.03]">
+          <div className="surface-card flex flex-wrap items-center gap-2 px-3 py-2.5 text-ui">
             <span className="text-xs font-semibold text-gray-500">국세청 운행기록부 내보내기:</span>
-            <input type="date" value={exFrom} onChange={(e) => setExFrom(e.target.value)} className="rounded-lg border border-gray-300 px-2 py-1 text-xs dark:border-gray-700 dark:bg-gray-900" />
-            <span className="text-xs text-gray-400">~</span>
-            <input type="date" value={exTo} onChange={(e) => setExTo(e.target.value)} className="rounded-lg border border-gray-300 px-2 py-1 text-xs dark:border-gray-700 dark:bg-gray-900" />
-            <button onClick={exportExcel} className="rounded-full bg-success-500 px-3.5 py-1.5 text-xs font-bold text-white">📊 Excel 내보내기</button>
-            {lastVehicle && <span className="ml-auto text-xs text-gray-400">저장된 차량번호: {lastVehicle}</span>}
+            <input type="date" value={exFrom} onChange={(e) => setExFrom(e.target.value)} className="rounded-control border border-gray-300 px-2 py-1 text-xs dark:border-gray-700 dark:bg-gray-900" />
+            <span className="fg-subtle text-ui-sm">~</span>
+            <input type="date" value={exTo} onChange={(e) => setExTo(e.target.value)} className="rounded-control border border-gray-300 px-2 py-1 text-xs dark:border-gray-700 dark:bg-gray-900" />
+            <button onClick={exportExcel} className="rounded-full bg-success-500 px-3.5 py-1.5 text-xs font-medium text-white">📊 Excel 내보내기</button>
+            {lastVehicle && <span className="ml-auto fg-subtle text-ui-sm">저장된 차량번호: {lastVehicle}</span>}
           </div>
 
-          <div className="overflow-x-auto rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
+          <div className="overflow-x-auto surface-card">
             {loading ? (
-              <div className="p-8 text-center text-sm text-gray-400">불러오는 중...</div>
+              <div className="empty-state">불러오는 중...</div>
             ) : (
-              <table className="w-full text-sm">
+              <table className="w-full text-ui">
                 <thead>
-                  <tr className="border-b border-gray-200 bg-gray-50 text-left text-xs text-gray-400 dark:border-gray-800 dark:bg-white/[0.02]">
+                  <tr className="border-b border-gray-200 bg-gray-50 text-left fg-subtle text-ui-sm dark:border-gray-800 dark:bg-white/[0.02]">
                     <th className="px-3 py-2">날짜</th>
                     <th className="px-3 py-2">전일 km</th>
                     <th className="px-3 py-2">금일 km</th>
@@ -147,7 +147,7 @@ export default function MileagePage() {
                     </tr>
                   ))}
                   {logs.length === 0 && (
-                    <tr><td colSpan={7} className="p-8 text-center text-xs text-gray-400">기록이 없습니다</td></tr>
+                    <tr><td colSpan={7} className="p-8 text-center fg-subtle text-ui-sm">기록이 없습니다</td></tr>
                   )}
                 </tbody>
               </table>

@@ -23,11 +23,11 @@ export default function DeliveryCreateClient() {
   const set = (key: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     setForm({ ...form, [key]: e.target.value });
 
-  const inputClass = "w-full rounded-lg border border-gray-300 px-2.5 py-1.5 text-sm dark:border-gray-700 dark:bg-gray-900";
+  const inputClass = "w-full field-auto";
 
   const field = (key: string, label: string, type = "text") => (
     <div>
-      <label className="mb-1 block text-xs font-semibold text-gray-400">{label}</label>
+      <label className="label-eyebrow mb-1 block">{label}</label>
       <input type={type} value={form[key] || ""} onChange={set(key)} className={inputClass} />
     </div>
   );
@@ -69,21 +69,21 @@ export default function DeliveryCreateClient() {
 
   return (
     <div className="mx-auto max-w-3xl">
-      <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
+      <div className="surface-card p-4">
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-bold text-gray-800 dark:text-white/90">
+          <h2 className="card-title">
             {isDemo ? "🧪 새 DEMO 등록" : "🚚 새 납품 등록"}
           </h2>
-          <div className="flex gap-1 rounded-full bg-gray-100 p-1 dark:bg-white/[0.04]">
+          <div className="seg">
             <button
               onClick={() => setSiteType("delivery")}
-              className={`rounded-full px-3 py-1.5 text-xs font-bold ${!isDemo ? "bg-brand-500 text-white" : "text-gray-500"}`}
+              className={`rounded-full px-3 py-1.5 text-xs font-medium ${!isDemo ? "bg-brand-500 text-white" : "text-gray-500"}`}
             >
               납품 &amp; 관리
             </button>
             <button
               onClick={() => setSiteType("demo")}
-              className={`rounded-full px-3 py-1.5 text-xs font-bold ${isDemo ? "bg-brand-500 text-white" : "text-gray-500"}`}
+              className={`rounded-full px-3 py-1.5 text-xs font-medium ${isDemo ? "bg-brand-500 text-white" : "text-gray-500"}`}
             >
               DEMO
             </button>
@@ -93,7 +93,7 @@ export default function DeliveryCreateClient() {
         <div className="grid grid-cols-2 gap-3">
           {field("hospital_name", "병원명 *")}
           <div>
-            <label className="mb-1 block text-xs font-semibold text-gray-400">구분</label>
+            <label className="label-eyebrow mb-1 block">구분</label>
             <select value={form.hospital_type || "의원"} onChange={set("hospital_type")} className={inputClass}>
               <option value="의원">의원</option>
               <option value="병원">병원</option>
@@ -115,7 +115,7 @@ export default function DeliveryCreateClient() {
           {!isDemo && field("warranty_end", "Warranty 종료", "date")}
           {isDemo ? (
             <div>
-              <label className="mb-1 block text-xs font-semibold text-gray-400">DEMO 결과</label>
+              <label className="label-eyebrow mb-1 block">DEMO 결과</label>
               <select value={form.demo_result || ""} onChange={set("demo_result")} className={inputClass}>
                 <option value="">선택 안 함</option>
                 <option value="성공">성공</option>
@@ -125,7 +125,7 @@ export default function DeliveryCreateClient() {
             </div>
           ) : (
             <div>
-              <label className="mb-1 block text-xs font-semibold text-gray-400">유지보수</label>
+              <label className="label-eyebrow mb-1 block">유지보수</label>
               <select value={form.maintenance || ""} onChange={set("maintenance")} className={inputClass}>
                 <option value="">선택 안 함</option>
                 <option value="O">O (유지보수 대상)</option>
@@ -135,11 +135,11 @@ export default function DeliveryCreateClient() {
           )}
         </div>
 
-        <div className="mb-2 mt-5 text-xs font-bold uppercase text-gray-400">품목 목록</div>
+        <div className="mb-2 mt-5 text-xs font-medium uppercase text-gray-400">품목 목록</div>
         <div className="overflow-x-auto">
-        <table className="w-full min-w-[560px] text-sm">
+        <table className="w-full min-w-[560px] text-ui">
           <thead>
-            <tr className="border-b border-gray-200 text-left text-xs text-gray-400 dark:border-gray-800">
+            <tr className="border-b border-gray-200 text-left fg-subtle text-ui-sm dark:border-gray-800">
               <th className="py-1.5">Description</th>
               <th className="py-1.5">S/N</th>
               <th className="py-1.5">개별단가</th>
@@ -150,10 +150,10 @@ export default function DeliveryCreateClient() {
           <tbody>
             {items.map((it, i) => (
               <tr key={i} className="border-b border-gray-100 dark:border-gray-800">
-                <td><input value={it.description} onChange={(e) => setItems(items.map((x, j) => (j === i ? { ...x, description: e.target.value } : x)))} className="w-full rounded border border-gray-300 px-1.5 py-1 text-xs dark:border-gray-700 dark:bg-gray-900" /></td>
-                <td><input value={it.serial_no} onChange={(e) => setItems(items.map((x, j) => (j === i ? { ...x, serial_no: e.target.value } : x)))} className="w-full rounded border border-gray-300 px-1.5 py-1 text-xs dark:border-gray-700 dark:bg-gray-900" /></td>
-                <td><input type="number" value={it.price} onChange={(e) => setItems(items.map((x, j) => (j === i ? { ...x, price: e.target.value } : x)))} className="w-full rounded border border-gray-300 px-1.5 py-1 text-xs dark:border-gray-700 dark:bg-gray-900" /></td>
-                <td><input value={it.sys_id} onChange={(e) => setItems(items.map((x, j) => (j === i ? { ...x, sys_id: e.target.value } : x)))} className="w-full rounded border border-gray-300 px-1.5 py-1 text-xs dark:border-gray-700 dark:bg-gray-900" /></td>
+                <td><input value={it.description} onChange={(e) => setItems(items.map((x, j) => (j === i ? { ...x, description: e.target.value } : x)))} className="field-auto w-full px-1.5 py-0.5 text-ui-sm" /></td>
+                <td><input value={it.serial_no} onChange={(e) => setItems(items.map((x, j) => (j === i ? { ...x, serial_no: e.target.value } : x)))} className="field-auto w-full px-1.5 py-0.5 text-ui-sm" /></td>
+                <td><input type="number" value={it.price} onChange={(e) => setItems(items.map((x, j) => (j === i ? { ...x, price: e.target.value } : x)))} className="field-auto w-full px-1.5 py-0.5 text-ui-sm" /></td>
+                <td><input value={it.sys_id} onChange={(e) => setItems(items.map((x, j) => (j === i ? { ...x, sys_id: e.target.value } : x)))} className="field-auto w-full px-1.5 py-0.5 text-ui-sm" /></td>
                 <td><button onClick={() => setItems(items.filter((_, j) => j !== i))} className="text-error-500">×</button></td>
               </tr>
             ))}
@@ -169,7 +169,7 @@ export default function DeliveryCreateClient() {
 
         <div className="mt-6 flex justify-end gap-2">
           <button onClick={() => router.push("/deliveries")} className="rounded-full border border-gray-300 px-4 py-2 text-xs font-semibold dark:border-gray-700">취소</button>
-          <button onClick={submit} disabled={saving} className="rounded-full bg-brand-500 px-4 py-2 text-xs font-bold text-white disabled:opacity-50">
+          <button onClick={submit} disabled={saving} className="rounded-full bg-brand-500 px-4 py-2 text-xs font-medium text-white disabled:opacity-50">
             {saving ? "등록 중..." : "등록"}
           </button>
         </div>

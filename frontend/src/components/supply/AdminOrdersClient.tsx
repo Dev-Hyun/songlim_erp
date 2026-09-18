@@ -14,14 +14,15 @@ import {
 import { printOrder, printOrders } from "./print";
 
 const STATUSES = ["접수", "출고", "배송완료", "직납출고", "직납완료"];
-const STATUS_COLOR: Record<string, string> = {
-  접수: "bg-gray-100 text-gray-600 dark:bg-white/10 dark:text-gray-300",
-  출고: "bg-warning-50 text-warning-600 dark:bg-warning-500/15 dark:text-warning-400",
-  배송완료: "bg-success-50 text-success-600 dark:bg-success-500/15 dark:text-success-400",
-  직납출고: "bg-brand-50 text-brand-600 dark:bg-brand-500/15 dark:text-brand-400",
-  직납완료: "bg-success-50 text-success-600 dark:bg-success-500/15 dark:text-success-400",
+// 상태는 배경 전체를 칠하지 않고 중성 칩 + 작은 색 점으로만 구분한다.
+const STATUS_DOT: Record<string, string> = {
+  접수: "bg-gray-400 dark:bg-gray-500",
+  출고: "bg-warning-500",
+  배송완료: "bg-success-500",
+  직납출고: "bg-brand-500",
+  직납완료: "bg-success-500",
 };
-const inputCls = "rounded-lg border border-gray-300 px-2.5 py-1.5 text-xs dark:border-gray-700 dark:bg-gray-900";
+const inputCls = "field";
 
 type DatePreset = "3일" | "1일" | "1주일" | "기간";
 
@@ -117,11 +118,11 @@ export default function AdminOrdersClient() {
     printOrders(picked);
   }
 
-  if (loading && orders.length === 0) return <div className="p-8 text-center text-sm text-gray-400">불러오는 중...</div>;
+  if (loading && orders.length === 0) return <div className="empty-state">불러오는 중...</div>;
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-white/[0.03]">
+      <div className="surface-card flex flex-wrap items-center gap-2 px-3 py-2.5">
         <div className="relative">
           <input
             value={hospitalSearch}
@@ -132,10 +133,10 @@ export default function AdminOrdersClient() {
             className={inputCls + " w-48"}
           />
           {showHospitalOptions && (
-            <div className="absolute left-0 top-full z-10 mt-1 max-h-56 w-56 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-900">
+            <div className="surface-card absolute left-0 top-full z-10 mt-1 max-h-56 w-56 overflow-y-auto shadow-lg">
               <button
                 onClick={() => { setHospitalId(""); setHospitalSearch(""); }}
-                className="block w-full px-3 py-1.5 text-left text-xs hover:bg-gray-50 dark:hover:bg-white/5"
+                className="row-hover fg-base block w-full px-3 py-1.5 text-left text-ui"
               >
                 전체 병원
               </button>
@@ -143,12 +144,12 @@ export default function AdminOrdersClient() {
                 <button
                   key={h.id}
                   onClick={() => { setHospitalId(String(h.id)); setHospitalSearch(h.hospital_name); }}
-                  className={`block w-full px-3 py-1.5 text-left text-xs hover:bg-gray-50 dark:hover:bg-white/5 ${hospitalId === String(h.id) ? "font-bold text-brand-500" : ""}`}
+                  className={`row-hover fg-base block w-full px-3 py-1.5 text-left text-ui ${hospitalId === String(h.id) ? "fg-strong font-medium" : ""}`}
                 >
                   {h.hospital_name}
                 </button>
               ))}
-              {filteredHospitals.length === 0 && <div className="px-3 py-2 text-xs text-gray-400">검색 결과 없음</div>}
+              {filteredHospitals.length === 0 && <div className="px-3 py-2 fg-subtle text-ui-sm">검색 결과 없음</div>}
             </div>
           )}
         </div>
@@ -158,12 +159,12 @@ export default function AdminOrdersClient() {
           {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
         </select>
 
-        <div className="flex gap-1 rounded-full bg-gray-100 p-1 dark:bg-white/[0.04]">
+        <div className="seg">
           {(["1일", "3일", "1주일", "기간"] as DatePreset[]).map((p) => (
             <button
               key={p}
               onClick={() => applyPreset(p)}
-              className={`rounded-full px-3 py-1 text-xs font-bold ${preset === p ? "bg-brand-500 text-white" : "text-gray-500"}`}
+              className={`seg-item ${preset === p ? "seg-item-on" : ""}`}
             >
               {p}
             </button>
@@ -172,60 +173,60 @@ export default function AdminOrdersClient() {
         {preset === "기간" && (
           <>
             <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className={inputCls} />
-            <span className="text-xs text-gray-400">~</span>
+            <span className="fg-subtle text-ui-sm">~</span>
             <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className={inputCls} />
           </>
         )}
 
         <div className="ml-auto flex items-center gap-2">
           {selected.size > 0 && (
-            <button onClick={printSelected} className="rounded-lg bg-brand-500 px-3 py-1.5 text-xs font-bold text-white">
+            <button onClick={printSelected} className="btn btn-primary">
               🖨 선택 {selected.size}건 묶어서 출력
             </button>
           )}
-          <div className="flex gap-1 rounded-full bg-gray-100 p-1 dark:bg-white/[0.04]">
-            <button onClick={() => setView("list")} className={`rounded-full px-3 py-1 text-xs font-bold ${view === "list" ? "bg-white shadow dark:bg-gray-700" : "text-gray-500"}`}>목록형</button>
-            <button onClick={() => setView("kanban")} className={`rounded-full px-3 py-1 text-xs font-bold ${view === "kanban" ? "bg-white shadow dark:bg-gray-700" : "text-gray-500"}`}>칸반형</button>
+          <div className="seg">
+            <button onClick={() => setView("list")} className={`seg-item ${view === "list" ? "seg-item-on" : ""}`}>목록형</button>
+            <button onClick={() => setView("kanban")} className={`seg-item ${view === "kanban" ? "seg-item-on" : ""}`}>칸반형</button>
           </div>
         </div>
       </div>
 
       {view === "list" ? (
-        <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
+        <div className="surface-card overflow-hidden">
           {orders.map((o) => (
             <button
               key={o.id}
               onClick={() => setDetailId(o.id)}
-              className="flex w-full items-center gap-3 border-b border-gray-100 px-4 py-3 text-left last:border-0 hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-white/[0.02]"
+              className="list-row"
             >
-              <input type="checkbox" checked={selected.has(o.id)} onClick={(e) => toggleSelect(o.id, e)} onChange={() => {}} className="h-4 w-4" />
-              <div className="flex-1">
-                <div className="text-sm font-semibold text-gray-800 dark:text-white/90">{o.hospital_name}</div>
-                <div className="text-xs text-gray-400">{o.created_at?.replace("T", " ").slice(0, 16)} · {o.items.length}개 품목 · {o.total_amount.toLocaleString()}원</div>
+              <input type="checkbox" checked={selected.has(o.id)} onClick={(e) => toggleSelect(o.id, e)} onChange={() => {}} className="h-4 w-4 shrink-0" />
+              <div className="min-w-0 flex-1">
+                <div className="fg-strong text-ui font-medium">{o.hospital_name}</div>
+                <div className="fg-subtle text-ui-sm">{o.created_at?.replace("T", " ").slice(0, 16)} · {o.items.length}개 품목 · {o.total_amount.toLocaleString()}원</div>
               </div>
-              <span className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${STATUS_COLOR[o.status] || ""}`}>{o.status}</span>
+              <span className="chip"><span className={`dot ${STATUS_DOT[o.status] || "bg-gray-400"}`} />{o.status}</span>
             </button>
           ))}
-          {orders.length === 0 && <div className="p-8 text-center text-sm text-gray-400">발주 내역이 없습니다</div>}
+          {orders.length === 0 && <div className="empty-state">발주 내역이 없습니다</div>}
         </div>
       ) : (
         <div className="grid grid-cols-5 gap-3 overflow-x-auto pb-2 max-lg:flex max-lg:grid-cols-none">
           {STATUSES.map((s) => (
-            <div key={s} className="rounded-2xl border border-gray-200 bg-gray-50 p-2.5 dark:border-gray-800 dark:bg-white/[0.02] max-lg:w-[220px] max-lg:shrink-0">
+            <div key={s} className="surface-sub hairline rounded-card border p-2 max-lg:w-[220px] max-lg:shrink-0">
               <div className="mb-2 flex items-center justify-between px-1">
-                <span className="text-xs font-bold text-gray-600 dark:text-gray-300">{s}</span>
-                <span className="text-[11px] text-gray-400">{orders.filter((o) => o.status === s).length}</span>
+                <span className="fg-base text-ui font-medium">{s}</span>
+                <span className="fg-subtle text-ui-xs">{orders.filter((o) => o.status === s).length}</span>
               </div>
               <div className="space-y-2">
                 {orders.filter((o) => o.status === s).map((o) => (
                   <button
                     key={o.id}
                     onClick={() => setDetailId(o.id)}
-                    className="block w-full rounded-xl border border-gray-200 bg-white p-2.5 text-left text-xs shadow-sm hover:border-brand-300 dark:border-gray-800 dark:bg-gray-900"
+                    className="surface-card block w-full p-2.5 text-left text-ui transition-colors hover:border-gray-300 dark:hover:border-gray-700"
                   >
-                    <div className="truncate font-semibold text-gray-800 dark:text-white/90">{o.hospital_name}</div>
-                    <div className="mt-0.5 text-[11px] text-gray-400">{o.created_at?.slice(0, 10)}</div>
-                    <div className="mt-1 font-bold text-gray-700 dark:text-gray-200">{o.total_amount.toLocaleString()}원</div>
+                    <div className="fg-strong truncate font-medium">{o.hospital_name}</div>
+                    <div className="mt-0.5 fg-subtle text-ui-xs tabular-nums">{o.created_at?.slice(0, 10)}</div>
+                    <div className="fg-base mt-1 font-medium tabular-nums">{o.total_amount.toLocaleString()}원</div>
                   </button>
                 ))}
               </div>
@@ -237,66 +238,66 @@ export default function AdminOrdersClient() {
       {/* 상세 팝업 */}
       {detail && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/50 p-4 sm:p-8" onClick={() => setDetailId(null)}>
-          <div className="flex max-h-full w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white dark:bg-gray-900" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4 dark:border-gray-800">
+          <div className="surface-card flex max-h-full w-full max-w-2xl flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            <div className="card-head justify-between">
               <div>
-                <div className="text-sm font-bold text-gray-800 dark:text-white/90">{detail.hospital_name}</div>
-                <div className="text-xs text-gray-400">{detail.created_at?.replace("T", " ").slice(0, 16)}</div>
+                <div className="card-title">{detail.hospital_name}</div>
+                <div className="fg-subtle text-ui-sm">{detail.created_at?.replace("T", " ").slice(0, 16)}</div>
               </div>
-              <button onClick={() => setDetailId(null)} className="flex h-8 w-8 items-center justify-center rounded-full border border-gray-200 text-sm text-gray-500 dark:border-gray-700">✕</button>
+              <button onClick={() => setDetailId(null)} className="icon-btn">✕</button>
             </div>
-            <div className="flex-1 overflow-y-auto p-6">
+            <div className="flex-1 overflow-y-auto p-4">
               <div className="mb-4 flex items-center gap-2">
-                <span className="text-xs text-gray-400">진행상태</span>
+                <span className="fg-subtle text-ui-sm">진행상태</span>
                 <select value={detail.status} onChange={(e) => setOrderStatus(detail.id, e.target.value)} className={inputCls}>
                   {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
                 </select>
               </div>
               {detail.order_request && (
-                <div className="mb-3 rounded-lg border border-brand-300 bg-brand-50 p-4 dark:border-brand-500/40 dark:bg-brand-500/10">
-                  <div className="text-xs font-bold text-brand-600 dark:text-brand-400">📌 병원 요청사항</div>
-                  <div className="mt-1 whitespace-pre-wrap text-lg font-bold text-gray-900 dark:text-white">{detail.order_request}</div>
+                <div className="surface-sub hairline mb-3 rounded-control border p-3">
+                  <div className="label-eyebrow">📌 병원 요청사항</div>
+                  <div className="fg-strong mt-1 whitespace-pre-wrap text-ui-lg font-medium">{detail.order_request}</div>
                 </div>
               )}
               <div className="overflow-x-auto">
-              <table className="w-full min-w-[560px] text-xs">
+              <table className="table-dense min-w-[560px]">
                 <thead>
-                  <tr className="border-b border-gray-200 text-left text-gray-400 dark:border-gray-800">
-                    <th className="py-1.5">품목</th>
-                    <th className="py-1.5 pl-3">제조사</th>
-                    <th className="py-1.5 pl-3">규격</th>
-                    <th className="py-1.5 pl-3">단위</th>
-                    <th className="py-1.5 text-right">수량</th>
-                    <th className="py-1.5 text-right">단가</th>
-                    <th className="py-1.5 text-right">소계</th>
+                  <tr>
+                    <th className="label-eyebrow py-1.5 text-left">품목</th>
+                    <th className="label-eyebrow py-1.5 pl-3 text-left">제조사</th>
+                    <th className="label-eyebrow py-1.5 pl-3 text-left">규격</th>
+                    <th className="label-eyebrow py-1.5 pl-3 text-left">단위</th>
+                    <th className="label-eyebrow py-1.5 text-right">수량</th>
+                    <th className="label-eyebrow py-1.5 text-right">단가</th>
+                    <th className="label-eyebrow py-1.5 text-right">소계</th>
                   </tr>
                 </thead>
                 <tbody>
                   {detail.items.map((it) => (
-                    <tr key={it.id} className="border-b border-gray-100 dark:border-gray-800">
-                      <td className="py-1.5 font-medium text-gray-700 dark:text-gray-200">{it.name}</td>
-                      <td className="py-1.5 pl-3 text-gray-500">{it.manufacturer || "-"}</td>
-                      <td className="py-1.5 pl-3 text-gray-500">{it.spec || "-"}</td>
-                      <td className="py-1.5 pl-3 text-gray-500">{it.unit}</td>
-                      <td className="py-1.5 text-right">{it.qty}</td>
-                      <td className="py-1.5 text-right">{it.unit_price.toLocaleString()}원</td>
-                      <td className="py-1.5 text-right font-semibold">{it.subtotal.toLocaleString()}원</td>
+                    <tr key={it.id} className="hairline-soft border-b">
+                      <td className="fg-base py-1.5 font-medium">{it.name}</td>
+                      <td className="fg-muted py-1.5 pl-3">{it.manufacturer || "-"}</td>
+                      <td className="fg-muted py-1.5 pl-3">{it.spec || "-"}</td>
+                      <td className="fg-muted py-1.5 pl-3">{it.unit}</td>
+                      <td className="fg-base py-1.5 text-right tabular-nums">{it.qty}</td>
+                      <td className="fg-base py-1.5 text-right tabular-nums">{it.unit_price.toLocaleString()}원</td>
+                      <td className="fg-strong py-1.5 text-right font-medium tabular-nums">{it.subtotal.toLocaleString()}원</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
               </div>
-              <div className="mt-3 text-right text-sm font-bold text-gray-800 dark:text-white/90">합계 {detail.total_amount.toLocaleString()}원</div>
+              <div className="fg-strong mt-3 text-right text-ui font-medium tabular-nums">합계 {detail.total_amount.toLocaleString()}원</div>
 
-              <div className="mt-5 flex flex-wrap items-center gap-2 border-t border-gray-100 pt-4 dark:border-gray-800">
+              <div className="hairline mt-5 flex flex-wrap items-center gap-2 border-t pt-4">
                 <input
                   defaultValue={detail.tracking_number || ""}
                   onChange={(e) => setTrackingInput(e.target.value)}
                   placeholder="송장번호 입력"
                   className={inputCls}
                 />
-                <button onClick={() => saveTracking(detail.id)} className="rounded-lg bg-brand-500 px-3 py-1.5 text-xs font-bold text-white">송장 저장</button>
-                <span className="ml-2 text-[11px] text-gray-400">세금계산서:</span>
+                <button onClick={() => saveTracking(detail.id)} className="btn btn-primary">송장 저장</button>
+                <span className="ml-2 fg-subtle text-ui-xs">세금계산서:</span>
                 <select value={detail.tax_invoice_status} onChange={(e) => setTaxStatus(detail.id, e.target.value)} className={inputCls}>
                   <option value="미발행">미발행</option>
                   <option value="발행요청">발행요청</option>
@@ -304,7 +305,7 @@ export default function AdminOrdersClient() {
                 </select>
                 <button
                   onClick={() => printOrder(detail, detail.hospital_name)}
-                  className="ml-auto rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-600 dark:border-gray-700 dark:text-gray-300"
+                  className="btn btn-default ml-auto"
                 >
                   🖨 발주서 출력
                 </button>

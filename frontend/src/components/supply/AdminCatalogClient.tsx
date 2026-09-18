@@ -15,7 +15,7 @@ import AdminCatalogGridEditor from "./AdminCatalogGridEditor";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8010";
 const HOSPITAL_TYPES = ["의원", "병원", "대학병원", "동물병원"];
-const inputCls = "rounded-lg border border-gray-300 px-2.5 py-1.5 text-xs dark:border-gray-700 dark:bg-gray-900";
+const inputCls = "field";
 
 const PAGE_SIZE = 30;
 
@@ -59,7 +59,7 @@ export default function AdminCatalogClient() {
     }
   }
 
-  if (loading) return <div className="p-8 text-center text-sm text-gray-400">불러오는 중...</div>;
+  if (loading) return <div className="empty-state">불러오는 중...</div>;
 
   const filtered = items.filter((it) => {
     if (!search) return true;
@@ -75,60 +75,60 @@ export default function AdminCatalogClient() {
 
   return (
     <div className="space-y-4">
-      <div className="rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-white/[0.03]">
-        <h3 className="mb-1 text-sm font-bold text-gray-800 dark:text-white/90">카테고리별 노출 제한</h3>
-        <p className="mb-3 text-[11px] text-gray-400">지정한 카테고리는 여기 등록된 병원종별 계정에만 노출됩니다 (예: &quot;동물병원&quot; 카테고리 → 동물병원 계정만).</p>
+      <div className="surface-card p-3">
+        <h3 className="card-title mb-1">카테고리별 노출 제한</h3>
+        <p className="mb-3 fg-subtle text-ui-xs">지정한 카테고리는 여기 등록된 병원종별 계정에만 노출됩니다 (예: &quot;동물병원&quot; 카테고리 → 동물병원 계정만).</p>
         <div className="mb-3 flex flex-wrap gap-2">
           <input value={accessForm.category} onChange={(e) => setAccessForm({ ...accessForm, category: e.target.value })} placeholder="카테고리명" className={inputCls} />
           <select value={accessForm.hospital_type} onChange={(e) => setAccessForm({ ...accessForm, hospital_type: e.target.value })} className={inputCls}>
             {HOSPITAL_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
           </select>
-          <button onClick={addAccess} className="rounded-lg bg-brand-500 px-3 text-xs font-bold text-white">허용 추가</button>
+          <button onClick={addAccess} className="btn btn-default">허용 추가</button>
         </div>
         <div className="flex flex-wrap gap-2">
           {access.map((a) => (
-            <span key={a.id} className="flex items-center gap-1.5 rounded-full bg-gray-100 px-3 py-1 text-[11px] font-semibold dark:bg-white/10">
+            <span key={a.id} className="chip">
               {a.category} → {a.hospital_type}
-              <button onClick={async () => { await adminRemoveCategoryAccess(a.id); load(); }} className="text-error-500">×</button>
+              <button onClick={async () => { await adminRemoveCategoryAccess(a.id); load(); }} className="text-error-600 dark:text-error-400">×</button>
             </span>
           ))}
-          {access.length === 0 && <span className="text-[11px] text-gray-400">제한된 카테고리가 없습니다 (모두 전체공개)</span>}
+          {access.length === 0 && <span className="fg-subtle text-ui-xs">제한된 카테고리가 없습니다 (모두 전체공개)</span>}
         </div>
       </div>
 
-      <div className="overflow-x-auto rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-100 p-4 dark:border-gray-800">
-          <h3 className="text-sm font-bold text-gray-800 dark:text-white/90">소모품 카탈로그</h3>
+      <div className="overflow-x-auto surface-card">
+        <div className="toolbar justify-between">
+          <h3 className="card-title">소모품 카탈로그</h3>
           <div className="flex items-center gap-2">
             <input
               value={search}
               onChange={(e) => { setSearch(e.target.value); setVisibleCount(PAGE_SIZE); }}
               placeholder="품목명/제조사/코드/카테고리 검색..."
-              className="w-56 rounded-full border border-gray-300 bg-gray-50 px-3.5 py-1.5 text-xs focus:border-brand-500 focus:outline-none dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300"
+              className="field w-56"
             />
-            <button onClick={() => setShowEditor(true)} className="rounded-full bg-brand-500 px-4 py-1.5 text-xs font-bold text-white">
+            <button onClick={() => setShowEditor(true)} className="btn btn-primary">
               소모품 품목 관리자 사이트
             </button>
           </div>
         </div>
-        <table className="w-full min-w-[720px] text-xs">
+        <table className="table-dense min-w-[720px]">
           <thead>
-            <tr className="border-b border-gray-200 bg-gray-50 text-left text-gray-400 dark:border-gray-800 dark:bg-white/[0.02]">
-              <th className="px-3 py-2">사진</th>
-              <th className="px-3 py-2">코드</th>
-              <th className="px-3 py-2">품목명</th>
-              <th className="px-3 py-2">제조사</th>
-              <th className="px-3 py-2">카테고리</th>
-              <th className="px-3 py-2">단위</th>
-              <th className="px-3 py-2">기본금액</th>
-              <th className="px-3 py-2">노출</th>
+            <tr>
+              <th className="th-dense">사진</th>
+              <th className="th-dense">코드</th>
+              <th className="th-dense">품목명</th>
+              <th className="th-dense">제조사</th>
+              <th className="th-dense">카테고리</th>
+              <th className="th-dense">단위</th>
+              <th className="th-dense">기본금액</th>
+              <th className="th-dense">노출</th>
             </tr>
           </thead>
           <tbody>
             {visibleItems.map((it) => (
-              <tr key={it.id} className="border-b border-gray-100 dark:border-gray-800">
-                <td className="px-3 py-1.5">
-                  <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-lg border border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-white/5">
+              <tr key={it.id} className="row-hover">
+                <td className="td-dense py-1.5">
+                  <div className="surface-sub hairline fg-subtle flex h-10 w-10 items-center justify-center overflow-hidden rounded-control border">
                     {it.image_key ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={`${API}${it.image_key}`} alt={it.name} className="h-full w-full object-cover" />
@@ -137,39 +137,39 @@ export default function AdminCatalogClient() {
                     )}
                   </div>
                 </td>
-                <td className="px-3 py-1.5 text-gray-500">{it.code || "-"}</td>
-                <td className="px-3 py-1.5 font-medium text-gray-800 dark:text-white/90">{it.name}</td>
-                <td className="px-3 py-1.5 text-gray-500">{it.manufacturer || "-"}</td>
-                <td className="px-3 py-1.5 text-gray-500">{it.category}</td>
-                <td className="px-3 py-1.5 text-gray-500">{it.unit}</td>
-                <td className="px-3 py-1.5 text-gray-500">{it.unit_price.toLocaleString()}원</td>
-                <td className="px-3 py-1.5 text-center">{it.is_active ? "✅" : "⬜"}</td>
+                <td className="td-dense fg-muted py-1.5">{it.code || "-"}</td>
+                <td className="td-dense fg-strong py-1.5 font-medium">{it.name}</td>
+                <td className="td-dense fg-muted py-1.5">{it.manufacturer || "-"}</td>
+                <td className="td-dense fg-muted py-1.5">{it.category}</td>
+                <td className="td-dense fg-muted py-1.5">{it.unit}</td>
+                <td className="td-dense fg-muted py-1.5 tabular-nums">{it.unit_price.toLocaleString()}원</td>
+                <td className="td-dense py-1.5 text-center">{it.is_active ? "✅" : "⬜"}</td>
               </tr>
             ))}
-            {filtered.length === 0 && <tr><td colSpan={8} className="p-6 text-center text-gray-400">{search ? "검색 결과가 없습니다" : "등록된 품목이 없습니다"}</td></tr>}
+            {filtered.length === 0 && <tr><td colSpan={8} className="empty-state">{search ? "검색 결과가 없습니다" : "등록된 품목이 없습니다"}</td></tr>}
           </tbody>
         </table>
         {filtered.length > visibleCount && (
-          <div className="border-t border-gray-100 p-3 text-center dark:border-gray-800">
+          <div className="hairline border-t p-3 text-center">
             <button
               onClick={() => setVisibleCount((v) => v + PAGE_SIZE)}
-              className="rounded-full border border-gray-300 px-5 py-1.5 text-xs font-semibold text-gray-600 hover:border-brand-300 hover:text-brand-500 dark:border-gray-700 dark:text-gray-300"
+              className="btn btn-default"
             >
               더보기 ({visibleItems.length}/{filtered.length})
             </button>
           </div>
         )}
-        <div className="flex justify-end gap-2 border-t border-gray-100 p-3 dark:border-gray-800">
+        <div className="hairline flex justify-end gap-2 border-t p-3">
           <a
             href={adminCatalogExportUrl()}
-            className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-bold text-gray-600 hover:border-brand-300 hover:text-brand-500 dark:border-gray-700 dark:text-gray-300"
+            className="btn btn-default"
           >
             ⬇ 엑셀로 내보내기
           </a>
           <button
             onClick={() => importInputRef.current?.click()}
             disabled={importing}
-            className="rounded-lg bg-brand-500 px-3 py-1.5 text-xs font-bold text-white disabled:opacity-50"
+            className="btn btn-default"
           >
             {importing ? "가져오는 중..." : "⬆ 엑셀로 추가하기"}
           </button>

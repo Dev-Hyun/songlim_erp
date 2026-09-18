@@ -54,3 +54,11 @@ Thumbs.db
 backend/app.db
 backend/data.db.bak*
 image.png
+
+# 데이터 정리 스크립트가 만드는 되돌리기/보고 산출물 — 실행한 머신의 행 ID라 공유하면 위험하다
+backend/*_undo.json
+backend/deleted_community_posts_backup.json
+backend/scripts/coord_outliers.json
+# 실제 고객 정보가 담긴 표본 문서
+계약서.jpg
+영업지도_전수조사_결과.md

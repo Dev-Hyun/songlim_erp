@@ -21,13 +21,15 @@ from .supply import (
 from .sales_map import Hospital, Equipment, SalesNote, PersonalMemo
 from .contracts import Contract, ContractItem, ContractPhoto, ContractComment
 from .deliveries import Delivery, DeliveryItem, DeliveryPhoto, DeliveryComment
-from .inventory import InvEquipment, InvSupply
+from .inventory import InvChangeLog, InvEquipment, InvSupply
 from .board import Notice, CsTicket, CsComment, TechPost, TechComment
 from .misc import MileageLog, Bid, NewsArticle, StorageFile, StorageFolder, StorageFavorite, StorageAccess
 from .calendar import CalendarEvent, CalendarEventAssignee, CalendarEventTeam, GoogleCalendarLink
 from .audit import AuditLog
+from .kakao import KakaoOutbox
 
 __all__ = [
+    "KakaoOutbox",
     "Base",
     "GradeMaster",
     "HospitalProfile",
@@ -58,6 +60,7 @@ __all__ = [
     "DeliveryComment",
     "InvEquipment",
     "InvSupply",
+    "InvChangeLog",
     "Notice",
     "CsTicket",
     "CsComment",

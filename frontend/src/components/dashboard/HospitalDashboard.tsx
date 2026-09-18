@@ -101,10 +101,10 @@ export default function HospitalDashboard() {
   return (
     <div className="grid grid-cols-12 gap-4 md:gap-6">
       <div className="col-span-12">
-        <h1 className="text-xl font-bold text-gray-800 dark:text-white/90">
+        <h1 className="page-title">
           안녕하세요, {name}님 👋
         </h1>
-        <p className="mt-1 text-sm text-gray-400">오늘도 좋은 하루 되세요.</p>
+        <p className="mt-1 text-ui text-gray-400">오늘도 좋은 하루 되세요.</p>
       </div>
 
       <div className="col-span-12 grid grid-cols-2 gap-4 md:gap-6 xl:grid-cols-6">
@@ -112,7 +112,7 @@ export default function HospitalDashboard() {
           <Link
             key={q.href}
             href={q.href}
-            className="flex items-center justify-center rounded-2xl border border-gray-200 bg-white p-5 text-center text-sm font-semibold text-gray-700 transition hover:-translate-y-0.5 hover:shadow-md dark:border-gray-800 dark:bg-white/[0.03] dark:text-gray-200"
+            className="flex items-center justify-center rounded-card border border-gray-200 bg-white p-5 text-center text-ui font-semibold text-gray-700 transition hover:-translate-y-0.5 hover:shadow-md dark:border-gray-800 dark:bg-white/[0.03] dark:text-gray-200"
           >
             {q.label}
           </Link>
@@ -120,18 +120,18 @@ export default function HospitalDashboard() {
       </div>
 
       {!ordersLoading && (
-        <div className="col-span-12 flex flex-col justify-between rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] sm:flex-row sm:items-center">
+        <div className="col-span-12 flex flex-col justify-between surface-card p-4 sm:flex-row sm:items-center">
           <div>
             <span className="text-xs font-semibold text-gray-400">이번 달 발주액</span>
-            <div className="mt-1 text-2xl font-extrabold text-gray-800 dark:text-white">{thisMonthTotal.toLocaleString()}원</div>
+            <div className="mt-1 text-2xl font-semibold text-gray-800 dark:text-white">{thisMonthTotal.toLocaleString()}원</div>
           </div>
-          <div className="mt-2 text-xs text-gray-400 sm:mt-0 sm:text-right">
+          <div className="mt-2 fg-subtle text-ui-sm sm:mt-0 sm:text-right">
             {diffPct === null ? (
               <span>전월 발주 내역이 없어 비교할 수 없습니다</span>
             ) : (
               <span>
                 전월 대비{" "}
-                <span className={`font-bold ${diffPct >= 0 ? "text-success-600 dark:text-success-400" : "text-error-500"}`}>
+                <span className={`font-medium ${diffPct >= 0 ? "text-success-600 dark:text-success-400" : "text-error-500"}`}>
                   {diffPct >= 0 ? "▲" : "▼"} {Math.abs(diffPct)}%
                 </span>
               </span>
@@ -143,22 +143,22 @@ export default function HospitalDashboard() {
       <div className="col-span-12">
         <ComponentCard title="내 발주내역 상태">
           {ordersLoading ? (
-            <div className="py-6 text-center text-sm text-gray-400">불러오는 중...</div>
+            <div className="py-6 text-center text-ui text-gray-400">불러오는 중...</div>
           ) : orders.length === 0 ? (
-            <div className="py-6 text-center text-sm text-gray-400">발주 내역이 없습니다</div>
+            <div className="py-6 text-center text-ui text-gray-400">발주 내역이 없습니다</div>
           ) : (
             <>
               <div className="mb-3 text-xs font-semibold text-gray-400">누적 발주 {orders.length}건 · 최근 3건</div>
               <ul className="space-y-2">
                 {orders.slice(0, 3).map((o) => (
-                  <li key={o.id} className="flex items-center justify-between rounded-lg border border-gray-100 px-3 py-2 text-sm dark:border-gray-800">
+                  <li key={o.id} className="flex items-center justify-between rounded-control border border-gray-100 px-3 py-2 text-ui dark:border-gray-800">
                     <div className="flex items-center gap-2">
                       <span className="font-medium text-gray-700 dark:text-gray-200">발주 #{o.id}</span>
-                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${ORDER_STATUS_COLOR[o.status] || "bg-gray-100 text-gray-600"}`}>{o.status}</span>
+                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${ORDER_STATUS_COLOR[o.status] || "bg-gray-100 text-gray-600"}`}>{o.status}</span>
                     </div>
                     <div className="text-right">
                       <div className="font-semibold text-gray-800 dark:text-white/90">{o.total_amount.toLocaleString()}원</div>
-                      <div className="text-[11px] text-gray-400">{o.created_at?.slice(0, 10)}</div>
+                      <div className="fg-subtle text-ui-xs">{o.created_at?.slice(0, 10)}</div>
                     </div>
                   </li>
                 ))}
@@ -175,9 +175,9 @@ export default function HospitalDashboard() {
         <DashboardListCard title="병원 공지사항" href="/notices/hospital" footerLabel="전체 공지사항 보기" loading={loading} isEmpty={notices.length === 0} emptyText="등록된 공지가 없습니다">
           <ul className="space-y-3">
             {notices.slice(0, 3).map((n) => (
-              <li key={n.id} className="flex items-center justify-between text-sm">
-                <span className="truncate font-medium text-gray-700 dark:text-gray-200">{n.title}</span>
-                <span className="ml-3 shrink-0 text-xs text-gray-400">{timeAgo(n.created_at)}</span>
+              <li key={n.id} className="flex items-center justify-between text-ui">
+                <span className="fg-base truncate font-medium">{n.title}</span>
+                <span className="ml-3 shrink-0 fg-subtle text-ui-sm">{timeAgo(n.created_at)}</span>
               </li>
             ))}
           </ul>
@@ -188,9 +188,9 @@ export default function HospitalDashboard() {
         <DashboardListCard title="의료소식" href="/news" footerLabel="전체 의료소식 보기" loading={loading} isEmpty={news.length === 0} emptyText="등록된 소식이 없습니다">
           <ul className="space-y-3">
             {news.slice(0, 3).map((n) => (
-              <li key={n.id} className="flex items-center justify-between text-sm">
-                <span className="truncate font-medium text-gray-700 dark:text-gray-200">{n.title}</span>
-                <span className="ml-3 shrink-0 text-xs text-gray-400">{n.source}</span>
+              <li key={n.id} className="flex items-center justify-between text-ui">
+                <span className="fg-base truncate font-medium">{n.title}</span>
+                <span className="ml-3 shrink-0 fg-subtle text-ui-sm">{n.source}</span>
               </li>
             ))}
           </ul>
@@ -201,9 +201,9 @@ export default function HospitalDashboard() {
         <DashboardListCard title="공동구매" href="/group-buy" footerLabel="전체 공동구매 보기" loading={loading} isEmpty={groupBuy.length === 0} emptyText="등록된 공동구매가 없습니다">
           <ul className="space-y-3">
             {groupBuy.slice(0, 3).map((p) => (
-              <li key={p.id} className="flex items-center justify-between text-sm">
-                <span className="truncate font-medium text-gray-700 dark:text-gray-200">{p.title}</span>
-                <span className="ml-3 shrink-0 text-xs text-gray-400">{timeAgo(p.created_at)}</span>
+              <li key={p.id} className="flex items-center justify-between text-ui">
+                <span className="fg-base truncate font-medium">{p.title}</span>
+                <span className="ml-3 shrink-0 fg-subtle text-ui-sm">{timeAgo(p.created_at)}</span>
               </li>
             ))}
           </ul>
@@ -214,9 +214,9 @@ export default function HospitalDashboard() {
         <DashboardListCard title="중고기기" href="/used-equipment" footerLabel="전체 중고기기 보기" loading={loading} isEmpty={usedEquipment.length === 0} emptyText="등록된 중고기기가 없습니다">
           <ul className="space-y-3">
             {usedEquipment.slice(0, 3).map((p) => (
-              <li key={p.id} className="flex items-center justify-between text-sm">
-                <span className="truncate font-medium text-gray-700 dark:text-gray-200">{p.title}</span>
-                <span className="ml-3 shrink-0 text-xs text-gray-400">{timeAgo(p.created_at)}</span>
+              <li key={p.id} className="flex items-center justify-between text-ui">
+                <span className="fg-base truncate font-medium">{p.title}</span>
+                <span className="ml-3 shrink-0 fg-subtle text-ui-sm">{timeAgo(p.created_at)}</span>
               </li>
             ))}
           </ul>

@@ -338,9 +338,12 @@ async def get_hospital_detail(hospital_id: int, db: AsyncSession = Depends(get_d
     }
 
 
+MANUAL_CATEGORIES = {"us", "xray", "ct", "mri", "bmd", "carm"}
+
+
 class ManualEquipmentIn(BaseModel):
     hospital_id: int
-    category: str  # us | xray | ct | mri
+    category: str  # us | xray | ct | mri | bmd | carm
     manufacturer: str
     model: str
     year: int
@@ -364,6 +367,10 @@ async def get_equipment_catalog(db: AsyncSession = Depends(get_db), category: st
 async def register_manual_equipment(payload: ManualEquipmentIn, db: AsyncSession = Depends(get_db), user: User = Depends(require_staff)):
     """동물병원/2026 신규개원 등 공공데이터에 없는 병원의 장비를 직원이 직접 등록.
     등록 즉시 지도/병원정보에 매칭되도록 source='manual'로 저장."""
+    # 심평원 전체 장비군 임포트 때 equipment.category의 CHECK 제약을 풀었으므로(195종이라),
+    # 영업지도가 쓰는 6종은 여기서 막아준다 — 수동 등록 UI도 이 6개 탭뿐이다.
+    if payload.category not in MANUAL_CATEGORIES:
+        raise HTTPException(status_code=400, detail="알 수 없는 장비 분류입니다")
     eq = Equipment(
         hospital_id=payload.hospital_id,
         category=payload.category,

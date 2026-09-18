@@ -338,6 +338,23 @@ async def refresh_news_job():
 # ────────────────────────────────────────────────────────
 # 입찰정보 API — 레거시와 동일 (나라장터 G2B + 국방전자조달 D2B 자동수집, 수동등록 없음)
 # ────────────────────────────────────────────────────────
+def _parse_files(files_json) -> list:
+    """files_json(JSON 문자열) → [{name, url}] 배열. 깨졌거나 비어있으면 []."""
+    if not files_json:
+        return []
+    try:
+        data = json.loads(files_json)
+    except Exception:
+        return []
+    if not isinstance(data, list):
+        return []
+    return [
+        {"name": str(f["name"]).strip(), "url": str(f["url"]).strip()}
+        for f in data
+        if isinstance(f, dict) and f.get("name") and f.get("url")
+    ]
+
+
 @router.get("/bids")
 async def get_bids(
     db: AsyncSession = Depends(get_db),
@@ -370,7 +387,8 @@ async def get_bids(
         items.append({
             "id": b.id, "bid_no": b.bid_no, "source": b.source, "title": b.title, "agency": b.agency,
             "budget": b.budget, "start_date": b.start_date, "end_date": b.end_date, "url": b.url,
-            "files_json": b.files_json, "days_left": days_left, "expires_soon": expires_soon,
+            "files_json": b.files_json, "files": _parse_files(b.files_json),
+            "days_left": days_left, "expires_soon": expires_soon,
         })
     return {"total": total, "page": page, "size": size, "items": items}
 
@@ -383,7 +401,7 @@ async def get_bid_detail(bid_id: int, db: AsyncSession = Depends(get_db), user: 
     return {
         "id": b.id, "bid_no": b.bid_no, "source": b.source, "title": b.title, "agency": b.agency,
         "budget": b.budget, "start_date": b.start_date, "end_date": b.end_date, "url": b.url,
-        "files_json": b.files_json,
+        "files_json": b.files_json, "files": _parse_files(b.files_json),
     }
 
 

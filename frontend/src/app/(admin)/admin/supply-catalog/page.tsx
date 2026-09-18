@@ -13,16 +13,16 @@ export default function AdminSupplyCatalogPage() {
     <StaffOnly>
       <div>
         <PageBreadcrumb pageTitle="소모품 관리" />
-        <div className="mb-4 flex gap-1 rounded-full bg-gray-100 p-1 dark:bg-white/[0.04]" style={{ width: "fit-content" }}>
+        <div className="mb-4 seg" style={{ width: "fit-content" }}>
           <button
             onClick={() => setTab("catalog")}
-            className={`rounded-full px-4 py-1.5 text-xs font-bold ${tab === "catalog" ? "bg-white shadow dark:bg-gray-700" : "text-gray-500"}`}
+            className={`rounded-full px-4 py-1.5 text-xs font-medium ${tab === "catalog" ? "bg-white shadow dark:bg-gray-700" : "text-gray-500"}`}
           >
             카탈로그
           </button>
           <button
             onClick={() => setTab("gift")}
-            className={`rounded-full px-4 py-1.5 text-xs font-bold ${tab === "gift" ? "bg-white shadow dark:bg-gray-700" : "text-gray-500"}`}
+            className={`rounded-full px-4 py-1.5 text-xs font-medium ${tab === "gift" ? "bg-white shadow dark:bg-gray-700" : "text-gray-500"}`}
           >
             사은품 관리
           </button>

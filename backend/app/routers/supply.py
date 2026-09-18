@@ -24,6 +24,7 @@ from app.models import (
     SupplyPriceOverride,
     User,
 )
+from app.routers.kakao_bridge import enqueue as kakao_enqueue
 from app.routers.auth import require_staff, require_user
 
 router = APIRouter(prefix="/api/supply", tags=["supply"])
@@ -250,6 +251,15 @@ async def create_order(payload: OrderCreateIn, db: AsyncSession = Depends(get_db
     order.items = order_items
     db.add(order)
     await db.flush()
+
+    # 단톡방 알림 — 발송은 사내 PC 브리지가 큐를 폴링해 처리한다(app/routers/kakao_bridge.py)
+    await kakao_enqueue(
+        db, "supply_order",
+        f"[송림 ERP] 새 소모품 발주\n"
+        f"· 병원: {hp.hospital_name}\n"
+        f"· 금액: {order.total_amount:,}원\n"
+        f"· 품목: {len(order_items)}건",
+    )
 
     await db.commit()
     await db.refresh(order)

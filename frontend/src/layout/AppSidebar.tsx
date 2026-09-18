@@ -32,12 +32,9 @@ type NavItem = {
 
 const navItems: NavItem[] = [
   {
-    icon: <PieChartIcon />,
-    name: "영업",
-    subItems: [
-      { name: "영업지도", path: "/sales-map", pro: false },
-      { name: "영업지도 통계", path: "/sales-map/stats", pro: false },
-    ],
+    icon: <CalenderIcon />,
+    name: "캘린더",
+    path: "/calendar",
   },
   {
     icon: <BoxCubeIcon />,
@@ -50,36 +47,45 @@ const navItems: NavItem[] = [
     ],
   },
   {
-    icon: <CalenderIcon />,
-    name: "캘린더",
-    path: "/calendar",
+    icon: <ChatIcon />,
+    name: "송림 커뮤니티",
+    subItems: [
+      { name: "회사 공지사항", path: "/notices/internal", pro: false },
+      { name: "입찰정보", path: "/bids", pro: false },
+      { name: "사내 문서 서식", path: "/documents", pro: false },
+    ],
   },
   {
-    icon: <ChatIcon />,
-    name: "커뮤니티",
+    icon: <GroupIcon />,
+    name: "병원 커뮤니티",
     subItems: [
       { name: "병원 공지사항", path: "/notices/hospital", pro: false },
-      { name: "회사 공지사항", path: "/notices/internal", pro: false },
       { name: "CS", path: "/cs", pro: false },
       { name: "의료소식", path: "/news", pro: false },
-      { name: "입찰정보", path: "/bids", pro: false },
       { name: "공동구매", path: "/group-buy", pro: false },
       { name: "중고기기", path: "/used-equipment", pro: false },
     ],
   },
   {
     icon: <FolderIcon />,
-    name: "사내 정보",
-    subItems: [
-      { name: "자료실", path: "/storage", pro: false },
-      { name: "사내 문서 서식", path: "/documents", pro: false },
-      { name: "커뮤니티", path: "/community", pro: false },
-    ],
+    name: "자료실",
+    path: "/storage",
   },
   {
     icon: <DollarLineIcon />,
     name: "소모품 발주 내역",
     path: "/supply-orders",
+  },
+  {
+    icon: <PieChartIcon />,
+    name: "영업 DATA",
+    subItems: [
+      { name: "영업지도", path: "/sales-map", pro: false },
+      { name: "장비별 판매 통계", path: "/sales-map/stats", pro: false },
+      { name: "의료기관 장비 검색", path: "/med/equipment-search", pro: false },
+      { name: "의료기관 개설 현황", path: "/med/openings", pro: false },
+      { name: "의료기관 분포현황", path: "/med/distribution", pro: false },
+    ],
   },
 ];
 
@@ -146,7 +152,7 @@ const AppSidebar: React.FC = () => {
     navItems: NavItem[],
     menuType: "main" | "others"
   ) => (
-    <ul className="flex flex-col gap-4">
+    <ul className="flex flex-col gap-0.5">
       {navItems.map((nav, index) => (
         <li key={nav.name}>
           {nav.subItems ? (
@@ -179,7 +185,7 @@ const AppSidebar: React.FC = () => {
                   className={`ml-auto w-5 h-5 transition-transform duration-200  ${
                     openSubmenu?.type === menuType &&
                     openSubmenu?.index === index
-                      ? "rotate-180 text-brand-500"
+                      ? "menu-item-arrow-active"
                       : ""
                   }`}
                 />
@@ -222,7 +228,7 @@ const AppSidebar: React.FC = () => {
                     : "0px",
               }}
             >
-              <ul className="mt-2 space-y-1 ml-9">
+              <ul className="mt-0.5 space-y-0.5 ml-8">
                 {nav.subItems.map((subItem) => (
                   <li key={subItem.name}>
                     <Link
@@ -336,13 +342,13 @@ const AppSidebar: React.FC = () => {
 
   return (
     <aside
-      className={`fixed mt-16 flex flex-col lg:mt-0 top-0 px-5 left-0 bg-white dark:bg-gray-900 dark:border-gray-800 text-gray-900 dark:text-gray-300 h-[calc(100dvh-4rem)] lg:h-screen transition-all duration-300 ease-in-out z-50 border-r border-gray-200
+      className={`surface-rail fixed mt-14 flex flex-col lg:mt-0 top-0 px-3 left-0 text-gray-900 dark:text-gray-300 h-[calc(100dvh-3.5rem)] lg:h-screen transition-all duration-300 ease-in-out z-50 border-r border-gray-200 dark:border-gray-800
         ${
           isExpanded || isMobileOpen
-            ? "w-[290px]"
+            ? "w-[248px]"
             : isHovered
-            ? "w-[290px]"
-            : "w-[90px]"
+            ? "w-[248px]"
+            : "w-[68px]"
         }
         ${isMobileOpen ? "translate-x-0" : "-translate-x-full"}
         lg:translate-x-0`}
@@ -350,28 +356,28 @@ const AppSidebar: React.FC = () => {
       onMouseLeave={() => setIsHovered(false)}
     >
       <div
-        className={`py-8 flex  ${
+        className={`flex h-14 shrink-0 items-center ${
           !isExpanded && !isHovered ? "lg:justify-center" : "justify-start"
         }`}
       >
         <Link href="/">
           {isExpanded || isHovered || isMobileOpen ? (
-            <span className="text-2xl font-extrabold tracking-tight text-gray-900 dark:text-white">
-              SONGLIM <span className="text-brand-500">MEDICAL</span>
+            <span className="text-ui-lg font-semibold tracking-[0.02em] text-gray-900 dark:text-white">
+              SONGLIM <span className="fg-muted font-normal">MEDICAL</span>
             </span>
           ) : (
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-500 text-sm font-extrabold text-white">
+            <span className="flex h-7 w-7 items-center justify-center rounded-control bg-gray-900 text-ui font-semibold text-white dark:bg-white dark:text-gray-900">
               S
             </span>
           )}
         </Link>
       </div>
-      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto pb-8 duration-300 ease-linear no-scrollbar">
-        <nav className="mb-6">
-          <div className="flex flex-col gap-4">
+      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto pb-6 pt-1 duration-300 ease-linear no-scrollbar">
+        <nav className="mb-4">
+          <div className="flex flex-col gap-5">
             <div>
               <h2
-                className={`mb-4 text-xs uppercase flex leading-[20px] text-gray-400 ${
+                className={`label-eyebrow mb-1.5 flex uppercase ${
                   !isExpanded && !isHovered
                     ? "lg:justify-center"
                     : "justify-start"
@@ -389,7 +395,7 @@ const AppSidebar: React.FC = () => {
             {!isHospital && (
               <div className="">
                 <h2
-                  className={`mb-4 text-xs uppercase flex leading-[20px] text-gray-400 ${
+                  className={`label-eyebrow mb-1.5 flex uppercase ${
                     !isExpanded && !isHovered
                       ? "lg:justify-center"
                       : "justify-start"

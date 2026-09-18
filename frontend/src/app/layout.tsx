@@ -36,7 +36,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ko">
-      <body className={`${notoSansKr.className} dark:bg-gray-900`}>
+      <body className={`${notoSansKr.className} surface-app`}>
         <ThemeProvider>
           <AuthProvider>
             <SidebarProvider>{children}</SidebarProvider>

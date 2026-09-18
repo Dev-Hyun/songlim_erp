@@ -46,7 +46,7 @@ export default function ContractDetailClient({ id }: { id: number }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
-  if (!detail) return <div className="p-8 text-center text-sm text-gray-400">불러오는 중...</div>;
+  if (!detail) return <div className="empty-state">불러오는 중...</div>;
 
   const c = detail.contract;
   const canEdit = !!user;
@@ -101,16 +101,16 @@ export default function ContractDetailClient({ id }: { id: number }) {
 
   const field = (key: string, label: string, type = "text") => (
     <div>
-      <label className="mb-1 block text-xs font-semibold text-gray-400">{label}</label>
+      <label className="label-eyebrow mb-1 block">{label}</label>
       {editing ? (
         <input
           type={type}
           value={form[key] ?? ""}
           onChange={(e) => setForm({ ...form, [key]: e.target.value })}
-          className="w-full rounded-lg border border-gray-300 px-2.5 py-1.5 text-sm dark:border-gray-700 dark:bg-gray-900"
+          className="w-full field-auto"
         />
       ) : (
-        <div className="text-sm text-gray-700 dark:text-gray-300">{(c as unknown as Record<string, unknown>)[key] as string || "-"}</div>
+        <div className="text-ui text-gray-700 dark:text-gray-300">{(c as unknown as Record<string, unknown>)[key] as string || "-"}</div>
       )}
     </div>
   );
@@ -118,18 +118,18 @@ export default function ContractDetailClient({ id }: { id: number }) {
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
       <div className="space-y-4 lg:col-span-2">
-        <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
+        <div className="surface-card p-4">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
             <div>
-              <h2 className="text-lg font-bold text-gray-800 dark:text-white/90">📄 판매계약서</h2>
-              <p className="text-xs text-gray-400">{c.buyer_hospital} · {c.updated_at?.slice(0, 10)}</p>
+              <h2 className="card-title">📄 판매계약서</h2>
+              <p className="fg-subtle text-ui-sm">{c.buyer_hospital} · {c.updated_at?.slice(0, 10)}</p>
             </div>
             <div className="flex items-center gap-2">
               {STATUSES.map((s) => (
                 <button
                   key={s}
                   onClick={() => setStatus(s)}
-                  className={`rounded-full px-3 py-1.5 text-xs font-bold text-white ${c.status === s ? STATUS_COLOR[s] : "bg-gray-200 text-gray-500 dark:bg-white/10"}`}
+                  className={`rounded-full px-3 py-1.5 text-xs font-medium text-white ${c.status === s ? STATUS_COLOR[s] : "bg-gray-200 text-gray-500 dark:bg-white/10"}`}
                 >
                   {s}
                 </button>
@@ -137,7 +137,7 @@ export default function ContractDetailClient({ id }: { id: number }) {
               {canEdit && (
                 <>
                   {editing ? (
-                    <button onClick={saveEdits} className="rounded-full bg-brand-500 px-3 py-1.5 text-xs font-bold text-white">저장</button>
+                    <button onClick={saveEdits} className="rounded-full bg-brand-500 px-3 py-1.5 text-xs font-medium text-white">저장</button>
                   ) : (
                     <button onClick={() => setEditing(true)} className="rounded-full border border-gray-300 px-3 py-1.5 text-xs font-semibold dark:border-gray-700">수정</button>
                   )}
@@ -147,7 +147,7 @@ export default function ContractDetailClient({ id }: { id: number }) {
             </div>
           </div>
 
-          <div className="mb-2 text-xs font-bold uppercase text-gray-400">🏥 매수자 정보</div>
+          <div className="mb-2 text-xs font-medium uppercase text-gray-400">🏥 매수자 정보</div>
           <div className="grid grid-cols-2 gap-3">
             {field("buyer_hospital", "병원명")}
             {field("buyer_biz_no", "사업자등록번호")}
@@ -160,11 +160,11 @@ export default function ContractDetailClient({ id }: { id: number }) {
           </div>
           <div className="mt-3">{field("buyer_address", "주소")}</div>
 
-          <div className="mb-2 mt-5 text-xs font-bold uppercase text-gray-400">📦 계약 상품</div>
+          <div className="mb-2 mt-5 text-xs font-medium uppercase text-gray-400">📦 계약 상품</div>
           <div className="overflow-x-auto">
-          <table className="w-full min-w-[420px] text-sm">
+          <table className="w-full min-w-[420px] text-ui">
             <thead>
-              <tr className="border-b border-gray-200 text-left text-xs text-gray-400 dark:border-gray-800">
+              <tr className="border-b border-gray-200 text-left fg-subtle text-ui-sm dark:border-gray-800">
                 <th className="py-1.5">상품명</th>
                 <th className="py-1.5">수량</th>
                 <th className="py-1.5">비고</th>
@@ -176,9 +176,9 @@ export default function ContractDetailClient({ id }: { id: number }) {
                 <tr key={i} className="border-b border-gray-100 dark:border-gray-800">
                   {editing ? (
                     <>
-                      <td><input value={it.name} onChange={(e) => setItems(items.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)))} className="w-full rounded border border-gray-300 px-1.5 py-1 text-xs dark:border-gray-700 dark:bg-gray-900" /></td>
-                      <td><input value={it.qty || ""} onChange={(e) => setItems(items.map((x, j) => (j === i ? { ...x, qty: e.target.value } : x)))} className="w-full rounded border border-gray-300 px-1.5 py-1 text-xs dark:border-gray-700 dark:bg-gray-900" /></td>
-                      <td><input value={it.note || ""} onChange={(e) => setItems(items.map((x, j) => (j === i ? { ...x, note: e.target.value } : x)))} className="w-full rounded border border-gray-300 px-1.5 py-1 text-xs dark:border-gray-700 dark:bg-gray-900" /></td>
+                      <td><input value={it.name} onChange={(e) => setItems(items.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)))} className="field-auto w-full px-1.5 py-0.5 text-ui-sm" /></td>
+                      <td><input value={it.qty || ""} onChange={(e) => setItems(items.map((x, j) => (j === i ? { ...x, qty: e.target.value } : x)))} className="field-auto w-full px-1.5 py-0.5 text-ui-sm" /></td>
+                      <td><input value={it.note || ""} onChange={(e) => setItems(items.map((x, j) => (j === i ? { ...x, note: e.target.value } : x)))} className="field-auto w-full px-1.5 py-0.5 text-ui-sm" /></td>
                       <td><button onClick={() => setItems(items.filter((_, j) => j !== i))} className="text-error-500">×</button></td>
                     </>
                   ) : (
@@ -202,7 +202,7 @@ export default function ContractDetailClient({ id }: { id: number }) {
             </button>
           )}
 
-          <div className="mb-2 mt-5 text-xs font-bold uppercase text-gray-400">💰 금액 / 요구사항</div>
+          <div className="mb-2 mt-5 text-xs font-medium uppercase text-gray-400">💰 금액 / 요구사항</div>
           <div className="grid grid-cols-2 gap-3">
             {field("sale_amount", "판매금액", "number")}
             {field("sale_amount_note", "금액 비고")}
@@ -213,13 +213,13 @@ export default function ContractDetailClient({ id }: { id: number }) {
             {field("payment_account", "고객지불계좌")}
             {field("account_holder", "예금주")}
           </div>
-          {!editing && <div className="mt-2 text-xl font-bold text-brand-500">₩{c.sale_amount.toLocaleString()}</div>}
+          {!editing && <div className="mt-2 text-xl font-medium text-brand-500">₩{c.sale_amount.toLocaleString()}</div>}
         </div>
       </div>
 
       <div className="space-y-4">
-        <div className="rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-white/[0.03]">
-          <div className="mb-2 flex items-center justify-between text-xs font-bold uppercase text-gray-400">
+        <div className="surface-card p-3">
+          <div className="mb-2 flex items-center justify-between text-xs font-medium uppercase text-gray-400">
             <span>🖼️ 계약서 사진</span>
             <label className="cursor-pointer text-brand-500">
               + 사진 첨부
@@ -234,7 +234,7 @@ export default function ContractDetailClient({ id }: { id: number }) {
                   src={photoUrl(id, p.id)}
                   alt=""
                   onClick={() => setLightboxPhotoId(p.id)}
-                  className="h-24 w-full cursor-zoom-in rounded-lg object-cover"
+                  className="h-24 w-full cursor-zoom-in rounded-control object-cover"
                 />
                 <button
                   onClick={async () => { await deletePhoto(id, p.id); load(); }}
@@ -244,7 +244,7 @@ export default function ContractDetailClient({ id }: { id: number }) {
                 </button>
               </div>
             ))}
-            {detail.photos.length === 0 && <div className="col-span-2 py-4 text-center text-xs text-gray-400">사진 없음</div>}
+            {detail.photos.length === 0 && <div className="col-span-2 py-4 text-center fg-subtle text-ui-sm">사진 없음</div>}
           </div>
         </div>
 
@@ -256,11 +256,11 @@ export default function ContractDetailClient({ id }: { id: number }) {
           />
         )}
 
-        <div className="rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-white/[0.03]">
-          <div className="mb-2 text-xs font-bold uppercase text-gray-400">💬 진행 메모</div>
+        <div className="surface-card p-3">
+          <div className="mb-2 text-xs font-medium uppercase text-gray-400">💬 진행 메모</div>
           <div className="mb-3 space-y-2">
             {detail.comments.map((cm) => (
-              <div key={cm.id} className="rounded-lg bg-gray-50 p-2 text-xs dark:bg-white/[0.02]">
+              <div key={cm.id} className="rounded-control bg-gray-50 p-2 text-xs dark:bg-white/[0.02]">
                 <div className="mb-1 flex justify-between text-[10px] text-gray-400">
                   <span>{cm.created_at?.slice(0, 16)}</span>
                   {user && (user.id === cm.user_id || user.is_admin) && (
@@ -270,20 +270,20 @@ export default function ContractDetailClient({ id }: { id: number }) {
                 <div className="text-gray-700 dark:text-gray-300">{cm.body}</div>
               </div>
             ))}
-            {detail.comments.length === 0 && <div className="text-xs text-gray-400">메모 없음</div>}
+            {detail.comments.length === 0 && <div className="fg-subtle text-ui-sm">메모 없음</div>}
           </div>
           {user ? (
             <div className="space-y-2">
               <textarea
                 value={commentText}
                 onChange={(e) => setCommentText(e.target.value)}
-                className="min-h-[60px] w-full rounded-lg border border-gray-300 px-2.5 py-1.5 text-xs dark:border-gray-700 dark:bg-gray-900"
+                className="min-h-[60px] w-full rounded-control border border-gray-300 px-2.5 py-1.5 text-xs dark:border-gray-700 dark:bg-gray-900"
                 placeholder="진행 메모를 남겨주세요"
               />
-              <button onClick={submitComment} className="rounded-lg bg-brand-500 px-3 py-1.5 text-xs font-bold text-white">등록</button>
+              <button onClick={submitComment} className="btn btn-primary">등록</button>
             </div>
           ) : (
-            <div className="text-center text-xs text-gray-400">로그인이 필요합니다</div>
+            <div className="text-center fg-subtle text-ui-sm">로그인이 필요합니다</div>
           )}
         </div>
       </div>

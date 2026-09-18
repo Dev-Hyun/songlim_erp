@@ -101,35 +101,35 @@ export default function SimpleBoard({ endpoint, title, hasStatus, statusOptions,
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-white/[0.03]">
-        <h2 className="text-base font-bold text-gray-800 dark:text-white/90">{title}</h2>
+      <div className="flex items-center justify-between surface-card p-3">
+        <h2 className="card-title">{title}</h2>
         {user && canWrite && (
-          <button onClick={() => setShowForm((v) => !v)} className="rounded-full bg-brand-500 px-4 py-1.5 text-xs font-bold text-white">
+          <button onClick={() => setShowForm((v) => !v)} className="btn btn-primary">
             + 새 글 작성
           </button>
         )}
       </div>
 
       {showForm && (
-        <div className="space-y-2 rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-white/[0.03]">
+        <div className="space-y-2 surface-card p-3">
           <input
             value={newTitle}
             onChange={(e) => setNewTitle(e.target.value)}
             placeholder="제목"
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
+            className="field-auto w-full"
           />
           <RichTextEditor value={newContent} onChange={setNewContent} placeholder="내용" />
-          <button onClick={submit} className="rounded-lg bg-brand-500 px-4 py-2 text-sm font-bold text-white">
+          <button onClick={submit} className="btn btn-primary">
             등록
           </button>
         </div>
       )}
 
-      <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
+      <div className="surface-card overflow-hidden">
         {loading ? (
-          <div className="p-8 text-center text-sm text-gray-400">불러오는 중...</div>
+          <div className="empty-state">불러오는 중...</div>
         ) : items.length === 0 ? (
-          <div className="p-8 text-center text-sm text-gray-400">등록된 글이 없습니다</div>
+          <div className="empty-state">등록된 글이 없습니다</div>
         ) : (
           items.map((item) => (
             <div key={item.id} className="border-b border-gray-100 last:border-0 dark:border-gray-800">
@@ -137,10 +137,10 @@ export default function SimpleBoard({ endpoint, title, hasStatus, statusOptions,
                 onClick={() => (detailHrefBase ? (window.location.href = `${detailHrefBase}/${item.id}`) : setExpanded(expanded === item.id ? null : item.id))}
                 className="flex w-full items-center gap-2 px-4 py-3 text-left hover:bg-gray-50 dark:hover:bg-white/[0.02]"
               >
-                <span className="w-14 shrink-0 truncate text-xs text-gray-400" title={item.hospital_name || item.created_by_name || ""}>
+                <span className="w-14 shrink-0 truncate fg-subtle text-ui-sm" title={item.hospital_name || item.created_by_name || ""}>
                   {item.hospital_name || item.created_by_name || ""}
                 </span>
-                <span className="min-w-0 flex-1 truncate text-sm font-medium text-gray-800 dark:text-white/90">
+                <span className="min-w-0 flex-1 truncate text-ui font-medium text-gray-800 dark:text-white/90">
                   {item.title}
                 </span>
                 <div className="flex shrink-0 items-center gap-2">
@@ -154,26 +154,26 @@ export default function SimpleBoard({ endpoint, title, hasStatus, statusOptions,
                           await onStatusChange(item.id, e.target.value);
                           load();
                         }}
-                        className="rounded-full border border-gray-300 bg-white px-2 py-0.5 text-[11px] dark:border-gray-700 dark:bg-gray-900"
+                        className="rounded-full border border-gray-300 bg-white px-2 py-0.5 text-ui-xs dark:border-gray-700 dark:bg-gray-900"
                       >
                         {(statusOptions || []).map((s) => (
                           <option key={s} value={s}>{s}</option>
                         ))}
                       </select>
                     ) : (
-                      <span className="rounded-full border border-gray-300 bg-white px-2 py-0.5 text-[11px] text-gray-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400">
+                      <span className="rounded-full border border-gray-300 bg-white px-2 py-0.5 text-ui-xs text-gray-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400">
                         {item.status}
                       </span>
                     )
                   )}
-                  <span className="w-20 shrink-0 text-right text-xs text-gray-400">{item.created_at?.slice(0, 10)}</span>
+                  <span className="w-20 shrink-0 text-right fg-subtle text-ui-sm">{item.created_at?.slice(0, 10)}</span>
                   {!detailHrefBase && (item.is_mine || user?.is_admin) && (
                     <span
                       onClick={(e) => {
                         e.stopPropagation();
                         deleteItem(item.id);
                       }}
-                      className="text-xs font-semibold text-error-500 hover:underline"
+                      className="text-ui-sm font-medium text-error-600 hover:underline dark:text-error-400"
                     >
                       삭제
                     </span>
@@ -182,7 +182,7 @@ export default function SimpleBoard({ endpoint, title, hasStatus, statusOptions,
               </button>
               {!detailHrefBase && expanded === item.id && (
                 <div
-                  className="prose prose-sm dark:prose-invert max-w-none px-4 pb-4 text-sm text-gray-600 dark:text-gray-300"
+                  className="prose prose-sm dark:prose-invert max-w-none px-4 pb-4 text-ui text-gray-600 dark:text-gray-300"
                   dangerouslySetInnerHTML={{ __html: item.content || "" }}
                 />
               )}
@@ -195,7 +195,7 @@ export default function SimpleBoard({ endpoint, title, hasStatus, statusOptions,
           <button
             onClick={loadMore}
             disabled={loadingMore}
-            className="rounded-full border border-gray-300 px-5 py-2 text-xs font-semibold text-gray-600 hover:border-brand-300 hover:text-brand-500 disabled:opacity-50 dark:border-gray-700 dark:text-gray-300"
+            className="btn btn-default"
           >
             {loadingMore ? "불러오는 중..." : "더 보기"}
           </button>

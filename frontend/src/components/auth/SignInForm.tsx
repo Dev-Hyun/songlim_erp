@@ -47,7 +47,7 @@ export default function SignInForm() {
       <div className="w-full max-w-md sm:pt-10 mx-auto mb-5">
         <Link
           href="/"
-          className="inline-flex items-center text-sm text-gray-500 transition-colors hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+          className="inline-flex items-center text-ui text-gray-500 transition-colors hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
         >
           <ChevronLeftIcon />
           대시보드로
@@ -59,14 +59,14 @@ export default function SignInForm() {
             <h1 className="mb-2 font-semibold text-gray-800 text-title-sm dark:text-white/90 sm:text-title-md">
               로그인
             </h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
+            <p className="text-ui text-gray-500 dark:text-gray-400">
               아이디와 비밀번호를 입력해주세요
             </p>
           </div>
           <form onSubmit={handleSubmit}>
             <div className="space-y-6">
               {error && (
-                <div className="rounded-lg bg-error-50 px-4 py-2 text-sm text-error-600 dark:bg-error-500/15 dark:text-error-400">
+                <div className="rounded-control bg-error-50 px-4 py-2 text-ui text-error-600 dark:bg-error-500/15 dark:text-error-400">
                   {error}
                 </div>
               )}
@@ -108,7 +108,7 @@ export default function SignInForm() {
           </form>
 
           <div className="mt-5">
-            <p className="text-sm font-normal text-center text-gray-700 dark:text-gray-400 sm:text-start">
+            <p className="text-ui font-normal text-center text-gray-700 dark:text-gray-400 sm:text-start">
               계정이 없으신가요?{" "}
               <Link href="/signup" className="text-brand-500 hover:text-brand-600 dark:text-brand-400">
                 회원가입

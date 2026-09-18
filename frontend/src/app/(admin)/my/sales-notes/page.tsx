@@ -136,86 +136,86 @@ export default function MySalesNotesPage() {
       <div>
         <PageBreadcrumb pageTitle="영업노트" />
 
-        <div className="mb-4 flex gap-1 rounded-full bg-gray-100 p-1 dark:bg-white/[0.04] w-fit">
+        <div className="seg mb-4 w-fit">
           <button
             onClick={() => setTab("notes")}
-            className={`rounded-full px-4 py-1.5 text-xs font-bold ${tab === "notes" ? "bg-brand-500 text-white" : "text-gray-500"}`}
+            className={`seg-item ${tab === "notes" ? "seg-item-on" : ""}`}
           >
             영업노트
           </button>
           <button
             onClick={() => setTab("memo")}
-            className={`rounded-full px-4 py-1.5 text-xs font-bold ${tab === "memo" ? "bg-brand-500 text-white" : "text-gray-500"}`}
+            className={`seg-item ${tab === "memo" ? "seg-item-on" : ""}`}
           >
             메모
           </button>
         </div>
 
         {authLoading ? (
-          <div className="p-8 text-center text-sm text-gray-400">불러오는 중...</div>
+          <div className="empty-state">불러오는 중...</div>
         ) : !user ? (
-          <div className="rounded-2xl border border-gray-200 bg-white p-8 text-center text-sm text-gray-400 dark:border-gray-800 dark:bg-white/[0.03]">
+          <div className="surface-card empty-state">
             로그인이 필요합니다
           </div>
         ) : tab === "notes" ? (
           <div className="space-y-3">
-            <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-white/[0.03]">
+            <div className="surface-card flex flex-wrap items-center gap-2 px-3 py-2.5">
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="병원명/내용 검색..."
-                className="w-56 rounded-full border border-gray-300 bg-gray-50 px-3.5 py-1.5 text-xs focus:border-brand-500 focus:outline-none dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300"
+                className="field w-56"
               />
-              <div className="flex gap-1 rounded-full bg-gray-100 p-1 dark:bg-white/[0.04]">
+              <div className="seg">
                 <button
                   onClick={() => setSort("desc")}
-                  className={`rounded-full px-3 py-1.5 text-xs font-bold ${sort === "desc" ? "bg-brand-500 text-white" : "text-gray-500"}`}
+                  className={`seg-item ${sort === "desc" ? "seg-item-on" : ""}`}
                 >
                   최신순
                 </button>
                 <button
                   onClick={() => setSort("asc")}
-                  className={`rounded-full px-3 py-1.5 text-xs font-bold ${sort === "asc" ? "bg-brand-500 text-white" : "text-gray-500"}`}
+                  className={`seg-item ${sort === "asc" ? "seg-item-on" : ""}`}
                 >
                   오래된순
                 </button>
               </div>
-              <span className="ml-auto text-xs text-gray-400">전 직원 영업노트 공유</span>
+              <span className="ml-auto fg-subtle text-ui-sm">전 직원 영업노트 공유</span>
             </div>
 
             {notesLoading ? (
-              <div className="p-8 text-center text-sm text-gray-400">불러오는 중...</div>
+              <div className="empty-state">불러오는 중...</div>
             ) : notes.length === 0 ? (
-              <div className="rounded-2xl border border-gray-200 bg-white p-8 text-center text-sm text-gray-400 dark:border-gray-800 dark:bg-white/[0.03]">
+              <div className="surface-card empty-state">
                 작성된 영업노트가 없습니다. 영업지도에서 병원을 선택해 작성해보세요.
               </div>
             ) : (
               <div className="space-y-5">
                 {groupNotesByDate(notes, sort).map(([date, group]) => (
                   <div key={date}>
-                    <div className="mb-2 text-xs font-bold text-gray-400">{date}</div>
+                    <div className="label-eyebrow mb-2 tabular-nums">{date}</div>
                     <div className="space-y-2">
                       {group.map((n) => (
-                        <div key={n.id} className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-white/[0.03]">
+                        <div key={n.id} className="surface-card p-3">
                           <div className="mb-1 flex items-center justify-between gap-2">
                             <div className="flex items-center gap-2">
-                              <span className="text-sm font-semibold text-gray-800 dark:text-white/90">{n.hospital_name}</span>
-                              <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-semibold text-gray-500 dark:bg-white/10 dark:text-gray-300">
+                              <span className="fg-strong text-ui font-medium">{n.hospital_name}</span>
+                              <span className="chip-quiet">
                                 {n.author_name || "-"}
                               </span>
                             </div>
                             <div className="flex shrink-0 items-center gap-2">
                               {n.user_id === user.id && editingNoteId !== n.id && (
                                 <>
-                                  <button onClick={() => startEditNote(n)} className="text-xs font-semibold text-gray-500 hover:underline dark:text-gray-400">
+                                  <button onClick={() => startEditNote(n)} className="fg-muted text-ui-sm font-medium hover:underline">
                                     수정
                                   </button>
-                                  <button onClick={() => handleDeleteNote(n.id)} className="text-xs font-semibold text-error-500 hover:underline">
+                                  <button onClick={() => handleDeleteNote(n.id)} className="text-ui-sm font-medium text-error-600 hover:underline dark:text-error-400">
                                     삭제
                                   </button>
                                 </>
                               )}
-                              <span className="text-xs text-gray-400">{n.created_at?.slice(11, 16)}</span>
+                              <span className="fg-subtle text-ui-sm">{n.created_at?.slice(11, 16)}</span>
                             </div>
                           </div>
                           {editingNoteId === n.id ? (
@@ -224,25 +224,25 @@ export default function MySalesNotesPage() {
                                 type="date"
                                 value={editNoteDate}
                                 onChange={(e) => setEditNoteDate(e.target.value)}
-                                className="mb-2 rounded-lg border border-gray-300 bg-transparent px-2 py-1 text-xs text-gray-800 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
+                                className="field mb-2"
                               />
                               <textarea
                                 value={editNoteContent}
                                 onChange={(e) => setEditNoteContent(e.target.value)}
                                 rows={3}
-                                className="w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-sm text-gray-800 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
+                                className="field-auto w-full"
                               />
                               <div className="mt-2 flex justify-end gap-2">
-                                <button onClick={() => setEditingNoteId(null)} className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-600 dark:border-gray-700 dark:text-gray-300">
+                                <button onClick={() => setEditingNoteId(null)} className="btn btn-default">
                                   취소
                                 </button>
-                                <button onClick={saveEditNote} className="rounded-lg bg-brand-500 px-3 py-1.5 text-xs font-bold text-white">
+                                <button onClick={saveEditNote} className="btn btn-primary">
                                   저장
                                 </button>
                               </div>
                             </div>
                           ) : (
-                            <div className="whitespace-pre-wrap text-sm text-gray-600 dark:text-gray-300">{n.content}</div>
+                            <div className="fg-base whitespace-pre-wrap text-ui">{n.content}</div>
                           )}
                         </div>
                       ))}
@@ -254,44 +254,44 @@ export default function MySalesNotesPage() {
           </div>
         ) : (
           <div className="space-y-3">
-            <div className="rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-white/[0.03]">
+            <div className="surface-card p-3">
               <textarea
                 value={newMemo}
                 onChange={(e) => setNewMemo(e.target.value)}
                 placeholder="메모 내용 (본인만 볼 수 있습니다)"
                 rows={3}
-                className="w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-sm text-gray-800 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
+                className="field-auto w-full"
               />
               <div className="mt-2 flex justify-end">
-                <button onClick={handleAddMemo} className="rounded-lg bg-brand-500 px-4 py-2 text-sm font-bold text-white">
+                <button onClick={handleAddMemo} className="btn btn-primary">
                   메모 추가
                 </button>
               </div>
             </div>
 
             {memosLoading ? (
-              <div className="p-8 text-center text-sm text-gray-400">불러오는 중...</div>
+              <div className="empty-state">불러오는 중...</div>
             ) : memos.length === 0 ? (
-              <div className="rounded-2xl border border-gray-200 bg-white p-8 text-center text-sm text-gray-400 dark:border-gray-800 dark:bg-white/[0.03]">
+              <div className="surface-card empty-state">
                 작성한 메모가 없습니다.
               </div>
             ) : (
               <div className="space-y-2">
                 {memos.map((m) => (
-                  <div key={m.id} className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-white/[0.03]">
+                  <div key={m.id} className="surface-card p-3">
                     {editingId === m.id ? (
                       <div>
                         <textarea
                           value={editingContent}
                           onChange={(e) => setEditingContent(e.target.value)}
                           rows={3}
-                          className="w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-sm text-gray-800 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
+                          className="field-auto w-full"
                         />
                         <div className="mt-2 flex justify-end gap-2">
-                          <button onClick={() => setEditingId(null)} className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-600 dark:border-gray-700 dark:text-gray-300">
+                          <button onClick={() => setEditingId(null)} className="btn btn-default">
                             취소
                           </button>
-                          <button onClick={saveEdit} className="rounded-lg bg-brand-500 px-3 py-1.5 text-xs font-bold text-white">
+                          <button onClick={saveEdit} className="btn btn-primary">
                             저장
                           </button>
                         </div>
@@ -299,17 +299,17 @@ export default function MySalesNotesPage() {
                     ) : (
                       <div>
                         <div className="mb-1 flex items-center justify-between">
-                          <span className="text-xs text-gray-400">{m.created_at?.slice(0, 19).replace("T", " ")}</span>
+                          <span className="fg-subtle text-ui-sm tabular-nums">{m.created_at?.slice(0, 19).replace("T", " ")}</span>
                           <div className="flex gap-2">
-                            <button onClick={() => startEdit(m)} className="text-xs font-semibold text-gray-500 hover:underline dark:text-gray-400">
+                            <button onClick={() => startEdit(m)} className="fg-muted text-ui-sm font-medium hover:underline">
                               수정
                             </button>
-                            <button onClick={() => handleDeleteMemo(m.id)} className="text-xs font-semibold text-error-500 hover:underline">
+                            <button onClick={() => handleDeleteMemo(m.id)} className="text-ui-sm font-medium text-error-600 hover:underline dark:text-error-400">
                               삭제
                             </button>
                           </div>
                         </div>
-                        <div className="whitespace-pre-wrap text-sm text-gray-600 dark:text-gray-300">{m.content}</div>
+                        <div className="fg-base whitespace-pre-wrap text-ui">{m.content}</div>
                       </div>
                     )}
                   </div>

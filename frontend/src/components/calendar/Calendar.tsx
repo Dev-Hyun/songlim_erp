@@ -238,14 +238,14 @@ const Calendar: React.FC = () => {
   }
 
   return (
-    <div className="rounded-2xl border  border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
+    <div className="surface-card">
       <div className="flex flex-wrap items-center gap-2 border-b border-gray-200 px-4 py-3 dark:border-gray-800">
-        <div className="flex gap-1 rounded-full bg-gray-100 p-1 dark:bg-white/[0.04]">
+        <div className="seg">
           {TABS.map((t) => (
             <button
               key={t.v}
               onClick={() => setTab(t.v)}
-              className={`rounded-full px-3 py-1.5 text-xs font-bold ${tab === t.v ? "bg-brand-500 text-white" : "text-gray-500"}`}
+              className={`rounded-full px-3 py-1.5 text-xs font-medium ${tab === t.v ? "bg-brand-500 text-white" : "text-gray-500"}`}
             >
               {t.l}
             </button>
@@ -254,7 +254,7 @@ const Calendar: React.FC = () => {
         {user?.role === "songrim" && (
           <button
             onClick={googleConnected ? handleGoogleDisconnect : handleGoogleConnect}
-            className={`ml-auto rounded-full px-3 py-1.5 text-xs font-bold ${
+            className={`ml-auto rounded-full px-3 py-1.5 text-xs font-medium ${
               googleConnected
                 ? "bg-success-50 text-success-600 dark:bg-success-500/15 dark:text-success-400"
                 : "bg-gray-100 text-gray-500 dark:bg-white/10 dark:text-gray-400"
@@ -310,29 +310,29 @@ const Calendar: React.FC = () => {
                 {selectedEvent ? (isEditing ? "일정 수정" : "일정 상세") : "새 일정"}
               </h5>
               <div>
-                <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">제목</label>
+                <label className="mb-1.5 block text-ui font-medium text-gray-700 dark:text-gray-400">제목</label>
                 <input
                   value={eventTitle}
                   onChange={(e) => setEventTitle(e.target.value)}
                   disabled={fieldsDisabled}
-                  className="h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
+                  className="h-11 w-full rounded-control border border-gray-300 bg-transparent px-4 py-2.5 text-ui text-gray-800 disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
                 />
               </div>
               <div className="mt-4 flex flex-col gap-3 sm:flex-row">
                 <div className="flex-1">
-                  <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">시작일</label>
+                  <label className="mb-1.5 block text-ui font-medium text-gray-700 dark:text-gray-400">시작일</label>
                   <input type="date" value={eventStartDate} onChange={(e) => setEventStartDate(e.target.value)} disabled={fieldsDisabled}
-                    className="h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90" />
+                    className="h-11 w-full rounded-control border border-gray-300 bg-transparent px-4 py-2.5 text-ui text-gray-800 disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90" />
                 </div>
                 <div className="flex-1">
-                  <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">종료일</label>
+                  <label className="mb-1.5 block text-ui font-medium text-gray-700 dark:text-gray-400">종료일</label>
                   <input type="date" value={eventEndDate} onChange={(e) => setEventEndDate(e.target.value)} disabled={fieldsDisabled}
-                    className="h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90" />
+                    className="h-11 w-full rounded-control border border-gray-300 bg-transparent px-4 py-2.5 text-ui text-gray-800 disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90" />
                 </div>
               </div>
 
               <div className="mt-4">
-                <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">팀 공유</label>
+                <label className="mb-1.5 block text-ui font-medium text-gray-700 dark:text-gray-400">팀 공유</label>
                 <div className="flex flex-wrap gap-1.5">
                   {TEAM_OPTIONS.map((t) => (
                     <button
@@ -352,12 +352,12 @@ const Calendar: React.FC = () => {
 
               <div className="mt-4">
                 <div className="mb-1.5 flex items-center justify-between">
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-400">팀원 초대</label>
+                  <label className="block text-ui font-medium text-gray-700 dark:text-gray-400">팀원 초대</label>
                   <button
                     type="button"
                     disabled={fieldsDisabled || staff.length === 0}
                     onClick={toggleAllAssignees}
-                    className={`rounded-full px-2.5 py-1 text-xs font-bold disabled:opacity-60 ${
+                    className={`rounded-full px-2.5 py-1 text-xs font-medium disabled:opacity-60 ${
                       allStaffSelected ? "bg-brand-500 text-white" : "bg-gray-100 text-gray-600 dark:bg-white/10 dark:text-gray-300"
                     }`}
                   >
@@ -382,16 +382,16 @@ const Calendar: React.FC = () => {
               </div>
 
               <div className="mt-6 flex items-center gap-3 sm:justify-end">
-                <button onClick={handleCloseModal} className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 sm:w-auto">닫기</button>
+                <button onClick={handleCloseModal} className="w-full rounded-control border border-gray-300 bg-white px-4 py-2.5 text-ui font-medium text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 sm:w-auto">닫기</button>
                 {selectedEvent && !isEditing ? (
                   canManage && (
                     <>
-                      <button onClick={handleDelete} className="w-full rounded-lg bg-error-500 px-4 py-2.5 text-sm font-medium text-white sm:w-auto">삭제</button>
-                      <button onClick={() => setIsEditing(true)} className="w-full rounded-lg bg-brand-500 px-4 py-2.5 text-sm font-medium text-white sm:w-auto">수정</button>
+                      <button onClick={handleDelete} className="w-full rounded-control bg-error-500 px-4 py-2.5 text-ui font-medium text-white sm:w-auto">삭제</button>
+                      <button onClick={() => setIsEditing(true)} className="w-full rounded-control bg-brand-500 px-4 py-2.5 text-ui font-medium text-white sm:w-auto">수정</button>
                     </>
                   )
                 ) : (
-                  <button onClick={handleSave} className="w-full rounded-lg bg-brand-500 px-4 py-2.5 text-sm font-medium text-white sm:w-auto">
+                  <button onClick={handleSave} className="w-full rounded-control bg-brand-500 px-4 py-2.5 text-ui font-medium text-white sm:w-auto">
                     {selectedEvent ? "수정 저장" : "등록"}
                   </button>
                 )}

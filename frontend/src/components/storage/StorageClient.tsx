@@ -102,7 +102,7 @@ function StarButton({ on, onClick }: { on: boolean; onClick: (e: React.MouseEven
     <button
       onClick={onClick}
       title={on ? "즐겨찾기 해제" : "즐겨찾기"}
-      className={`flex h-6 w-6 items-center justify-center rounded-full text-sm ${on ? "text-warning-400" : "text-gray-300 hover:text-warning-400 dark:text-gray-600"}`}
+      className={`flex h-6 w-6 items-center justify-center rounded-full text-ui ${on ? "text-warning-400" : "text-gray-300 hover:text-warning-400 dark:text-gray-600"}`}
     >
       {on ? "★" : "☆"}
     </button>
@@ -188,7 +188,7 @@ function StorageItem({
       onKeyDown={(e) => { e.stopPropagation(); if (e.key === "Enter") commit(); if (e.key === "Escape") { setRenaming(false); setRenameValue(node.name); onRenameClose?.(); } }}
       onBlur={commit}
       onClick={(e) => e.stopPropagation()}
-      className="min-w-0 flex-1 rounded border border-brand-400 bg-white px-1.5 py-0.5 text-sm dark:bg-gray-900"
+      className="min-w-0 flex-1 rounded border border-brand-400 bg-white px-1.5 py-0.5 text-ui dark:bg-gray-900"
     />
   ) : (
     <span className="truncate">{node.name}</span>
@@ -200,7 +200,7 @@ function StorageItem({
       {menuOpen && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
-          <div className="absolute right-0 top-6 z-50 w-32 rounded-lg border border-gray-200 bg-white py-1 text-xs shadow-lg dark:border-gray-700 dark:bg-gray-900">
+          <div className="absolute right-0 top-6 z-50 w-32 rounded-control border border-gray-200 bg-white py-1 text-xs shadow-lg dark:border-gray-700 dark:bg-gray-900">
             {onRenameCommit && <button onClick={() => { setMenuOpen(false); setRenaming(true); }} className="block w-full px-3 py-1.5 text-left hover:bg-gray-50 dark:hover:bg-white/5">이름변경</button>}
             {onCopy && <button onClick={() => { setMenuOpen(false); onCopy(); }} className="block w-full px-3 py-1.5 text-left hover:bg-gray-50 dark:hover:bg-white/5">사본 만들기</button>}
             {onDelete && <button onClick={() => { setMenuOpen(false); onDelete(); }} className="block w-full px-3 py-1.5 text-left text-error-500 hover:bg-gray-50 dark:hover:bg-white/5">삭제</button>}
@@ -235,7 +235,7 @@ function StorageItem({
         onClick={onSelect}
         onDoubleClick={onOpen}
         {...fileDropProps}
-        className={`group relative flex cursor-pointer flex-col items-center gap-2 rounded-xl border-[1.5px] p-4 text-center transition ${
+        className={`group relative flex cursor-pointer flex-col items-center gap-2 rounded-card border-[1.5px] p-4 text-center transition ${
           selected ? "border-brand-300 bg-brand-50 dark:border-brand-500/40 dark:bg-brand-500/10" : "border-transparent hover:bg-gray-50 dark:hover:bg-white/[0.03]"
         } ${highlight ? "border-brand-300 bg-brand-50 dark:bg-brand-500/10" : ""} ${isDragging ? "opacity-40" : ""}`}
       >
@@ -244,8 +244,8 @@ function StorageItem({
           {menu}
         </div>
         <span className="flex h-16 w-16 items-center justify-center">{icon}</span>
-        <div className="flex w-full items-center justify-center px-1 text-[13px] font-medium text-gray-800 dark:text-white/90">{nameNode}</div>
-        <span className="text-[11px] text-gray-400">{node.kind === "folder" ? "폴더" : formatSize(node.size)}</span>
+        <div className="flex w-full items-center justify-center px-1 text-ui font-medium text-gray-800 dark:text-white/90">{nameNode}</div>
+        <span className="fg-subtle text-ui-xs">{node.kind === "folder" ? "폴더" : formatSize(node.size)}</span>
       </div>
     );
   }
@@ -256,17 +256,17 @@ function StorageItem({
       onClick={onSelect}
       onDoubleClick={onOpen}
       {...fileDropProps}
-      className={`group grid cursor-pointer grid-cols-[1fr_150px_96px_auto] items-center gap-3 rounded-lg border-[1.5px] px-3 py-2.5 transition ${
+      className={`group grid cursor-pointer grid-cols-[1fr_150px_96px_auto] items-center gap-3 rounded-control border-[1.5px] px-3 py-2.5 transition ${
         selected ? "border-brand-300 bg-brand-50 dark:border-brand-500/40 dark:bg-brand-500/10" : "border-transparent hover:bg-gray-50 dark:hover:bg-white/[0.03]"
       } ${highlight ? "border-brand-300 bg-brand-50 dark:bg-brand-500/10" : ""} ${isDragging ? "opacity-40" : ""}`}
     >
       <div className="flex min-w-0 items-center gap-2.5">
         <span className="flex h-6 w-6 shrink-0 items-center justify-center">{icon}</span>
-        <span className="min-w-0 flex-1 text-sm font-medium text-gray-800 dark:text-white/90">{nameNode}</span>
+        <span className="min-w-0 flex-1 text-ui font-medium text-gray-800 dark:text-white/90">{nameNode}</span>
         <span className="shrink-0" onClick={(e) => e.stopPropagation()}><StarButton on={node.is_favorite} onClick={onToggleFavorite} /></span>
       </div>
-      <span className="text-xs text-gray-400">{shortDate(node.updated_at || node.created_at)}</span>
-      <span className="text-right text-xs text-gray-400">{node.kind === "folder" ? (node.itemCount != null ? `${node.itemCount}개` : "폴더") : formatSize(node.size)}</span>
+      <span className="fg-subtle text-ui-sm">{shortDate(node.updated_at || node.created_at)}</span>
+      <span className="text-right fg-subtle text-ui-sm">{node.kind === "folder" ? (node.itemCount != null ? `${node.itemCount}개` : "폴더") : formatSize(node.size)}</span>
       <span className="w-8 text-center opacity-0 group-hover:opacity-100">{menu}</span>
     </div>
   );
@@ -571,45 +571,45 @@ function Workspace({ root, showSpaces }: { root: string; showSpaces?: boolean })
   const allSelected = sorted.length > 0 && sorted.every((n) => selection.has(n.key));
   function toggleSelectAll() { setSelection(allSelected ? new Set() : new Set(sorted.map((n) => n.key))); }
 
-  const btn = "shrink-0 rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-semibold text-gray-700 hover:border-brand-400 hover:text-brand-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200";
+  const btn = "shrink-0 rounded-control border border-gray-300 bg-white px-3 py-2 text-xs font-semibold text-gray-700 hover:border-brand-400 hover:text-brand-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200";
   // 올리기(주요 액션) 전용 — btn(bg-white/text-gray)과 섞으면 Tailwind 유틸 충돌로 라이트모드에서
   // bg-white가 이겨 흰 배경+흰 글자로 안 보이던 문제가 있어 별도 클래스로 분리한다.
-  const btnPrimary = "shrink-0 cursor-pointer rounded-lg bg-brand-500 px-3 py-2 text-xs font-semibold text-white hover:bg-brand-600";
-  const iconBtn = (active: boolean) => `flex h-9 w-9 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 dark:hover:bg-white/10 ${active ? "bg-brand-50 text-brand-500 dark:bg-brand-500/15" : ""}`;
+  const btnPrimary = "shrink-0 cursor-pointer rounded-control bg-brand-500 px-3 py-2 text-xs font-semibold text-white hover:bg-brand-600";
+  const iconBtn = (active: boolean) => `flex h-9 w-9 items-center justify-center rounded-control text-gray-400 hover:bg-gray-100 dark:hover:bg-white/10 ${active ? "bg-brand-50 text-brand-500 dark:bg-brand-500/15" : ""}`;
 
   return (
     <DndProvider backend={HTML5Backend}>
       {/* 화면 높이에 고정된 틀 — 파일이 늘어나도 바깥 페이지가 길어지지 않고 목록 영역만 스크롤된다. */}
-      <div className="grid h-[calc(100vh-11.5rem)] min-h-[520px] grid-cols-1 gap-0 overflow-hidden rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900 lg:grid-cols-[220px_1fr]">
+      <div className="grid h-[calc(100vh-11.5rem)] min-h-[520px] grid-cols-1 gap-0 surface-card overflow-hidden lg:grid-cols-[220px_1fr]">
         {/* ── sidebar ── */}
         <aside className={`z-40 flex min-h-0 flex-col border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-950/40 max-lg:fixed max-lg:inset-y-0 max-lg:left-0 max-lg:w-64 max-lg:border-r max-lg:bg-gray-50 max-lg:shadow-xl max-lg:transition-transform dark:max-lg:bg-gray-900 lg:border-r ${sidebarOpen ? "max-lg:translate-x-0" : "max-lg:-translate-x-full"}`}>
           <div className="flex-1 overflow-y-auto p-3">
             {showSpaces && (
               <div className="mb-3 flex gap-1 rounded-full bg-gray-200/70 p-1 dark:bg-white/[0.06]">
-                <button onClick={() => { setSpace("shared"); pickView("all"); }} className={`flex-1 rounded-full px-2 py-1.5 text-[11px] font-bold ${space === "shared" ? "bg-white text-brand-500 shadow-sm dark:bg-gray-800" : "text-gray-500"}`}>🏢 공유</button>
-                <button onClick={() => { setSpace("personal"); pickView("all"); }} className={`flex-1 rounded-full px-2 py-1.5 text-[11px] font-bold ${space === "personal" ? "bg-white text-brand-500 shadow-sm dark:bg-gray-800" : "text-gray-500"}`}>🔒 개인</button>
+                <button onClick={() => { setSpace("shared"); pickView("all"); }} className={`flex-1 rounded-full px-2 py-1.5 text-ui-xs font-medium ${space === "shared" ? "bg-white text-brand-500 shadow-sm dark:bg-gray-800" : "text-gray-500"}`}>🏢 공유</button>
+                <button onClick={() => { setSpace("personal"); pickView("all"); }} className={`flex-1 rounded-full px-2 py-1.5 text-ui-xs font-medium ${space === "personal" ? "bg-white text-brand-500 shadow-sm dark:bg-gray-800" : "text-gray-500"}`}>🔒 개인</button>
               </div>
             )}
-            <button onClick={() => pickView("all")} className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-left text-sm font-semibold ${view === "all" ? "bg-brand-50 text-brand-500 dark:bg-brand-500/10" : "text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/5"}`}>
+            <button onClick={() => pickView("all")} className={`flex w-full items-center gap-2.5 rounded-control px-3 py-2.5 text-left text-ui font-semibold ${view === "all" ? "bg-brand-50 text-brand-500 dark:bg-brand-500/10" : "text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/5"}`}>
               <span>🗂️</span> 전체 파일
             </button>
-            <div className="mt-1 px-3 pb-1 pt-2 text-[10px] font-bold uppercase tracking-wide text-gray-400">최근</div>
-            <button onClick={() => pickView("recent-up")} className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-[13px] font-medium ${view === "recent-up" ? "bg-brand-50 text-brand-500 dark:bg-brand-500/10" : "text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/5"}`}>
+            <div className="mt-1 px-3 pb-1 pt-2 text-[10px] font-medium uppercase tracking-wide text-gray-400">최근</div>
+            <button onClick={() => pickView("recent-up")} className={`flex w-full items-center gap-2.5 rounded-control px-3 py-2 text-left text-ui font-medium ${view === "recent-up" ? "bg-brand-50 text-brand-500 dark:bg-brand-500/10" : "text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/5"}`}>
               <span>↑</span> 최근 올린
             </button>
-            <button onClick={() => pickView("recent-open")} className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-[13px] font-medium ${view === "recent-open" ? "bg-brand-50 text-brand-500 dark:bg-brand-500/10" : "text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/5"}`}>
+            <button onClick={() => pickView("recent-open")} className={`flex w-full items-center gap-2.5 rounded-control px-3 py-2 text-left text-ui font-medium ${view === "recent-open" ? "bg-brand-50 text-brand-500 dark:bg-brand-500/10" : "text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/5"}`}>
               <span>👁</span> 최근 열어본
             </button>
-            <button onClick={() => pickView("fav")} className={`mt-1 flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-left text-sm font-semibold ${view === "fav" ? "bg-brand-50 text-brand-500 dark:bg-brand-500/10" : "text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/5"}`}>
+            <button onClick={() => pickView("fav")} className={`mt-1 flex w-full items-center gap-2.5 rounded-control px-3 py-2.5 text-left text-ui font-semibold ${view === "fav" ? "bg-brand-50 text-brand-500 dark:bg-brand-500/10" : "text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/5"}`}>
               <span>⭐</span> 즐겨찾기
             </button>
           </div>
           <div className="border-t border-gray-200 p-4 dark:border-gray-800">
             <div className="flex items-center gap-2.5">
-              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-50 text-brand-500 dark:bg-brand-500/15">☁️</span>
+              <span className="flex h-8 w-8 items-center justify-center rounded-control bg-brand-50 text-brand-500 dark:bg-brand-500/15">☁️</span>
               <div className="min-w-0">
-                <div className="text-sm font-extrabold text-gray-800 dark:text-white/90">{usage ? formatSize(usage.bytes) : "-"} <span className="text-[11px] font-semibold text-gray-400">사용 중</span></div>
-                <div className="truncate text-[11px] text-gray-400">송림 클라우드 · 용량 제한 없음</div>
+                <div className="text-ui font-semibold text-gray-800 dark:text-white/90">{usage ? formatSize(usage.bytes) : "-"} <span className="text-ui-xs font-semibold text-gray-400">사용 중</span></div>
+                <div className="truncate fg-subtle text-ui-xs">송림 클라우드 · 용량 제한 없음</div>
               </div>
             </div>
           </div>
@@ -640,11 +640,11 @@ function Workspace({ root, showSpaces }: { root: string; showSpaces?: boolean })
             </div>
             <div className="mt-0.5 flex items-center gap-2">
               <button onClick={() => setSidebarOpen(true)} className="lg:hidden" aria-label="메뉴">☰</button>
-              <h2 className="text-xl font-extrabold text-gray-800 dark:text-white/90">{titleLabel}</h2>
+              <h2 className="page-title">{titleLabel}</h2>
             </div>
 
             <div className="-mx-1 flex flex-nowrap items-center gap-2 overflow-x-auto px-1 py-3 sm:flex-wrap sm:overflow-visible">
-              <button onClick={toggleSelectAll} className={`flex h-5 w-5 shrink-0 items-center justify-center rounded border-[1.6px] text-[11px] ${allSelected ? "border-brand-500 bg-brand-500 text-white" : "border-gray-300 dark:border-gray-600"}`} title="전체 선택">{allSelected ? "✓" : ""}</button>
+              <button onClick={toggleSelectAll} className={`flex h-5 w-5 shrink-0 items-center justify-center rounded border-[1.6px] text-ui-xs ${allSelected ? "border-gray-900 bg-gray-900 text-white dark:border-white dark:bg-white dark:text-gray-900" : "border-gray-300 dark:border-gray-600"}`} title="전체 선택">{allSelected ? "✓" : ""}</button>
               {isBrowse && canWrite && (
                 <>
                   <label className={btnPrimary}>
@@ -666,17 +666,17 @@ function Workspace({ root, showSpaces }: { root: string; showSpaces?: boolean })
               )}
               {selection.size > 0 && (
                 <>
-                  <button onClick={handleBulkDownload} className="shrink-0 rounded-lg bg-brand-500 px-3 py-2 text-xs font-bold text-white">선택 {selection.size}개 다운로드</button>
-                  {isBrowse && <button onClick={handleBulkDelete} className="shrink-0 rounded-lg bg-error-500 px-3 py-2 text-xs font-bold text-white">삭제</button>}
+                  <button onClick={handleBulkDownload} className="btn btn-primary">선택 {selection.size}개 다운로드</button>
+                  {isBrowse && <button onClick={handleBulkDelete} className="btn btn-danger">삭제</button>}
                 </>
               )}
 
               <div className="ml-auto flex shrink-0 items-center gap-2">
-                <select value={sortKey} onChange={(e) => setSortKey(e.target.value as SortKey)} className="rounded-lg border-none bg-transparent py-1.5 pr-1 text-xs font-semibold text-gray-600 dark:text-gray-300">
+                <select value={sortKey} onChange={(e) => setSortKey(e.target.value as SortKey)} className="rounded-control border-none bg-transparent py-1.5 pr-1 text-xs font-semibold text-gray-600 dark:text-gray-300">
                   <option value="date">올린 날짜</option>
                   <option value="name">이름</option>
                 </select>
-                <select value={sortDir} onChange={(e) => setSortDir(e.target.value as "asc" | "desc")} className="rounded-lg border-none bg-transparent py-1.5 pr-1 text-xs font-semibold text-gray-600 dark:text-gray-300">
+                <select value={sortDir} onChange={(e) => setSortDir(e.target.value as "asc" | "desc")} className="rounded-control border-none bg-transparent py-1.5 pr-1 text-xs font-semibold text-gray-600 dark:text-gray-300">
                   <option value="desc">최신순</option>
                   <option value="asc">오래된순</option>
                 </select>
@@ -690,7 +690,7 @@ function Workspace({ root, showSpaces }: { root: string; showSpaces?: boolean })
             </div>
             {transfer && (
               <div className="pb-3">
-                <div className="mb-1 flex items-center justify-between text-[11px] text-gray-500 dark:text-gray-400">
+                <div className="mb-1 flex items-center justify-between text-ui-xs text-gray-500 dark:text-gray-400">
                   <span className="truncate">{transfer.label}</span><span className="shrink-0 font-semibold">{transfer.pct}%</span>
                 </div>
                 <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-white/10"><div className="h-full rounded-full bg-brand-500 transition-all" style={{ width: `${transfer.pct}%` }} /></div>
@@ -702,9 +702,9 @@ function Workspace({ root, showSpaces }: { root: string; showSpaces?: boolean })
           <div className="flex min-h-0 flex-1">
             <div className={`min-w-0 flex-1 overflow-y-auto p-3 sm:p-4 ${dragActive ? "bg-brand-50/40 ring-2 ring-inset ring-brand-300 dark:bg-brand-500/5 dark:ring-brand-500/40" : ""}`}>
               {loading ? (
-                <div className="p-10 text-center text-sm text-gray-400">불러오는 중...</div>
+                <div className="empty-state">불러오는 중...</div>
               ) : sorted.length === 0 ? (
-                <div className="p-14 text-center text-sm text-gray-400">
+                <div className="p-14 text-center text-ui text-gray-400">
                   {view === "fav" ? "즐겨찾기한 항목이 없습니다." : view === "recent-open" ? "최근 열어본 파일이 없습니다." : view === "recent-up" ? "최근 올린 파일이 없습니다." : "폴더가 비어 있습니다. 파일이나 폴더를 끌어다 놓아 업로드할 수 있습니다."}
                 </div>
               ) : layout === "grid" ? (
@@ -728,7 +728,7 @@ function Workspace({ root, showSpaces }: { root: string; showSpaces?: boolean })
                 </div>
               ) : (
                 <div className="space-y-0.5">
-                  <div className="grid grid-cols-[1fr_150px_96px_auto] gap-3 border-b border-gray-100 px-3 pb-1.5 text-[11px] font-bold text-gray-400 dark:border-gray-800">
+                  <div className="grid grid-cols-[1fr_150px_96px_auto] gap-3 border-b border-gray-100 px-3 pb-1.5 text-ui-xs font-medium text-gray-400 dark:border-gray-800">
                     <span>이름</span><span>올린 날짜</span><span className="text-right">크기</span><span className="w-8" />
                   </div>
                   {sorted.map((n) => (
@@ -756,17 +756,17 @@ function Workspace({ root, showSpaces }: { root: string; showSpaces?: boolean })
             {infoOpen && (
               <aside className="hidden w-72 shrink-0 border-l border-gray-100 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-950/40 lg:block">
                 <div className="mb-2 flex items-center justify-between">
-                  <h3 className="text-sm font-extrabold text-gray-800 dark:text-white/90">상세 정보</h3>
+                  <h3 className="text-ui font-semibold text-gray-800 dark:text-white/90">상세 정보</h3>
                   <button onClick={() => setInfoOpen(false)} className="text-gray-400 hover:text-gray-600">✕</button>
                 </div>
                 {!detailNode ? (
-                  <div className="py-12 text-center text-xs text-gray-400">항목을 선택하면<br />상세 정보가 표시됩니다.</div>
+                  <div className="py-12 text-center fg-subtle text-ui-sm">항목을 선택하면<br />상세 정보가 표시됩니다.</div>
                 ) : (
                   <>
-                    <div className="mb-4 flex aspect-[4/3] items-center justify-center rounded-xl bg-white dark:bg-white/[0.03]">
+                    <div className="mb-4 flex aspect-[4/3] items-center justify-center rounded-card bg-white dark:bg-white/[0.03]">
                       {detailNode.kind === "folder" ? <FolderGlyph className="h-20 w-20" /> : <FileTypeIcon filename={detailNode.name} className="h-20 w-20" />}
                     </div>
-                    <div className="mb-3 break-all text-sm font-bold text-gray-800 dark:text-white/90">{detailNode.name}</div>
+                    <div className="mb-3 break-all text-ui font-medium text-gray-800 dark:text-white/90">{detailNode.name}</div>
                     {[
                       ["종류", detailNode.kind === "folder" ? KIND_LABEL.folder : fileKindLabel(detailNode.name)],
                       ["위치", detailNode.location ?? breadcrumbPath],
