@@ -21,6 +21,11 @@
   이 둘을 us에 합치면 us의 2019~2025 연도별 추이가 2025년에만 튀므로, 세분류코드를 그대로
   category로 쓰는 별도 분류로 넣는다.
 
+장비허가번호: CSV의 '장비허가번호'(100% 채워져 있다)를 정규화해 equipment.license_no에 넣는다.
+  식약처 품목허가(mfds_device_items.license_no)와 같은 체계라, 이 값이 제조사를 붙이는 유일한 키다.
+  정규화 = 공백 제거 + 지방청 접두어(서울|부산|경인|대구|광주|대전) 제거.
+  이미 들어와 있는 hira_2025 행에 이 값만 채우려면 --license-only 로 돌린다(재임포트 없이 UPDATE).
+
 매칭: CSV의 '암호화된 요양기호' = hospitals.ykiho. 우리 DB에 없는 기관은 건너뛴다(신규 병원 삽입 금지).
 
 멱등성: --apply 시 기존 source='hira_2025' 행을 전부 지우고 다시 넣는다. 재실행해도 중복이 안 생긴다.
@@ -29,11 +34,13 @@
 사용법:
   backend/venv/Scripts/python.exe backend/scripts/import_hira_equipment_full.py            # dry-run
   backend/venv/Scripts/python.exe backend/scripts/import_hira_equipment_full.py --apply    # 백업 뜨고 반영
+  backend/venv/Scripts/python.exe backend/scripts/import_hira_equipment_full.py --license-only --apply
 """
 import argparse
 import collections
 import csv
 import os
+import re
 import shutil
 import sqlite3
 import sys
@@ -66,9 +73,27 @@ SPLIT_MINOR = {"B30201", "B30202"}
 
 COLS = (
     "hospital_id, category, category_name, category_code, subcategory_name, "
-    "year, manufacturer, model, model_series, eq_count, source"
+    "year, manufacturer, model, model_series, eq_count, source, license_no"
 )
-INSERT_SQL = f"INSERT INTO equipment ({COLS}) VALUES (?,?,?,?,?,?,?,?,?,?,?)"
+INSERT_SQL = f"INSERT INTO equipment ({COLS}) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)"
+
+# 식약처 허가번호의 지방청 접두어. 심평원 CSV는 접두어 없이('수허13-302호'), 식약처는 붙여서
+# ('서울 수신 05-378 호') 주기 때문에 양쪽을 같은 모양으로 접어야 조인이 된다.
+LICENSE_PREFIX = re.compile(r"^(서울|부산|경인|대구|광주|대전)")
+
+
+def norm_license(v: str) -> str | None:
+    """'서울 수신 05-378 호' -> '수신05-378호', '수허13-302호' -> 그대로."""
+    s = re.sub(r"\s+", "", v or "")
+    s = LICENSE_PREFIX.sub("", s)
+    return s or None
+
+
+def pick_category(major: str, minor: str, row: dict) -> tuple[str, str]:
+    """(category, category_name) — SPLIT_MINOR만 세분류코드를 category로 쓴다."""
+    if minor in SPLIT_MINOR:
+        return minor, (row["장비세분류명"] or "").strip()
+    return major, (row["장비대분류명"] or "").strip()
 
 
 def load_ykiho_map(conn: sqlite3.Connection) -> dict[str, int]:
@@ -88,12 +113,65 @@ def to_count(v: str) -> int:
     return n if n > 0 else 1
 
 
+def backfill_license(conn: sqlite3.Connection, csv_path: str, yk2h: dict[str, int], apply: bool) -> int:
+    """이미 들어와 있는 source='hira_2025' 행에 license_no만 채운다 (재임포트 없이 UPDATE).
+
+    같은 (hospital_id, category, model)을 키로 CSV 쪽 허가번호를 모아 DB 행에 하나씩 나눠 준다.
+    실측: 키 단위 행수가 CSV와 DB에서 완전히 일치한다(불일치 키 0개). 한 키에 서로 다른 허가번호가
+    2개 이상 걸리는 경우(8,144키/17,851행)는 나머지 컬럼이 전부 같아 행을 구분할 근거가 없으므로
+    순서대로 배분한다 — 제조사 집계 결과는 어느 배분을 써도 같다.
+    """
+    pool: dict[tuple, list[str | None]] = collections.defaultdict(list)
+    for row in csv.DictReader(open(csv_path, encoding=ENCODING, newline="")):
+        major = (row["장비대분류코드"] or "").strip()
+        minor = (row["장비세분류코드"] or "").strip()
+        if major in SKIP_MAJOR or minor in SKIP_MINOR:
+            continue
+        hid = yk2h.get(row["암호화된 요양기호"])
+        if hid is None:
+            continue
+        category, _ = pick_category(major, minor, row)
+        model = (row["모델명"] or "").strip() or None
+        pool[(hid, category, model)].append(norm_license(row["장비허가번호"]))
+
+    updates: list[tuple] = []
+    unmatched = 0
+    for eid, hid, category, model in conn.execute(
+        "SELECT id, hospital_id, category, model FROM equipment WHERE source = ?", (SOURCE,)
+    ):
+        bucket = pool.get((hid, category, model))
+        if not bucket:
+            unmatched += 1
+            continue
+        lic = bucket.pop()
+        if lic:
+            updates.append((lic, eid))
+
+    if apply:
+        conn.executemany("UPDATE equipment SET license_no = ? WHERE id = ?", updates)
+        conn.commit()
+
+    total = conn.execute("SELECT COUNT(*) FROM equipment WHERE source = ?", (SOURCE,)).fetchone()[0]
+    filled = conn.execute(
+        "SELECT COUNT(*) FROM equipment WHERE source = ? AND license_no IS NOT NULL", (SOURCE,)
+    ).fetchone()[0]
+    print(f"CSV 키 {len(pool):,}개 · 갱신 대상 {len(updates):,}행 · CSV에 없는 행 {unmatched:,}")
+    print("  (CSV에 없는 행 = 2025-12-31 스냅샷 이후 요양기호가 재발급된 기관)")
+    if apply:
+        print(f"source='{SOURCE}' {total:,}행 중 license_no 보유 {filled:,} ({filled / total * 100:.2f}%)")
+    else:
+        print("[dry-run] 실제 반영하려면 --apply 를 붙이세요.")
+    return 0
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--db", default=DEFAULT_DB)
     ap.add_argument("--csv", default=DEFAULT_CSV)
     ap.add_argument("--apply", action="store_true", help="실제 반영 (기본은 dry-run)")
     ap.add_argument("--limit", type=int, default=0, help="CSV 앞쪽 N행만 처리 (점검용)")
+    ap.add_argument("--license-only", action="store_true",
+                    help="재임포트 없이 기존 hira_2025 행의 license_no만 채운다")
     args = ap.parse_args()
     sys.stdout.reconfigure(encoding="utf-8")
 
@@ -111,6 +189,11 @@ def main() -> int:
         backup = f"{args.db}.bak_hira_eq_full_{int(time.time())}"
         shutil.copy2(args.db, backup)
         print(f"백업 생성: {backup}")
+
+    if args.license_only:
+        return backfill_license(conn, args.csv, yk2h, args.apply)
+
+    if args.apply:
         deleted = conn.execute("DELETE FROM equipment WHERE source = ?", (SOURCE,)).rowcount
         print(f"기존 source='{SOURCE}' 행 삭제(멱등성): {deleted:,}")
 
@@ -144,13 +227,7 @@ def main() -> int:
                 unmatched_rows += 1
                 continue
 
-            if minor in SPLIT_MINOR:
-                category = minor
-                category_name = (row["장비세분류명"] or "").strip()
-            else:
-                category = major
-                category_name = (row["장비대분류명"] or "").strip()
-
+            category, category_name = pick_category(major, minor, row)
             cats[category] += 1
             buf.append(
                 (
@@ -165,6 +242,7 @@ def main() -> int:
                     None,  # model_series — X-ray 전용이라 여기선 안 쓴다
                     to_count(row["장비수"]),
                     SOURCE,
+                    norm_license(row["장비허가번호"]),
                 )
             )
             if len(buf) >= CHUNK:

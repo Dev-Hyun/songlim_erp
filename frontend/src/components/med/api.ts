@@ -58,50 +58,137 @@ export type ModelRow = {
   units: number;
 };
 
-/** 개설 현황 기간 프리셋 — 서버(med_stats.PERIOD_DAYS/PERIOD_YEARS)와 값이 같아야 한다. */
-export type OpeningsPeriod = "7d" | "30d" | "90d" | "1y" | "3y" | "5y" | "all";
+/* ────────────────────────────────────────────────────────
+ * 의료기관 개설 현황 — /api/med/openings/*
+ * 행정안전부 지방행정 인허가(개설·등록) 데이터(localdata_clinics) 기반.
+ * 모든 기간 창은 서버가 데이터 기준일(as_of)에 맞춰 잡는다 — 브라우저의 "오늘"을 쓰지 않는다.
+ * ──────────────────────────────────────────────────────── */
 
-export type OpeningsSummary = {
-  period: string;
-  start: string | null;
-  end: string;
-  prev_start: string | null;
-  prev_end: string | null;
-  total_hospitals: number;
-  with_estb_date: number;
-  missing_estb_date: number;
+/** 조회 기간 프리셋(일). 0 = 전체. 서버 med_stats.OPENING_PERIODS와 값이 같아야 한다. */
+export type OpeningDays = 7 | 30 | 90 | 365 | 1095 | 1825 | 0;
+
+/** 상태 필터 4종 — '전체' 옵션은 없다. */
+export type OpeningStatus = "영업/정상" | "휴업" | "폐업" | "취소/말소/정지";
+
+export type OpeningsMeta = {
+  as_of: string;
+  data_updated_at: string;
+  source: string;
+  /** hospitals 탭은 활용신청 승인 전이라 available=false로 내려온다. */
+  categories: { value: string; label: string; available: boolean }[];
+  periods: { value: number; label: string }[];
+  statuses: { value: OpeningStatus; date_label: string }[];
+  sidos: { value: string; sigungus: string[] }[];
+};
+
+/** 아직 적재되지 않은 탭(신규 병원)의 공통 응답. */
+export type OpeningsPending = {
+  available: false;
+  category: string;
+  as_of: string;
+  data_updated_at: string;
+  message: string;
+};
+
+type OpeningsBase = { available: true; category: string; as_of: string; data_updated_at: string };
+
+export type OpeningsSummaryData = OpeningsBase & {
+  recent30: { start: string | null; end: string; count: number };
+  recent90: { start: string | null; end: string; count: number };
+  prev30: { start: string; end: string; count: number };
+  /** 최근 90일 ÷ 90 × 30 — 최근 30일과 비교하는 기준선. */
+  baseline30: number;
+  gap_vs_baseline: number;
+  delta_vs_prev30: number;
+  metro: { count: number; share: number; non_count: number; non_share: number };
+  top_region: { sido: string; sigungu: string; recent: number; prev: number; delta: number } | null;
+  last12m: { closed: number; revoked: number; suspended: number };
+  insights: string[];
+  metro_summary: string;
+};
+
+export type OpeningsTrendPoint = {
+  month: string;
   opened: number;
-  opened_prev: number | null;
-  delta: number | null;
-  latest_estb_date: string | null;
-  /** 폐업·휴업 일자는 심평원 병원정보서비스에 없다 — 항상 false. */
-  closures_available: boolean;
+  closed: number;
+  revoked: number;
+  suspended: number;
+  /** 이번 달은 기준일까지의 진행 중 집계다. */
+  partial: boolean;
 };
 
-export type OpeningsTrend = {
-  granularity: "day" | "month" | "year";
-  start: string;
-  end: string;
-  /** bucket: 일별 YYYY-MM-DD / 월별 YYYY-MM / 연별 YYYY */
-  points: { bucket: string; count: number }[];
+export type OpeningsTrendData = OpeningsBase & {
+  current_month: string;
+  avg_recent3: number;
+  points: OpeningsTrendPoint[];
 };
 
-export type RegionOpenings = {
-  level: "sido" | "sigungu";
-  period: string;
+export type OpeningsDeptRow = {
+  dept: string;
+  metro: number;
+  non_metro: number;
+  metro_share: number;
+  non_metro_share: number;
+  /** 수도권 비중 − 비수도권 비중 (%p). */
+  diff: number;
+};
+
+export type OpeningsDeptMixData = OpeningsBase & {
+  days: number;
   start: string | null;
   end: string;
-  rows: { region: string; total: number; opened: number }[];
+  metro_total: number;
+  non_metro_total: number;
+  rows: OpeningsDeptRow[];
+  summary: string;
 };
 
-export type NewHospital = {
-  hospital_id: number;
+export type OpeningsHeatmapData = OpeningsBase & {
+  days: number;
+  start: string | null;
+  end: string;
+  sidos: string[];
+  depts: string[];
+  /** cells[행=시도][열=진료과] */
+  cells: number[][];
+  max: number;
+  top_cells: { row: number; col: number; value: number }[];
+  summary: string;
+};
+
+export type OpeningItem = {
+  id: number;
   name: string;
-  type: string | null;
+  /** 도로명주소. 없는 옛 기관은 서버가 지번주소로 대체해 내려준다. */
+  address: string | null;
+  opened_date: string | null;
+  status: OpeningStatus;
+  detail_status: string | null;
+  /** 조회 상태의 기준 날짜 (개설일 / 휴업 시작일 / 폐업일). */
+  status_date: string | null;
   sido: string | null;
   sigungu: string | null;
-  address: string | null;
-  estb_date: string | null;
+  biz_type: string | null;
+  dept: string | null;
+};
+
+export type OpeningsListData = OpeningsBase & {
+  days: number;
+  start: string | null;
+  end: string;
+  status: OpeningStatus;
+  date_label: string;
+  total: number;
+  page: number;
+  page_size: number;
+  items: OpeningItem[];
+};
+
+export type OpeningsListPending = OpeningsPending & {
+  total: number;
+  page: number;
+  page_size: number;
+  items: OpeningItem[];
 };
 
 export type DistributionRegion = {
@@ -186,22 +273,33 @@ export const fetchModels = (p: {
   limit?: number;
 }) => get<ModelRow[]>("/equipment/models", p);
 
-export type OpeningsFilter = {
-  period: OpeningsPeriod;
+export type OpeningsListFilter = {
+  category: string;
+  days: number;
   sido?: string;
   sigungu?: string;
-  type_group?: string;
+  status: OpeningStatus;
+  q?: string;
+  page?: number;
+  page_size?: number;
 };
 
-export const fetchOpeningsSummary = (p: OpeningsFilter) => get<OpeningsSummary>("/openings/summary", p);
+export const fetchOpeningsMeta = () => get<OpeningsMeta>("/openings/meta");
 
-export const fetchOpeningsTrend = (p: OpeningsFilter) => get<OpeningsTrend>("/openings/trend", p);
+export const fetchOpeningsSummary = (p: { category: string }) =>
+  get<OpeningsSummaryData | OpeningsPending>("/openings/summary", p);
 
-export const fetchOpeningsByRegion = (p: { period: OpeningsPeriod; sido?: string; type_group?: string }) =>
-  get<RegionOpenings>("/openings/by-region", p);
+export const fetchOpeningsTrend = (p: { category: string }) =>
+  get<OpeningsTrendData | OpeningsPending>("/openings/trend", p);
 
-export const fetchNewHospitals = (p: OpeningsFilter & { page?: number; page_size?: number }) =>
-  get<Paged<NewHospital> & { period: string; start: string | null; end: string }>("/openings/new-list", p);
+export const fetchOpeningsDeptMix = (p: { category: string; days: number }) =>
+  get<OpeningsDeptMixData | OpeningsPending>("/openings/dept-mix", p);
+
+export const fetchOpeningsHeatmap = (p: { category: string; days: number }) =>
+  get<OpeningsHeatmapData | OpeningsPending>("/openings/heatmap", p);
+
+export const fetchOpeningsList = (p: OpeningsListFilter) =>
+  get<OpeningsListData | OpeningsListPending>("/openings/new-list", p);
 
 export const fetchDistributionRegions = (p: {
   sido?: string;
@@ -221,3 +319,149 @@ export const fetchDistributionHospitals = (p: {
   page?: number;
   page_size?: number;
 }) => get<Paged<HospitalRow>>("/distribution/hospitals", p);
+
+/* ────────────────────────────────────────────────────────
+ * 장비 카탈로그 (클릭 탐색) — /api/med/catalog/*
+ * 텍스트 입력 없이 분류 → 모델 → 보유 의료기관으로 링크만 눌러 내려간다.
+ * ──────────────────────────────────────────────────────── */
+
+/** 분포 한 칸 — key는 종별명 또는 시도명. share는 이미 백분율(소수 1자리)이다. */
+export type CatalogDist = { key: string; hospitals: number; units: number; share: number };
+export type CatalogYear = { year: number; hospitals: number; units: number };
+export type CatalogModelRow = { model: string; slug: string; hospitals: number; units: number; rank?: number };
+
+export type CatalogCategoryRow = {
+  category: string;
+  code: string;
+  name: string;
+  hospitals: number;
+  units: number;
+  models: number;
+};
+
+export type CatalogCategories = {
+  year: number;
+  totals: { categories: number; hospitals: number; units: number; models: number };
+  items: CatalogCategoryRow[];
+};
+
+export type CatalogCategoryDetail = {
+  category: string;
+  code: string;
+  name: string;
+  year: number;
+  stats: { hospitals: number; units: number; models: number; top_type: CatalogDist | null };
+  types: CatalogDist[];
+  regions: CatalogDist[];
+  years: CatalogYear[];
+  /** false면 이 분류는 2025 스냅샷에만 있어서 연도 비교가 불가능하다. */
+  multi_year: boolean;
+  top_models: CatalogModelRow[];
+  top_hospitals: {
+    hospital_id: number;
+    name: string;
+    type: string | null;
+    sido: string | null;
+    sigungu: string | null;
+    units: number;
+  }[];
+};
+
+export type CatalogCategoryModels = {
+  category: string;
+  code: string;
+  name: string;
+  year: number;
+  total: number;
+  page: number;
+  page_size: number;
+  items: CatalogModelRow[];
+};
+
+export type CatalogModelDetail = {
+  category: string;
+  code: string;
+  name: string;
+  year: number;
+  model: string;
+  slug: string;
+  stats: {
+    hospitals: number;
+    units: number;
+    rank: number;
+    models_in_category: number;
+    share: number;
+    top_type: CatalogDist | null;
+  };
+  types: CatalogDist[];
+  regions: CatalogDist[];
+  years: CatalogYear[];
+  multi_year: boolean;
+  manufacturers: { manufacturer: string; units: number }[];
+  peers: CatalogModelRow[];
+};
+
+export type CatalogModelHospital = {
+  hospital_id: number;
+  name: string;
+  type: string | null;
+  sido: string | null;
+  sigungu: string | null;
+  address: string | null;
+  is_member: boolean;
+  units: number;
+};
+
+export type CatalogManufacturerRow = {
+  manufacturer: string;
+  models: number;
+  hospitals: number;
+  units: number;
+  category_count: number;
+  categories: { category: string; name: string; models: number; hospitals: number; units: number }[];
+  /** manufacturer_confidence 컬럼이 생긴 뒤에만 채워진다 (확인/유력/미확인 건수). */
+  confidence: Record<string, number> | null;
+  rank: number;
+};
+
+export type CatalogManufacturers = {
+  year: number;
+  /** 제조사가 채워진 행이 한 건도 없으면 false — 화면은 안내만 보여준다. */
+  available: boolean;
+  has_confidence: boolean;
+  sort: string;
+  coverage: { filled_rows: number; total_rows: number; share: number };
+  totals: { manufacturers: number; models: number; units: number };
+  total: number;
+  page: number;
+  page_size: number;
+  items: CatalogManufacturerRow[];
+};
+
+export type CatalogManufacturerSort = "units" | "models" | "hospitals" | "name";
+
+/** 경로 세그먼트에 들어가는 분류 코드·모델 슬러그(한글 포함 가능)를 항상 인코딩한다. */
+const seg = (v: string) => encodeURIComponent(v);
+
+export const fetchCatalogCategories = () => get<CatalogCategories>("/catalog/categories");
+
+export const fetchCatalogCategory = (code: string) =>
+  get<CatalogCategoryDetail>(`/catalog/categories/${seg(code)}`);
+
+export const fetchCatalogCategoryModels = (code: string, p: { page?: number; page_size?: number } = {}) =>
+  get<CatalogCategoryModels>(`/catalog/categories/${seg(code)}/models`, p);
+
+export const fetchCatalogModel = (code: string, slug: string) =>
+  get<CatalogModelDetail>(`/catalog/categories/${seg(code)}/models/${seg(slug)}`);
+
+export const fetchCatalogModelHospitals = (
+  code: string,
+  slug: string,
+  p: { sido?: string; page?: number; page_size?: number } = {},
+) => get<Paged<CatalogModelHospital>>(`/catalog/categories/${seg(code)}/models/${seg(slug)}/hospitals`, p);
+
+export const fetchCatalogManufacturers = (p: {
+  sort?: CatalogManufacturerSort;
+  page?: number;
+  page_size?: number;
+}) => get<CatalogManufacturers>("/catalog/manufacturers", p);

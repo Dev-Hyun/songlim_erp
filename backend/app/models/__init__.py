@@ -27,9 +27,13 @@ from .misc import MileageLog, Bid, NewsArticle, StorageFile, StorageFolder, Stor
 from .calendar import CalendarEvent, CalendarEventAssignee, CalendarEventTeam, GoogleCalendarLink
 from .audit import AuditLog
 from .kakao import KakaoOutbox
+from .localdata import LocaldataClinic
+from .mfds import MfdsDeviceItem
 
 __all__ = [
     "KakaoOutbox",
+    "LocaldataClinic",
+    "MfdsDeviceItem",
     "Base",
     "GradeMaster",
     "HospitalProfile",

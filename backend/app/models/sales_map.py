@@ -53,6 +53,9 @@ class Equipment(Base):
         Index("idx_eq_series", "model_series"),
         Index("idx_eq_cat_name", "category", "category_name"),
         Index("idx_eq_year_cat_cover", "year", "category", "hospital_id", "model", "eq_count"),
+        # 제조사 목록(/api/med/catalog/manufacturers) 커버링 — 실측 1,590ms -> 64ms
+        Index("idx_eq_mfr_cover", "manufacturer", "category", "year", "model", "hospital_id", "eq_count"),
+        Index("idx_eq_license", "license_no"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -65,6 +68,11 @@ class Equipment(Base):
     manufacturer: Mapped[Optional[str]] = mapped_column(default=None)
     model: Mapped[Optional[str]] = mapped_column(default=None)
     model_series: Mapped[Optional[str]] = mapped_column(default=None)  # X-ray 전용 — 모델명 변형을 시리즈로 통합(app/manufacturer_map.py)
+    # 심평원 CSV의 '장비허가번호'를 정규화한 값(예: '수허13-302호'). 식약처 품목허가와 잇는 키.
+    license_no: Mapped[Optional[str]] = mapped_column(default=None)
+    # manufacturer가 어떤 근거로 붙었는지: '확인'(허가번호 1:1) / '유력'(허가번호 다중) / '추정'(모델명)
+    manufacturer_confidence: Mapped[Optional[str]] = mapped_column(default=None)
+    manufacturer_synced_at: Mapped[Optional[str]] = mapped_column(default=None)  # 식약처 대조일 YYYY-MM-DD
     eq_count: Mapped[int] = mapped_column(default=1)
     source: Mapped[str] = mapped_column(default="import")
     created_by: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), default=None)
