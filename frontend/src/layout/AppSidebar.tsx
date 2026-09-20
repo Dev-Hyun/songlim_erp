@@ -82,9 +82,9 @@ const navItems: NavItem[] = [
     subItems: [
       { name: "영업지도", path: "/sales-map", pro: false },
       { name: "장비별 판매 통계", path: "/sales-map/stats", pro: false },
+      // 의료기관 데이터는 메디하루와 같은 3개로 유지한다. 분류·제조사는 메뉴가 아니라
+      // 장비 검색 페이지의 '둘러보기' 카드에서 들어간다 (메디하루 /equipment 와 동일).
       { name: "의료기관 장비 검색", path: "/med/equipment-search", pro: false },
-      { name: "의료장비 분류", path: "/med/equipment/categories", pro: false },
-      { name: "의료장비 제조·수입사", path: "/med/equipment/manufacturers", pro: false },
       { name: "의료기관 개설 현황", path: "/med/openings", pro: false },
       { name: "의료기관 분포현황", path: "/med/distribution", pro: false },
     ],

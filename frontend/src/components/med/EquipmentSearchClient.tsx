@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import { ApexOptions } from "apexcharts";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -424,6 +425,8 @@ export default function EquipmentSearchClient() {
           </>
         )}
       </Panel>
+
+      <BrowseCards />
     </div>
   );
 }
@@ -598,5 +601,41 @@ function HospitalRowView({
         </tr>
       )}
     </>
+  );
+}
+
+/** 의료장비 둘러보기 — 검색어가 떠오르지 않을 때 분류·제조사로 들어가는 입구.
+ *  메디하루 /equipment 하단의 '의료장비 둘러보기' 카드와 같은 역할이라, 이 두 페이지를
+ *  사이드바 메뉴로 따로 빼지 않고 여기서만 연결한다. */
+function BrowseCards() {
+  const cards = [
+    {
+      href: "/med/equipment/categories",
+      title: "의료장비 분류로 찾기",
+      desc: "초음파·엑스선·골밀도 등 장비 분류별로 보유 기관과 대표 모델을 봅니다.",
+    },
+    {
+      href: "/med/equipment/manufacturers",
+      title: "제조·수입사로 찾기",
+      desc: "업체별로 어떤 분류의 장비가 어디에 얼마나 들어가 있는지 봅니다.",
+    },
+  ];
+  return (
+    <Panel title="의료장비 둘러보기" desc="찾을 조건이 분명하지 않을 때는 분류나 제조사부터 들어가세요.">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        {cards.map((c) => (
+          <Link
+            key={c.href}
+            href={c.href}
+            className="group rounded-control border border-gray-200 p-4 transition hover:border-brand-500 hover:bg-brand-500/[0.03] dark:border-gray-800 dark:hover:border-brand-400"
+          >
+            <div className="text-ui-sm font-semibold text-gray-800 group-hover:text-brand-600 dark:text-gray-100 dark:group-hover:text-brand-400">
+              {c.title}
+            </div>
+            <p className="mt-1 text-ui-xs text-gray-500 dark:text-gray-400">{c.desc}</p>
+          </Link>
+        ))}
+      </div>
+    </Panel>
   );
 }
