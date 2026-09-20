@@ -47,7 +47,18 @@ UDDI = {
     2024: "uddi:40cac454-a23b-42c6-b76c-d65e8d281f6e",
     2025: "uddi:25b42339-7385-4e41-a8e9-ad86e0f0b489",
 }
-DEFAULT_YEARS = [2023, 2024]  # 2022는 요양기호 없음, 2025는 이미 CSV로 적재됨
+DEFAULT_YEARS = [2023, 2024]  # 2022는 요양기호 없음. 2025는 아래 주석 참고.
+
+# 2025년도 이 API 로 받을 수 있다(2026-09-20 확인: totalCount 711,808, `장비허가번호` 포함).
+# 기본값에서 뺀 이유는 "API 에 없어서"가 아니라 **이미 source='hira_2025' 로 CSV 적재가
+# 끝난 DB가 있어서**다. 그런 DB에 --years 2025 를 돌리면 아래 `existing` 중복 검사에
+# (기관,분류,모델)이 걸려 대부분 건너뛴다 — 행이 늘지도, 기존 행에 허가번호가 붙지도 않는다.
+#
+# hira_2025 에 license_no 가 비어 있는 DB(예: 2026-09 기준 운영 서버)를 고치려면
+# **CSV 를 옮길 필요 없이** 이렇게 한다:
+#     DELETE FROM equipment WHERE source = 'hira_2025';
+#     python scripts/import_odcloud_equipment_years.py --apply --years 2023,2024,2025
+# 레거시 6분류(source='import')는 LEGACY_MAJOR/MINOR 로 걸러지므로 손상되지 않는다.
 
 # 레거시 6분류와 같은 뜻의 장비대분류코드 — 이 분류는 기존 행을 살려두고 건너뛴다
 LEGACY_MAJOR = {"B101", "B106", "B108", "B203", "B301"}
