@@ -215,15 +215,19 @@ export type HospitalRow = {
 
 export type Paged<T> = { total: number; page: number; page_size: number; items: T[] };
 
-function qs(params: Record<string, string | number | undefined | null>): string {
+/** 값이 배열이면 같은 키를 반복해서 붙인다 (FastAPI가 list[str]로 받는 복수 선택 필터). */
+type QueryValue = string | number | string[] | undefined | null;
+
+function qs(params: Record<string, QueryValue>): string {
   const p = new URLSearchParams();
   for (const [k, v] of Object.entries(params)) {
-    if (v !== undefined && v !== null && v !== "") p.set(k, String(v));
+    if (Array.isArray(v)) v.forEach((one) => one !== "" && p.append(k, one));
+    else if (v !== undefined && v !== null && v !== "") p.set(k, String(v));
   }
   return p.toString();
 }
 
-async function get<T>(path: string, params: Record<string, string | number | undefined | null> = {}): Promise<T> {
+async function get<T>(path: string, params: Record<string, QueryValue> = {}): Promise<T> {
   const query = qs(params);
   const res = await fetch(`${API}/api/med${path}${query ? `?${query}` : ""}`, { credentials: "include" });
   if (!res.ok) {
@@ -243,14 +247,21 @@ export const fetchMedSigungu = (sido: string) => get<string[]>("/regions/sigungu
 
 export const fetchEquipmentSearch = (p: {
   year: number;
+  /** 단일 값 3종은 기존 화면·링크용. 고급 검색은 복수형(categories/models/manufacturers)을 쓴다. */
   category?: string;
   manufacturer?: string;
   model?: string;
+  categories?: string[];
+  manufacturers?: string[];
+  models?: string[];
+  /** 결합 조건 — all=모두 포함, any=하나라도 */
+  match?: "all" | "any";
   sido?: string;
   sigungu?: string;
   type_group?: string;
   hospital_q?: string;
   sort?: string;
+  order?: "asc" | "desc";
   page?: number;
   page_size?: number;
 }) => get<EquipmentSearchResult>("/equipment/search", p);
@@ -262,13 +273,15 @@ export const fetchEquipmentByCategory = (p: {
   type_group?: string;
 }) => get<CategorySummary[]>("/equipment/by-category", p);
 
-export const fetchManufacturers = (p: { category?: string; year?: number }) =>
+export const fetchManufacturers = (p: { category?: string; categories?: string[]; year?: number }) =>
   get<ManufacturerRow[]>("/equipment/manufacturers", p);
 
 export const fetchModels = (p: {
   category?: string;
+  categories?: string[];
   year?: number;
   manufacturer?: string;
+  manufacturers?: string[];
   q?: string;
   limit?: number;
 }) => get<ModelRow[]>("/equipment/models", p);

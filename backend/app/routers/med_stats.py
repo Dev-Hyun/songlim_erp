@@ -16,6 +16,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import Select, and_, case, func, or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.brand_map import brand_expr as _brand_expr
 from app.database import get_db
 from app.models import Equipment, Hospital, LocaldataClinic, User
 from app.routers.auth import require_staff
@@ -64,6 +65,23 @@ async def _category_labels(db: AsyncSession) -> dict[str, str]:
 async def _check_category(db: AsyncSession, category: Optional[str]) -> None:
     if category and category not in await _category_labels(db):
         raise HTTPException(400, "알 수 없는 장비 분류입니다")
+
+
+def _merge(single: Optional[str], multi: Optional[list[str]]) -> list[str]:
+    """단일 파라미터(기존 화면·링크)와 복수 파라미터(고급 검색)를 한 목록으로 합친다.
+
+    기존 단일 값 동작을 그대로 두기 위해 엔드포인트 시그니처에서 단일 키를 없애지 않고,
+    내부에서만 목록으로 정규화한다. 빈 문자열은 '지정 안 함'이다.
+    """
+    out = [v for v in ([single] if single else []) + list(multi or []) if v]
+    return list(dict.fromkeys(out))  # 순서 유지 중복 제거
+
+
+async def _check_categories(db: AsyncSession, categories: list[str]) -> None:
+    known = await _category_labels(db)
+    for c in categories:
+        if c not in known:
+            raise HTTPException(400, "알 수 없는 장비 분류입니다")
 
 
 # 종별 그룹 — stats.py의 _type_filter와 같은 규칙을 쓰되 한방/치과/기타를 추가로 구분한다.
@@ -201,20 +219,29 @@ async def equipment_manufacturers(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(require_staff),
     category: Optional[str] = None,
+    categories: Optional[list[str]] = Query(None),
     year: Optional[int] = None,
 ):
     """제조사 목록 + 보유 기관 수 — 서버 집계.
 
+    표시·집계 단위는 brand_map.brand_expr()(레거시 6분류는 브랜드 우선, 나머지는 제조원).
+    업체 필터가 같은 식으로 걸리므로 목록과 필터가 어긋나지 않는다.
+
     심평원 '의료장비 상세 현황' 원본에는 제조사 컬럼이 없어서, 2025 스냅샷으로 새로 들어온
     분류(source='hira_2025')는 제조사가 비어 있고 빈 목록이 나온다."""
-    await _check_category(db, category)
+    cats = _merge(category, categories)
+    await _check_categories(db, cats)
+    maker = _brand_expr()
     q = select(
-        Equipment.manufacturer,
+        maker.label("maker"),
         func.count(func.distinct(Equipment.hospital_id)).label("hospitals"),
         func.sum(Equipment.eq_count).label("units"),
-    ).where(Equipment.manufacturer.is_not(None))
-    q = _apply_equipment_filters(q, category, year, None, None)
-    q = q.group_by(Equipment.manufacturer).order_by(func.sum(Equipment.eq_count).desc())
+    ).where(maker.is_not(None))
+    if cats:
+        q = q.where(Equipment.category.in_(cats))
+    if year:
+        q = q.where(Equipment.year == year)
+    q = q.group_by(maker).order_by(func.sum(Equipment.eq_count).desc())
     return [{"manufacturer": m, "hospitals": h, "units": u or 0} for m, h, u in (await db.execute(q)).all()]
 
 
@@ -223,25 +250,37 @@ async def equipment_models(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(require_staff),
     category: Optional[str] = None,
+    categories: Optional[list[str]] = Query(None),
     year: Optional[int] = None,
     manufacturer: Optional[str] = None,
+    manufacturers: Optional[list[str]] = Query(None),
     q: Optional[str] = None,
     limit: int = Query(100, le=500),
 ):
-    """모델 목록 + 보유 기관 수/대수 — 모델 브라우즈 및 자동완성용."""
-    await _check_category(db, category)
+    """모델 목록 + 보유 기관 수/대수 — 모델 브라우즈 및 자동완성용.
+
+    제조사는 brand_expr() 기준으로 묶는다(업체 필터와 같은 식이어야 선택이 맞물린다)."""
+    cats = _merge(category, categories)
+    makers = _merge(manufacturer, manufacturers)
+    await _check_categories(db, cats)
+    maker = _brand_expr()
     stmt = select(
         Equipment.model,
-        Equipment.manufacturer,
+        maker.label("maker"),
         Equipment.category,
         func.count(func.distinct(Equipment.hospital_id)).label("hospitals"),
         func.sum(Equipment.eq_count).label("units"),
     ).where(Equipment.model.is_not(None))
-    stmt = _apply_equipment_filters(stmt, category, year, manufacturer, None)
+    if cats:
+        stmt = stmt.where(Equipment.category.in_(cats))
+    if year:
+        stmt = stmt.where(Equipment.year == year)
+    if makers:
+        stmt = stmt.where(maker.in_(makers))
     if q:
         stmt = stmt.where(Equipment.model.ilike(f"%{q}%"))
     stmt = (
-        stmt.group_by(Equipment.model, Equipment.manufacturer, Equipment.category)
+        stmt.group_by(Equipment.model, maker, Equipment.category)
         .order_by(func.sum(Equipment.eq_count).desc())
         .limit(limit)
     )
@@ -291,13 +330,18 @@ async def equipment_search(
     user: User = Depends(require_staff),
     year: int = 2025,
     category: Optional[str] = None,
+    categories: Optional[list[str]] = Query(None),
     manufacturer: Optional[str] = None,
+    manufacturers: Optional[list[str]] = Query(None),
     model: Optional[str] = None,
+    models: Optional[list[str]] = Query(None),
+    match: str = "all",
     sido: Optional[str] = None,
     sigungu: Optional[str] = None,
     type_group: Optional[str] = None,
     hospital_q: Optional[str] = None,
     sort: str = "units",
+    order: Optional[str] = None,
     page: int = Query(1, ge=1),
     page_size: int = Query(30, ge=1, le=100),
 ):
@@ -305,15 +349,43 @@ async def equipment_search(
 
     hospitals×equipment 조인을 GROUP BY hospital_id로 집계한 뒤 LIMIT/OFFSET 페이지네이션하고,
     장비 상세는 현재 페이지의 병원 id에 대해서만 다시 조회한다.
+
+    복수 선택(categories/models/manufacturers)과 결합조건(match)
+      - `manufacturers`(업체)는 **항상 AND로 걸리는 필터**다. 목록 안에서만 OR
+        (메디하루 문구: "선택한 업체 중 하나라도 연결된 장비를 검색합니다").
+        비교는 brand_map.brand_expr() — 레거시 6분류는 브랜드, 나머지는 제조원.
+      - `categories`/`models`는 행 단위로는 **항상 OR**로 좁힌다(조건 중 하나라도 걸리는 장비 행).
+        한 조건은 한 행으로만 만족되므로, 행 단위로 AND를 걸면 "CT·MRI 선택 + CT 모델 1개"처럼
+        정상적인 조합이 언제나 0건이 된다.
+      - 결합조건은 기관 단위로 HAVING에서 본다. match="all"(모두 포함)이면 고른 분류 전부와
+        고른 모델 전부가 그 기관에 있어야 하고, match="any"(하나라도)면 OR 결과 그대로다.
+      - 단일 파라미터(category/manufacturer/model)는 그대로 둔다. model 하나만 온 경우는
+        기존처럼 부분 일치(ilike), models 목록은 목록에서 고른 값이라 정확 일치다.
     """
-    await _check_category(db, category)
-    has_eq_filter = bool(category or manufacturer or model)
+    cats = _merge(category, categories)
+    makers = _merge(manufacturer, manufacturers)
+    mdls = [m for m in (models or []) if m]
+    await _check_categories(db, cats)
+    has_eq_filter = bool(cats or makers or mdls or model)
 
     if not has_eq_filter and not hospital_q and not sido:
         raise HTTPException(400, "장비 조건(분류/제조사/모델) 또는 병원명 또는 시도 중 하나는 지정해야 합니다")
 
+    maker_expr = _brand_expr()
     base = select(Equipment.hospital_id).join(Hospital, Hospital.id == Equipment.hospital_id)
-    base = _apply_equipment_filters(base, category, year, manufacturer, model)
+    base = base.where(Equipment.year == year)
+    # 분류·모델은 행 단위 OR — 결합조건은 아래 HAVING에서 기관 단위로 본다
+    picks = []
+    if cats:
+        picks.append(Equipment.category.in_(cats))
+    if mdls:
+        picks.append(Equipment.model.in_(mdls))
+    if picks:
+        base = base.where(or_(*picks) if len(picks) > 1 else picks[0])
+    if makers:
+        base = base.where(maker_expr.in_(makers))
+    if model:
+        base = base.where(Equipment.model.ilike(f"%{model}%"))
     base = _apply_hospital_filters(base, sido, sigungu, type_group, None)
     if hospital_q:
         base = base.where(Hospital.name.ilike(f"%{hospital_q}%"))
@@ -323,17 +395,37 @@ async def equipment_search(
         func.count(Equipment.id).label("lines"),
     ).group_by(Equipment.hospital_id)
 
-    total = (await db.execute(select(func.count()).select_from(agg.subquery()))).scalar_one()
-    total_units = (
-        await db.execute(base.with_only_columns(func.coalesce(func.sum(Equipment.eq_count), 0)))
-    ).scalar_one()
+    if match == "all":
+        # 한 종류만 골랐다면 WHERE가 이미 보장하므로 HAVING(DISTINCT 집계)을 붙이지 않는다.
+        # 분류와 모델을 같이 골랐을 때는 WHERE가 OR라 서로를 보장하지 못해 반드시 필요하다.
+        mixed = bool(cats and mdls)
+        # case(...)로 감싸는 이유: WHERE가 OR라서 그룹에는 고르지 않은 분류·모델 행도 섞여 있다
+        if cats and (len(cats) > 1 or mixed):
+            agg = agg.having(
+                func.count(func.distinct(case((Equipment.category.in_(cats), Equipment.category)))) == len(cats)
+            )
+        if mdls and (len(mdls) > 1 or mixed):
+            agg = agg.having(
+                func.count(func.distinct(case((Equipment.model.in_(mdls), Equipment.model)))) == len(mdls)
+            )
 
-    order = {
-        "units": func.sum(Equipment.eq_count).desc(),
-        "name": func.min(Hospital.name).asc(),
-        "region": func.min(Hospital.sido).asc(),
-    }.get(sort, func.sum(Equipment.eq_count).desc())
-    agg = agg.order_by(order, Equipment.hospital_id.asc()).limit(page_size).offset((page - 1) * page_size)
+    # HAVING이 걸린 뒤의 그룹만 세야 하므로 서브쿼리 하나를 만들어 건수/대수를 함께 뽑는다
+    sub = agg.subquery()
+    total, total_units = (
+        await db.execute(select(func.count(), func.coalesce(func.sum(sub.c.units), 0)).select_from(sub))
+    ).one()
+
+    desc = (order or "").lower() == "desc" if order else None
+    col = {
+        "units": func.sum(Equipment.eq_count),
+        "name": func.min(Hospital.name),
+        "region": func.min(Hospital.sido),
+    }.get(sort, func.sum(Equipment.eq_count))
+    # order 미지정이면 기존 기본값(대수 내림 / 이름·지역 오름)을 유지한다
+    if desc is None:
+        desc = sort not in ("name", "region")
+    agg = agg.order_by(col.desc() if desc else col.asc(), Equipment.hospital_id.asc())
+    agg = agg.limit(page_size).offset((page - 1) * page_size)
     page_rows = (await db.execute(agg)).all()
     hosp_ids = [r[0] for r in page_rows]
     if not hosp_ids:
@@ -349,12 +441,12 @@ async def equipment_search(
             select(
                 Equipment.hospital_id,
                 Equipment.category,
-                Equipment.manufacturer,
+                maker_expr.label("maker"),
                 Equipment.model,
                 func.sum(Equipment.eq_count),
             )
             .where(Equipment.hospital_id.in_(hosp_ids), Equipment.year == year)
-            .group_by(Equipment.hospital_id, Equipment.category, Equipment.manufacturer, Equipment.model)
+            .group_by(Equipment.hospital_id, Equipment.category, maker_expr, Equipment.model)
         )
     ).all()
     labels = await _category_labels(db)
@@ -367,13 +459,17 @@ async def equipment_search(
         items.sort(key=lambda e: (-e["count"], e["category"], e["model"] or ""))
 
     def matched(e: dict) -> bool:
-        if category and e["category"] != category:
-            return False
-        if manufacturer and e["manufacturer"] != manufacturer:
+        """행 단위 조건 — 위 SQL의 WHERE와 같은 규칙이어야 '일치 장비' 칩이 결과와 어긋나지 않는다."""
+        if makers and e["manufacturer"] not in makers:
             return False
         if model and model.lower() not in (e["model"] or "").lower():
             return False
-        return True
+        picked = []
+        if cats:
+            picked.append(e["category"] in cats)
+        if mdls:
+            picked.append(e["model"] in mdls)
+        return any(picked) if picked else True
 
     items = []
     for hid, units, lines in page_rows:
