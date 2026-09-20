@@ -465,3 +465,130 @@ export const fetchCatalogManufacturers = (p: {
   page?: number;
   page_size?: number;
 }) => get<CatalogManufacturers>("/catalog/manufacturers", p);
+
+/* ────────────────────────────────────────────────────────
+ * 모델 탐색 / 의료기관 상세 — /api/med/catalog/models · /catalog/hospitals
+ * 슬러그는 분류 단위로 만들어지므로, 분류를 거치지 않고 들어올 때는 모델명 슬러그(name_slug)로
+ * 먼저 분류를 고른 뒤 분류별 슬러그(slug)로 상세에 들어간다.
+ * ──────────────────────────────────────────────────────── */
+
+export type CatalogModelIndexRow = {
+  model: string;
+  /** 분류 안에서만 유일한 슬러그 — 모델 상세 경로에 쓴다. */
+  slug: string;
+  /** 모델명만 정규화한 슬러그 — 동음이의 선택 경로에 쓴다. */
+  name_slug: string;
+  category: string;
+  code: string;
+  name: string;
+  hospitals: number;
+  units: number;
+  /** 같은 모델명이 2개 이상 장비 분류에 있다 → 분류를 먼저 골라야 한다. */
+  homonym: boolean;
+  /** 같은 모델명 슬러그로 묶이는 항목 수(분류 차이 + 대소문자·공백 표기 차이). */
+  variants: number;
+};
+
+export type CatalogModelIndex = {
+  year: number;
+  limit: number;
+  /** pairs = 분류×모델 조합 수, names = 모델명 슬러그 수, homonyms = 여러 분류에 걸친 모델명 수. */
+  totals: { pairs: number; names: number; homonyms: number };
+  items: CatalogModelIndexRow[];
+};
+
+export type CatalogModelAliasOption = {
+  model: string;
+  slug: string;
+  category: string;
+  code: string;
+  name: string;
+  hospitals: number;
+  units: number;
+};
+
+export type CatalogModelAliases = {
+  year: number;
+  name_slug: string;
+  names: string[];
+  /** 1이면 동음이의가 아니라 같은 분류 안의 표기 변형이다. */
+  categories: number;
+  options: CatalogModelAliasOption[];
+};
+
+export type CatalogHospitalItem = {
+  model: string | null;
+  /** 최신 스냅샷에 없는 모델은 상세 페이지가 없어 null이다. */
+  slug: string | null;
+  manufacturer: string | null;
+  /** 확인 / 유력 / 미확인 (2026-09-20에 '추정' 등급은 제거됨). */
+  confidence: string | null;
+  units: number;
+  /** 직전 스냅샷에 그 분류가 없었으면 null (증감을 낼 수 없다). */
+  delta: number | null;
+};
+
+export type CatalogHospitalGroup = {
+  category: string;
+  code: string;
+  name: string;
+  units: number;
+  models: number;
+  delta: number | null;
+  items: CatalogHospitalItem[];
+};
+
+export type CatalogHospitalPeer = {
+  hospital_id: number;
+  name: string;
+  categories: number;
+  units: number;
+  is_self: boolean;
+};
+
+export type CatalogHospitalDetail = {
+  hospital: {
+    id: number;
+    ykiho: string | null;
+    name: string;
+    type: string | null;
+    sido: string | null;
+    sigungu: string | null;
+    address: string | null;
+    estb_date: string | null;
+    is_member: boolean;
+  };
+  year: number;
+  prev_year: number | null;
+  years: { year: number; categories: number; units: number }[];
+  stats: {
+    categories: number;
+    models: number;
+    units: number;
+    /** 직전 스냅샷에도 있던 분류만 더한 증감. */
+    delta_units: number | null;
+    /** 증감 계산에서 빠진 분류 수. */
+    delta_skipped: number;
+  };
+  groups: CatalogHospitalGroup[];
+  peers:
+    | { available: false }
+    | {
+        available: true;
+        sido: string;
+        sigungu: string;
+        type: string;
+        total: number;
+        rank: number | null;
+        items: CatalogHospitalPeer[];
+      };
+};
+
+export const fetchCatalogModelIndex = (p: { limit?: number } = {}) =>
+  get<CatalogModelIndex>("/catalog/models", p);
+
+export const fetchCatalogModelAliases = (nameSlug: string) =>
+  get<CatalogModelAliases>(`/catalog/models/${seg(nameSlug)}`);
+
+export const fetchCatalogHospital = (hospitalId: number, p: { year?: number } = {}) =>
+  get<CatalogHospitalDetail>(`/catalog/hospitals/${hospitalId}`, p);

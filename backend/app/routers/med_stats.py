@@ -1807,3 +1807,313 @@ async def catalog_manufacturers(
         "page_size": page_size,
         "items": [{**r, "rank": start + i + 1} for i, r in enumerate(ordered[start : start + page_size])],
     }
+
+
+# ────────────────────────────────────────────────────────
+# 5. 모델 탐색 / 의료기관 상세 (메디하루 2-5 · 2-6 · 2-8 대응)
+#
+# 모델 슬러그는 분류 단위로 만들어지므로(_category_models) 분류를 거치지 않고 모델명으로
+# 바로 들어오려면 "모델명 → 그 이름이 존재하는 (분류, 슬러그) 목록" 색인이 따로 필요하다.
+# ────────────────────────────────────────────────────────
+
+# 모델 탐색 시작점에 노출하는 상한. 26K종을 전부 내려보내면 응답이 수 MB가 되고 화면도
+# 스크롤로만 소비되므로 메디하루와 같은 300종으로 자른다.
+MODEL_INDEX_TOP = 300
+
+
+async def _model_index(db: AsyncSession, year: int) -> dict:
+    """모델명 슬러그 → 같은 이름이 등록된 (분류, 분류별 슬러그) 목록.
+
+    슬러그가 분류마다 따로 만들어지는 탓에(같은 이름이라도 충돌 시 -2가 붙는다) 여기서 직접
+    다시 만들지 않고 분류별로 _category_models()를 호출해 그 결과를 그대로 모은다. 목록·상세와
+    슬러그가 어긋날 수 없고, 분류별 집계는 이미 캐시돼 있어 199개 분류 전체가 ~0.3초다.
+    """
+    key = f"modelindex:{year}"
+    cached = _cache_get(key)
+    if cached is not None:
+        return cached
+
+    index = await _catalog_index(db)
+    by_name: dict[str, list[dict]] = {}
+    for category, info in index.items():
+        for row in await _category_models(db, category, year):
+            by_name.setdefault(slugify_model(row["model"]), []).append(
+                {
+                    "model": row["model"],
+                    "slug": row["slug"],
+                    "category": category,
+                    "code": info["code"],
+                    "name": info["name"],
+                    "hospitals": row["hospitals"],
+                    "units": row["units"],
+                }
+            )
+
+    for options in by_name.values():
+        options.sort(key=lambda o: (-o["hospitals"], o["name"]))
+
+    pairs = [o for options in by_name.values() for o in options]
+    pairs.sort(key=lambda o: (-o["hospitals"], o["model"], o["name"]))
+    # 동음이의는 '여러 분류에 걸친 모델명'만 센다. 같은 분류 안에서 슬러그가 갈라진 건
+    # (대소문자·공백만 다른 표기) 분류 선택이 필요 없는 표기 변형이라 별개다.
+    homonyms = sum(1 for options in by_name.values() if len({o["category"] for o in options}) > 1)
+    return _cache_put(
+        key,
+        {
+            "by_name": by_name,
+            "pairs": pairs,
+            "totals": {"pairs": len(pairs), "names": len(by_name), "homonyms": homonyms},
+        },
+    )
+
+
+@router.get("/catalog/models")
+async def catalog_models(
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(require_staff),
+    limit: int = Query(MODEL_INDEX_TOP, ge=1, le=1000),
+):
+    """모델 탐색 시작점 — 분류를 거치지 않고 모델명으로 바로 들어가는 입구.
+
+    컨트롤·페이지네이션 없는 정적 목록이라(메디하루 2-5절과 동일) 확인 기관 수 상위 N종만 준다.
+    같은 모델명이 여러 분류에 있으면 homonym=true로 표시하고, 프론트는 분류 선택 페이지로 보낸다.
+    """
+    year = await _latest_year(db)
+    idx = await _model_index(db, year)
+    by_name = idx["by_name"]
+    items = []
+    for row in idx["pairs"][:limit]:
+        name_slug = slugify_model(row["model"])
+        options = by_name[name_slug]
+        items.append(
+            {
+                **row,
+                "name_slug": name_slug,
+                "homonym": len({o["category"] for o in options}) > 1,
+                "variants": len(options),
+            }
+        )
+    return {"year": year, "limit": limit, "totals": idx["totals"], "items": items}
+
+
+@router.get("/catalog/models/{name_slug}")
+async def catalog_model_aliases(
+    name_slug: str,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(require_staff),
+):
+    """모델명 동음이의 선택 — 같은 모델명이 등록된 장비 분류 목록.
+
+    분류가 하나뿐이면 프론트가 그대로 모델 상세로 넘긴다(중간 화면을 띄우지 않는다).
+    """
+    year = await _latest_year(db)
+    options = (await _model_index(db, year))["by_name"].get(name_slug)
+    if not options:
+        raise HTTPException(404, "해당 모델명을 찾을 수 없습니다")
+    return {
+        "year": year,
+        "name_slug": name_slug,
+        # 정규화 후 같은 슬러그가 되는 서로 다른 표기도 한 화면에 모인다.
+        "names": sorted({o["model"] for o in options}),
+        # 분류가 둘 이상이면 '동음이의', 하나면 같은 분류 안의 표기 변형이다 — 문구가 달라진다.
+        "categories": len({o["category"] for o in options}),
+        "options": options,
+    }
+
+
+async def _snapshot_categories(db: AsyncSession, year: int) -> set[str]:
+    """해당 연도 스냅샷이 담고 있는 장비 분류 집합 (idx_eq_year_cat 커버링, ~7ms).
+
+    2019~2022 스냅샷에는 레거시 6분류만 적재돼 있다. 그 해에 없던 분류를 전년 대비 증감에
+    넣으면 분류가 통째로 '신규'로 잡혀 +가 부풀려지므로, 증감을 낼 수 있는 분류를 여기서 가린다.
+    """
+    key = f"snapcats:{year}"
+    cached = _cache_get(key)
+    if cached is not None:
+        return cached
+    rows = (await db.execute(select(Equipment.category).where(Equipment.year == year).distinct())).scalars().all()
+    return _cache_put(key, set(rows))
+
+
+async def _hospital_peers(db: AsyncSession, h: Hospital, year: int) -> dict:
+    """같은 시군구·같은 요양기관 종별 안에서의 등록 대수 비교 (메디하루 '비교 병원급').
+
+    종별을 섞으면(의원 vs 상급종합) 비교가 무의미해서 Hospital.type 원문이 같은 기관만 본다.
+    시군구가 비어 있는 기관은 비교 모집단을 만들 수 없으므로 섹션 자체를 감춘다.
+    """
+    if not (h.sido and h.sigungu and h.type):
+        return {"available": False}
+    rows = (
+        await db.execute(
+            select(
+                Equipment.hospital_id,
+                Hospital.name,
+                func.count(func.distinct(Equipment.category)),
+                func.sum(Equipment.eq_count),
+            )
+            .join(Hospital, Hospital.id == Equipment.hospital_id)
+            .where(
+                Equipment.year == year,
+                Hospital.sido == h.sido,
+                Hospital.sigungu == h.sigungu,
+                Hospital.type == h.type,
+            )
+            .group_by(Equipment.hospital_id)
+        )
+    ).all()
+    ranked = sorted(
+        [{"hospital_id": hid, "name": name, "categories": c or 0, "units": u or 0} for hid, name, c, u in rows],
+        key=lambda r: (-r["units"], r["name"]),
+    )
+    rank = next((i + 1 for i, r in enumerate(ranked) if r["hospital_id"] == h.id), None)
+    return {
+        "available": True,
+        "sido": h.sido,
+        "sigungu": h.sigungu,
+        "type": h.type,
+        "total": len(ranked),
+        "rank": rank,
+        "items": [{**r, "is_self": r["hospital_id"] == h.id} for r in ranked[:10]],
+    }
+
+
+@router.get("/catalog/hospitals/{hospital_id}")
+async def catalog_hospital_detail(
+    hospital_id: int,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(require_staff),
+    year: Optional[int] = None,
+):
+    """의료기관 상세 — 기관 속성 + 분류별 보유 장비 + 연도별 등록 추이 + 동일 시군구 비교.
+
+    URL 키는 ykiho가 아니라 hospitals.id다. 장비를 보유한 72,254곳 중 3,507곳은 ykiho가 비어
+    있어(수기 등록·동물병원 등) 요양기관기호로는 전부를 가리킬 수 없다.
+
+    장비 행은 한 기관치라 많아야 3천여 건이고 idx_eq_hosp_cat로 바로 잡히므로(~10ms) 연도 전체를
+    한 번에 읽어 온다. 전년 대비 증감도 그 결과 안에서 계산한다 — 추가 질의가 필요 없다.
+    """
+    h = (await db.execute(select(Hospital).where(Hospital.id == hospital_id))).scalar_one_or_none()
+    if h is None:
+        raise HTTPException(404, "의료기관을 찾을 수 없습니다")
+
+    rows = (
+        await db.execute(
+            select(
+                Equipment.year,
+                Equipment.category,
+                Equipment.model,
+                Equipment.manufacturer,
+                Equipment.manufacturer_confidence,
+                func.sum(Equipment.eq_count),
+            )
+            .where(Equipment.hospital_id == hospital_id)
+            .group_by(
+                Equipment.year,
+                Equipment.category,
+                Equipment.model,
+                Equipment.manufacturer,
+                Equipment.manufacturer_confidence,
+            )
+        )
+    ).all()
+
+    years_seen = sorted({r[0] for r in rows})
+    year_stats = [
+        {
+            "year": y,
+            "categories": len({r[1] for r in rows if r[0] == y}),
+            "units": sum(r[5] or 0 for r in rows if r[0] == y),
+        }
+        for y in years_seen
+    ]
+
+    latest = await _latest_year(db)
+    if year is None:
+        year = latest if latest in years_seen else (years_seen[-1] if years_seen else latest)
+    prev_year = max((y for y in years_seen if y < year), default=None)
+
+    # 전년 대비 증감: (분류, 모델) 단위로 직전 스냅샷과 뺄셈. 기준은 이 기관이 아니라 스냅샷이
+    # 그 분류를 담고 있었는지다 — 이 기관에 없던 장비가 새로 들어온 건 진짜 증가(+)로 세되,
+    # 분류 자체가 스냅샷에 없던 해(2019~2022)는 비교 불가(null)로 둔다.
+    prev_units: dict[tuple[str, Optional[str]], int] = {}
+    prev_categories = await _snapshot_categories(db, prev_year) if prev_year is not None else set()
+    for y, cat, model, _mfr, _conf, units in rows:
+        if y == prev_year:
+            prev_units[(cat, model)] = prev_units.get((cat, model), 0) + (units or 0)
+
+    index = await _catalog_index(db)
+    slugs = {
+        (o["category"], o["model"]): o["slug"]
+        for options in (await _model_index(db, latest))["by_name"].values()
+        for o in options
+    }
+
+    groups: dict[str, dict] = {}
+    for y, cat, model, mfr, conf, units in rows:
+        if y != year:
+            continue
+        info = index.get(cat, {})
+        g = groups.setdefault(
+            cat,
+            {
+                "category": cat,
+                "code": info.get("code", cat),
+                "name": info.get("name", cat),
+                "units": 0,
+                "delta": 0 if cat in prev_categories else None,
+                "items": [],
+            },
+        )
+        g["units"] += units or 0
+        delta = None
+        if cat in prev_categories:
+            delta = (units or 0) - prev_units.get((cat, model), 0)
+            g["delta"] += delta
+        g["items"].append(
+            {
+                "model": model,
+                # 최신 스냅샷에 없는 모델(과거 연도만 보유)은 상세 페이지가 없어 링크하지 않는다.
+                "slug": slugs.get((cat, model)),
+                "manufacturer": mfr,
+                "confidence": conf,
+                "units": units or 0,
+                "delta": delta,
+            }
+        )
+
+    for g in groups.values():
+        # 같은 모델이 허가번호 차이로 제조사가 갈려 여러 행이 될 수 있어 모델명 기준으로 센다.
+        g["models"] = len({it["model"] for it in g["items"]})
+        g["items"].sort(key=lambda it: (-it["units"], it["model"] or ""))
+
+    ordered = sorted(groups.values(), key=lambda g: (-g["units"], g["name"]))
+    units_now = sum(g["units"] for g in ordered)
+    # 총 증감도 행 단위 증감과 같은 모집단(직전 연도에 존재하던 분류)만 더한다 — 2023년처럼
+    # 직전 스냅샷에 없던 분류가 통째로 들어온 해에 +3,164 같은 허수가 찍히지 않게.
+    comparable = [g["delta"] for g in ordered if g["delta"] is not None]
+    return {
+        "hospital": {
+            "id": h.id,
+            "ykiho": h.ykiho,
+            "name": h.name,
+            "type": h.type,
+            "sido": h.sido,
+            "sigungu": h.sigungu,
+            "address": h.address,
+            "estb_date": h.estb_date,
+            "is_member": h.hospital_profile_id is not None,
+        },
+        "year": year,
+        "prev_year": prev_year,
+        "years": year_stats,
+        "stats": {
+            "categories": len(ordered),
+            "models": sum(g["models"] for g in ordered),
+            "units": units_now,
+            "delta_units": sum(comparable) if comparable else None,
+            # 증감을 낼 수 없는 분류(직전 스냅샷에 없던 분류) 수 — 화면에 단서로 적는다.
+            "delta_skipped": len(ordered) - len(comparable),
+        },
+        "groups": ordered,
+        "peers": await _hospital_peers(db, h, year),
+    }

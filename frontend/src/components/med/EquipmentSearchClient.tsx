@@ -544,7 +544,14 @@ function HospitalRowView({
       >
         <td className="py-2.5 pr-3">
           <div className="flex min-w-0 items-center gap-1.5">
-            <span className="truncate font-medium text-gray-800 dark:text-gray-100">{item.name}</span>
+            {/* 행 클릭은 펼치기라서 기관 상세로 가는 링크는 전파를 막는다 */}
+            <Link
+              href={`/med/hospitals/${item.hospital_id}`}
+              onClick={(e) => e.stopPropagation()}
+              className="truncate font-medium text-gray-800 hover:underline dark:text-gray-100"
+            >
+              {item.name}
+            </Link>
             {item.is_member && (
               <span className="shrink-0 rounded bg-brand-500/10 px-1.5 py-0.5 text-[10px] font-medium text-brand-600 dark:text-brand-400">
                 회원
@@ -615,14 +622,19 @@ function BrowseCards() {
       desc: "초음파·엑스선·골밀도 등 장비 분류별로 보유 기관과 대표 모델을 봅니다.",
     },
     {
+      href: "/med/equipment/models",
+      title: "모델명으로 찾기",
+      desc: "분류를 거치지 않고 모델명에서 바로 보유 의료기관 현황으로 들어갑니다.",
+    },
+    {
       href: "/med/equipment/manufacturers",
       title: "제조·수입사로 찾기",
       desc: "업체별로 어떤 분류의 장비가 어디에 얼마나 들어가 있는지 봅니다.",
     },
   ];
   return (
-    <Panel title="의료장비 둘러보기" desc="찾을 조건이 분명하지 않을 때는 분류나 제조사부터 들어가세요.">
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+    <Panel title="의료장비 둘러보기" desc="찾을 조건이 분명하지 않을 때는 분류·모델·제조사부터 들어가세요.">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         {cards.map((c) => (
           <Link
             key={c.href}

@@ -14,6 +14,9 @@ export const seg = (v: string) => encodeURIComponent(v);
 export const categoryHref = (code: string) => `/med/equipment/categories/${seg(code)}`;
 export const modelHref = (code: string, slug: string) =>
   `/med/equipment/categories/${seg(code)}/models/${seg(slug)}`;
+/** 모델명만으로 들어오는 입구 — 분류가 여럿이면 선택 페이지가 받는다. */
+export const modelNameHref = (nameSlug: string) => `/med/equipment/models/${seg(nameSlug)}`;
+export const hospitalHref = (id: number) => `/med/hospitals/${id}`;
 
 /** 빵부스러기 — 클릭 탐색이 전부이므로 되돌아갈 경로를 항상 띄워 둔다. */
 export function Crumbs({ items }: { items: { label: string; href?: string }[] }) {

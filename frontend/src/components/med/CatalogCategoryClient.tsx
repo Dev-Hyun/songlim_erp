@@ -8,7 +8,7 @@ import {
   fetchCatalogCategory,
   fetchCatalogCategoryModels,
 } from "./api";
-import { Crumbs, DataNote, DistPanel, YearPanel, modelHref } from "./CatalogParts";
+import { Crumbs, DataNote, DistPanel, YearPanel, hospitalHref, modelHref } from "./CatalogParts";
 import { EmptyState, Pagination, Panel, StatTile } from "./ui";
 
 const PAGE_SIZE = 30;
@@ -143,7 +143,11 @@ export default function CatalogCategoryClient({ code }: { code: string }) {
                 {detail.top_hospitals.map((h, i) => (
                   <tr key={h.hospital_id} className="row-hover">
                     <td className="td-dense fg-subtle text-right">{i + 1}</td>
-                    <td className="td-dense fg-strong font-medium">{h.name}</td>
+                    <td className="td-dense">
+                      <Link href={hospitalHref(h.hospital_id)} className="fg-strong font-medium hover:underline">
+                        {h.name}
+                      </Link>
+                    </td>
                     <td className="td-dense text-right">{h.units.toLocaleString()}대</td>
                     <td className="td-dense fg-muted">{[h.sido, h.sigungu].filter(Boolean).join(" ") || "—"}</td>
                     <td className="td-dense fg-muted">{h.type || "—"}</td>

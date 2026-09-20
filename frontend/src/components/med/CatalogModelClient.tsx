@@ -9,7 +9,7 @@ import {
   fetchCatalogModel,
   fetchCatalogModelHospitals,
 } from "./api";
-import { Crumbs, DataNote, DistPanel, YearPanel, categoryHref, modelHref } from "./CatalogParts";
+import { Crumbs, DataNote, DistPanel, YearPanel, categoryHref, hospitalHref, modelHref } from "./CatalogParts";
 import { EmptyState, Pagination, Panel, StatTile, selectClass } from "./ui";
 
 const PAGE_SIZE = 20;
@@ -120,7 +120,9 @@ export default function CatalogModelClient({ code, slug }: { code: string; slug:
                       <td className="td-dense fg-subtle text-right">{(page - 1) * PAGE_SIZE + i + 1}</td>
                       <td className="td-dense">
                         <span className="flex min-w-0 items-center gap-1.5">
-                          <span className="fg-strong truncate font-medium">{h.name}</span>
+                            <Link href={hospitalHref(h.hospital_id)} className="fg-strong truncate font-medium hover:underline">
+                            {h.name}
+                          </Link>
                           {h.is_member && <span className="chip-quiet shrink-0">회원</span>}
                         </span>
                       </td>
