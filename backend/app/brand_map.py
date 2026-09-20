@@ -92,3 +92,25 @@ def brand_of(category: str, model: str):
     """표에 있으면 브랜드, 없으면 None(= manufacturer 값을 그대로 브랜드로 본다)."""
     hit = _INDEX.get(_key(category, model))
     return hit[0] if hit else None
+
+
+# 브랜드 우선 규칙이 적용되는 분류. sales_map.MANUAL_CATEGORIES 와 같은 6종이다.
+# **이 밖의 분류는 manufacturer 가 제조원**이라 브랜드로 읽으면 안 된다.
+BRAND_CATEGORIES = frozenset({"us", "xray", "carm", "mri", "bmd", "ct"})
+
+
+def brand_expr():
+    """조회에서 '표시할 제조사'로 쓸 SQL 식.
+
+    6분류는 brand 우선(없으면 manufacturer), 나머지는 manufacturer 그대로.
+    규칙을 화면마다 되풀이하면 한쪽만 고치는 사고가 나므로 여기 한 곳에 둔다.
+    """
+    from sqlalchemy import case, func
+
+    from app.models.sales_map import Equipment
+
+    return case(
+        (Equipment.category.in_(BRAND_CATEGORIES),
+         func.coalesce(Equipment.brand, Equipment.manufacturer)),
+        else_=Equipment.manufacturer,
+    )

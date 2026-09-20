@@ -24,7 +24,9 @@ import {
 const ReactApexChart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
 const CATS: EquipmentCategory[] = ["us", "xray", "ct", "mri", "bmd", "carm"];
-const YEARS = Array.from({ length: 7 }, (_, i) => 2025 - i);
+// 최신 연도를 코드에 박아두면 새 스냅샷이 화면에서 누락된다. 올해를 기준으로 잡되
+// 스냅샷은 보통 전년도까지라 한 해 여유를 둔다(서버는 year=0 이면 최신을 알아서 고른다).
+const YEARS = Array.from({ length: 8 }, (_, i) => new Date().getFullYear() - i);
 const TYPE_GROUPS = [
   { value: "", label: "전체 종별" },
   { value: "clinic", label: "의원급" },
@@ -77,6 +79,7 @@ const selectClass =
   "rounded-control border border-gray-300 bg-white px-2.5 py-1.5 text-xs text-gray-700 shadow-card focus:border-brand-300 focus:outline-none focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300";
 
 export default function StatsClient() {
+  const [error, setError] = useState("");
   const [category, setCategory] = useState<EquipmentCategory>("us");
   const [year, setYear] = useState(2025);
   const [sidoList, setSidoList] = useState<string[]>([]);
@@ -110,11 +113,15 @@ export default function StatsClient() {
   const filter: StatsFilter = { category, year, sido: sido || undefined, sigungu: sigungu || undefined, typeGroup: typeGroup || undefined };
 
   useEffect(() => {
-    fetchSummary(filter).then(setSummary);
-    fetchMarketShare(filter, groupBy).then(setShare);
-    fetchYearlyTrend(filter, groupBy).then(setTrend);
-    fetchByRegion(category, year).then(setByRegion);
-    fetchByType(category, year).then(setByType);
+    // 실패하면 화면이 아무 설명 없이 빈 채로 남던 자리다. 다른 화면들과 같이 사유를 띄운다.
+    setError("");
+    Promise.all([
+      fetchSummary(filter).then(setSummary),
+      fetchMarketShare(filter, groupBy).then(setShare),
+      fetchYearlyTrend(filter, groupBy).then(setTrend),
+      fetchByRegion(category, year).then(setByRegion),
+      fetchByType(category, year).then(setByType),
+    ]).catch((e) => setError(e instanceof Error ? e.message : "통계를 불러오지 못했습니다"));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [category, year, sido, sigungu, typeGroup, groupBy]);
 
@@ -190,6 +197,11 @@ export default function StatsClient() {
 
   return (
     <div className="space-y-6">
+      {error && (
+        <p className="rounded-control border border-error-300 bg-error-50 px-3 py-2 text-ui-xs text-error-700 dark:border-error-500/30 dark:bg-error-500/10 dark:text-error-300">
+          {error}
+        </p>
+      )}
       <div className="surface-card flex flex-wrap items-center gap-2 px-3 py-2.5">
         <div className="seg">
           {CATS.map((c) => (

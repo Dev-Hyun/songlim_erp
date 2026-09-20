@@ -11,6 +11,7 @@ from sqlalchemy import select, func, text, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
+from app.brand_map import BRAND_CATEGORIES, brand_expr as _brand_expr
 from app.manufacturer_map import model_series as _compute_model_series
 from app.models import Hospital, Equipment, SalesNote, User, PersonalMemo
 from app.routers.auth import require_staff
@@ -73,6 +74,20 @@ async def _query_hospitals(
         if not rtree_ids:
             return []
         q = q.where(Hospital.id.in_(rtree_ids))
+
+    # 제조사/모델 조건은 SQL로 먼저 좁힌다. 지역 없이 제조사만 고르면 WHERE가 하나도 안 붙어
+    # hospitals 89,295건 + 해당 분류 장비 전 연도를 ORM 객체로 전부 올린 뒤 파이썬에서 걸렀고,
+    # 실측으로 요청 하나에 4초가 넘었다. 서브쿼리로 넘겨 바인드변수 한도도 피한다.
+    # (연도를 좁히지 않으므로 아래 파이썬 필터가 잡아내는 '최신 연도' 조건의 상위집합이다 —
+    #  걸러질 수 없는 병원만 미리 빠지므로 결과는 같다.)
+    if maker or model:
+        narrow = select(Equipment.hospital_id).where(Equipment.category == category)
+        if maker:
+            narrow = narrow.where(_brand_expr() == maker)
+        if model:
+            narrow = narrow.where(Equipment.model == model)
+        q = q.where(Hospital.id.in_(narrow))
+
     hospitals = (await db.execute(q)).scalars().all()
 
     hosp_ids = [h.id for h in hospitals]
@@ -80,20 +95,25 @@ async def _query_hospitals(
     BATCH = 500  # SQLite 바인드변수 한도 대응 — 전국 검색처럼 hosp_ids가 많을 때 IN절을 분할
     for i in range(0, len(hosp_ids), BATCH):
         batch = hosp_ids[i:i + BATCH]
+        # 아래에서 쓰는 건 이 여섯 칸뿐이다. Equipment ORM 객체를 통째로 만들면
+        # 전국 조회에서 수십만 개를 짓느라 시간이 다 간다.
         eq_q = (
-            select(Equipment)
+            select(
+                Equipment.hospital_id, Equipment.year, Equipment.category,
+                Equipment.brand, Equipment.manufacturer, Equipment.model,
+            )
             .where(Equipment.hospital_id.in_(batch), Equipment.category == category)
             .order_by(Equipment.hospital_id, Equipment.year.desc())
         )
-        eq_rows.extend((await db.execute(eq_q)).scalars().all())
+        eq_rows.extend((await db.execute(eq_q)).all())
 
-    eq_by_hosp: dict[int, list[Equipment]] = {}
+    eq_by_hosp: dict[int, list] = {}
     for e in eq_rows:
         eq_by_hosp.setdefault(e.hospital_id, []).append(e)
     if maker:
         eq_by_hosp = {
             hid: rows for hid, rows in eq_by_hosp.items()
-            if any(r.manufacturer == maker for r in rows if r.year == rows[0].year)
+            if any(_display_maker(r) == maker for r in rows if r.year == rows[0].year)
         }
     if model:
         eq_by_hosp = {
@@ -128,7 +148,7 @@ async def _query_hospitals(
             "lat": h.lat, "lng": h.lng, "dist_km": dist_km,
             "is_member": h.hospital_profile_id is not None,
             "has_equipment": has_equipment,
-            "current_maker": latest.manufacturer if latest else None,
+            "current_maker": _display_maker(latest) if latest else None,
             "current_model": latest.model if latest else None,
         })
 
@@ -338,6 +358,17 @@ async def get_hospital_detail(hospital_id: int, db: AsyncSession = Depends(get_d
     }
 
 
+
+def _display_maker(e) -> str | None:
+    """화면에 보여줄 제조사. 레거시 6분류는 브랜드 우선, 나머지는 제조원 그대로.
+    SQL 쪽 규칙(brand_map.brand_expr)과 반드시 같은 결과여야 필터와 표시가 어긋나지 않는다."""
+    if e is None:
+        return None
+    if e.category in BRAND_CATEGORIES:
+        return e.brand or e.manufacturer
+    return e.manufacturer
+
+
 MANUAL_CATEGORIES = {"us", "xray", "ct", "mri", "bmd", "carm"}
 
 
@@ -355,7 +386,7 @@ class ManualEquipmentIn(BaseModel):
 async def get_equipment_catalog(db: AsyncSession = Depends(get_db), category: str = "us", user: User = Depends(require_staff)):
     """수동 등록 시 제조사/장비 선택용 드롭다운 — 기존 임포트 데이터의 distinct 값 재사용."""
     q = (
-        select(Equipment.manufacturer, Equipment.model)
+        select(_brand_expr(), Equipment.model)
         .where(Equipment.category == category, Equipment.model.is_not(None))
         .distinct()
     )
@@ -573,12 +604,12 @@ async def stats_by_maker(
     sido: Optional[str] = None,
 ):
     q = (
-        select(Equipment.manufacturer, func.count(func.distinct(Equipment.hospital_id)))
+        select(_brand_expr(), func.count(func.distinct(Equipment.hospital_id)))
         .join(Hospital, Hospital.id == Equipment.hospital_id)
         .where(Equipment.category == category, Equipment.year == year)
     )
     if sido:
         q = q.where(Hospital.sido == sido)
-    q = q.group_by(Equipment.manufacturer)
+    q = q.group_by(_brand_expr())
     rows = (await db.execute(q)).all()
     return [{"maker": r[0] or "미상", "hospital_count": r[1]} for r in rows]
