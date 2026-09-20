@@ -20,6 +20,7 @@ DATA_FIXES=0
 APPLY=0
 ONLY=""
 SYNC_ENV=""
+DB_REPORT=0
 for a in "$@"; do
   case "$a" in
     --data-fixes) DATA_FIXES=1 ;;
@@ -28,6 +29,7 @@ for a in "$@"; do
     # --only dupes --only license --only manufacturer 로 DB만 쓰는 항목을 돌린다.
     --only=*)     ONLY="$ONLY --only ${a#--only=}" ;;
     --sync-env=*) SYNC_ENV="$SYNC_ENV ${a#--sync-env=}" ;;
+    --db-report)  DB_REPORT=1 ;;
     *) echo "모르는 옵션: $a" >&2; exit 2 ;;
   esac
 done
@@ -64,6 +66,35 @@ if [ -n "$SYNC_ENV" ]; then
   done
   echo "== 백엔드 재기동 (.env 반영) =="
   ssh_run "cd $APP_DIR && docker compose up -d backend"
+fi
+
+# --db-report : 서버 DB 의 테이블별 행수만 읽어서 보여준다 (읽기 전용, 아무것도 바꾸지 않는다).
+# 로컬과 서버 중 어느 쪽에 어떤 데이터가 있는지 확인하는 용도.
+if [ "$DB_REPORT" = 1 ]; then
+  ssh_run "cd $APP_DIR && docker compose exec -T backend python - <<'PY'
+import sqlite3
+c = sqlite3.connect('file:/app/data.db?mode=ro', uri=True)
+rows = [r[0] for r in c.execute(\"SELECT name FROM sqlite_master WHERE type='table' ORDER BY 1\")]
+print('서버 테이블', len(rows))
+for n in rows:
+    try:
+        print('  %-34s %10d' % (n, c.execute('SELECT COUNT(*) FROM [%s]' % n).fetchone()[0]))
+    except Exception as e:
+        print('  %-34s ERR %s' % (n, e))
+q = lambda s: c.execute(s).fetchall()
+print()
+print('== equipment source 별 (created_by 는 직원이 직접 등록한 건) ==')
+for r in q('SELECT source, COUNT(*), SUM(created_by IS NOT NULL) FROM equipment GROUP BY 1 ORDER BY 2 DESC'):
+    print('  %-14s %9d  created_by %s' % r)
+print('== 참조 무결성 ==')
+print('  hospital_profile_id 연결   ', q('SELECT COUNT(*) FROM hospitals WHERE hospital_profile_id IS NOT NULL')[0][0])
+print('  sales_notes 가 쓰는 병원   ', q('SELECT COUNT(DISTINCT hospital_id) FROM sales_notes')[0][0])
+print('  hospitals id 최대          ', q('SELECT MAX(id) FROM hospitals')[0][0])
+print('  equipment hospital_id 범위 ', q('SELECT MIN(hospital_id), MAX(hospital_id) FROM equipment')[0])
+print('  고아 장비                  ', q('SELECT COUNT(*) FROM equipment e LEFT JOIN hospitals h ON h.id=e.hospital_id WHERE h.id IS NULL')[0][0])
+print('  alembic                    ', q('SELECT version_num FROM alembic_version')[0][0])
+PY"
+  exit 0
 fi
 
 echo "== 1. 코드 갱신 =="
