@@ -40,10 +40,14 @@ def sanitize_html(html: str | None) -> str:
     if not html:
         return ""
     soup = BeautifulSoup(html, "html.parser")
+    # 위험 태그를 **먼저 전부** 없앤다. 한 번에 훑으면서 지우면, iframe/object 안의 자식 태그가
+    # 이미 파괴된 상태로 find_all 목록에 남아 있다가 unwrap 에서 ValueError 가 난다
+    # (script/style 은 내용이 텍스트로 파싱돼 이 문제가 없어서 그동안 드러나지 않았다).
+    for tag in soup.find_all(("script", "style", "iframe", "object", "embed")):
+        tag.decompose()
     for tag in soup.find_all(True):
-        if tag.name in ("script", "style", "iframe", "object", "embed"):
-            tag.decompose()
-            continue
+        if tag.decomposed or tag.parent is None:
+            continue  # 위 단계에서 사라진 자손
         if tag.name not in ALLOWED_TAGS:
             tag.unwrap()
             continue

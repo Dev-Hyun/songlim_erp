@@ -117,7 +117,9 @@ class GradeMasterIn(BaseModel):
 
 
 @router.get("/grades")
-async def list_grades(db: AsyncSession = Depends(get_db)):
+# 같은 파일의 create/update/delete 는 전부 가드가 있는데 조회만 빠져 있었다.
+# 할인율 정책(discount_rate)과 사은품 정책 메모가 비로그인으로 읽혔다.
+async def list_grades(db: AsyncSession = Depends(get_db), actor: User = Depends(require_staff)):
     rows = (await db.execute(select(GradeMaster).order_by(GradeMaster.grade_type, GradeMaster.sort_order))).scalars().all()
     return [
         {"grade_code": g.grade_code, "grade_type": g.grade_type, "label": g.label,

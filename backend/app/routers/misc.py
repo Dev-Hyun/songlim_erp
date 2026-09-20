@@ -226,8 +226,10 @@ async def export_mileage(date_from: str = "", date_to: str = "", db: AsyncSessio
     buf = io.BytesIO()
     wb.save(buf)
     buf.seek(0)
-    name_part = (f"_{year}" if year else "") + (f"_{str(month).zfill(2)}" if month else "")
-    fname = f"업무용승용차_운행기록부{name_part}.xlsx"
+    # 파일명의 기간 표기는 date_from/date_to 에서 만든다. 예전에 year/month 파라미터였던 것이
+    # 기간 선택으로 바뀌면서 이 줄만 안 따라와 NameError 로 내보내기가 통째로 죽어 있었다.
+    name_part = "_".join(x for x in (date_from, date_to) if x)
+    fname = f"업무용승용차_운행기록부{'_' + name_part if name_part else ''}.xlsx"
     return StreamingResponse(
         buf,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
