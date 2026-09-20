@@ -13,7 +13,8 @@ set -euo pipefail
 
 HOST="root@101.79.25.182"
 KEY="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/NCP/songlim_deploy_key"
-APP_DIR="/root/SONGLIM_ERP"
+# 서버의 앱 디렉터리. 다르면 SONGLIM_APP_DIR 로 넘긴다.
+APP_DIR="${SONGLIM_APP_DIR:-/root/songlim_erp}"
 
 DATA_FIXES=0
 APPLY=0
@@ -26,6 +27,13 @@ for a in "$@"; do
 done
 
 ssh_run() { ssh -i "$KEY" -o StrictHostKeyChecking=accept-new -o ConnectTimeout=20 "$HOST" "$@"; }
+
+if ! ssh_run "test -f $APP_DIR/docker-compose.yml"; then
+  echo "서버에 $APP_DIR/docker-compose.yml 이 없습니다." >&2
+  echo "배포 경로가 다르면: SONGLIM_APP_DIR=/실제/경로 bash tools/deploy.sh" >&2
+  exit 1
+fi
+echo "앱 디렉터리: $APP_DIR"
 
 echo "== 1. 코드 갱신 =="
 ssh_run "cd $APP_DIR && git pull --ff-only"
