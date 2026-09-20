@@ -73,6 +73,10 @@ class Equipment(Base):
     # manufacturer가 어떤 근거로 붙었는지: '확인'(허가번호 1:1) / '유력'(허가번호 다중) / '추정'(모델명)
     manufacturer_confidence: Mapped[Optional[str]] = mapped_column(default=None)
     manufacturer_synced_at: Mapped[Optional[str]] = mapped_column(default=None)  # 식약처 대조일 YYYY-MM-DD
+    # 시장 브랜드. manufacturer(제조원/레거시 정리값)를 덮어쓰지 않으려고 따로 둔다.
+    # **레거시 6분류(us/xray/carm/mri/bmd/ct)에서만 관리한다.** NULL이면 브랜드 = manufacturer 값
+    # 그대로라는 뜻이고, 값이 있으면 app/brand_map.py 표가 지목한 브랜드다(scripts/apply_brand.py).
+    brand: Mapped[Optional[str]] = mapped_column(default=None)
     eq_count: Mapped[int] = mapped_column(default=1)
     source: Mapped[str] = mapped_column(default="import")
     created_by: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), default=None)
