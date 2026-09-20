@@ -31,6 +31,7 @@ import argparse
 import collections
 import json
 import os
+import re
 import shutil
 import sqlite3
 import sys
@@ -121,12 +122,30 @@ def plan_dupes(conn):
 
 
 # ----------------------------------------------------------------------- R9
+# 값이 들어 있으나 아무것도 가리키지 않는 자리표시자. 이것만 비운다.
+JUNK_EXACT = {"없음", "미확인", "미상", "'-", "-", "임시00-0000호", "0000-00", "표시무"}
+
+
+def is_junk_license(lic):
+    """비워야 할 자리표시자인가.
+
+    주의 — `임시1-C10100-02586` 같은 값은 **버리면 안 된다.** 식약처 원장에 없어서 제조사는
+    못 붙지만, 심평원이 장비 1대마다 매긴 연번 식별자라 같은 병원의 같은 모델 여러 대를
+    구분하는 유일한 값이다. 이걸 비우면 별개 장비가 '완전동일행 중복'으로 보여 삭제 대상이
+    된다(2026-09-20에 실제로 2,119행이 그렇게 됐다가 되돌렸다).
+    """
+    s = (lic or "").strip()
+    if not s or s in JUNK_EXACT:
+        return True
+    return bool(re.fullmatch(r"0[0-9\-]*|[0-9]+", s))  # '0', '846', '0000-00'
+
+
 def plan_license(conn):
-    """허가번호 형식('제…'/'수…')이 아닌 값을 쓰는 행. license_no를 비우고 등급을 내린다."""
-    return conn.execute(
+    """허가번호 자리에 자리표시자가 들어간 행. license_no를 비우고 등급을 내린다."""
+    return [r for r in conn.execute(
         "SELECT id, license_no, manufacturer_confidence FROM equipment "
         "WHERE license_no IS NOT NULL AND license_no NOT GLOB '[제수]*'"
-    ).fetchall()
+    ) if is_junk_license(r[1])]
 
 
 # ------------------------------------------------------ 제조사 알고리즘 제거 / R10
@@ -154,47 +173,58 @@ def plan_manufacturer(conn):
 
 
 # --------------------------------------------------------------------- 되돌리기
-def restore(conn):
+def restore(conn, todo):
     if not os.path.exists(UNDO_PATH):
         print(f"되돌릴 기록이 없습니다: {UNDO_PATH}")
         return 1
     with open(UNDO_PATH, encoding="utf-8") as f:
         undo = json.load(f)
 
-    n = 0
-    for hid, old in undo.get("hospitals", []):
-        cols = ", ".join(f"{k} = ?" for k in old)
-        n += conn.execute(f"UPDATE hospitals SET {cols} WHERE id = ?",
-                          list(old.values()) + [hid]).rowcount
-    print(f"  hospitals {n:,}행 복원")
+    if "hospitals" in todo:
+        n = 0
+        for hid, old in undo.pop("hospitals", []):
+            cols = ", ".join(f"{k} = ?" for k in old)
+            n += conn.execute(f"UPDATE hospitals SET {cols} WHERE id = ?",
+                              list(old.values()) + [hid]).rowcount
+        print(f"  hospitals {n:,}행 복원")
 
-    rows = undo.get("dupes", [])
-    if rows:
-        cols = ["id", "source"] + list(DUPE_COLS)
-        ph = ", ".join("?" * len(cols))
-        conn.executemany(
-            f"INSERT OR IGNORE INTO equipment ({', '.join(cols)}) VALUES ({ph})", rows)
-        print(f"  삭제했던 장비 {len(rows):,}행 복원")
+    if "dupes" in todo:
+        rows = undo.pop("dupes", [])
+        if rows:
+            cols = ["id", "source"] + list(DUPE_COLS)
+            ph = ", ".join("?" * len(cols))
+            conn.executemany(
+                f"INSERT OR IGNORE INTO equipment ({', '.join(cols)}) VALUES ({ph})", rows)
+            print(f"  삭제했던 장비 {len(rows):,}행 복원")
 
-    n = 0
-    for eid, lic, conf in undo.get("license", []):
-        n += conn.execute(
-            "UPDATE equipment SET license_no = ?, manufacturer_confidence = ? WHERE id = ?",
-            (lic, conf, eid)).rowcount
-    print(f"  license_no {n:,}행 복원")
+    if "license" in todo:
+        n = 0
+        for eid, lic, conf in undo.pop("license", []):
+            n += conn.execute(
+                "UPDATE equipment SET license_no = ?, manufacturer_confidence = ? WHERE id = ?",
+                (lic, conf, eid)).rowcount
+        print(f"  license_no {n:,}행 복원")
 
-    n = 0
-    for eid, mfr, conf, synced in undo.get("guessed", []):
-        n += conn.execute(
-            "UPDATE equipment SET manufacturer = ?, manufacturer_confidence = ?, "
-            "manufacturer_synced_at = ? WHERE id = ?", (mfr, conf, synced, eid)).rowcount
-    for eid, conf in undo.get("demote", []):
-        n += conn.execute(
-            "UPDATE equipment SET manufacturer_confidence = ? WHERE id = ?", (conf, eid)).rowcount
-    print(f"  제조사 {n:,}행 복원")
+    if "manufacturer" in todo:
+        n = 0
+        for eid, mfr, conf, synced in undo.pop("guessed", []):
+            n += conn.execute(
+                "UPDATE equipment SET manufacturer = ?, manufacturer_confidence = ?, "
+                "manufacturer_synced_at = ? WHERE id = ?", (mfr, conf, synced, eid)).rowcount
+        for eid, conf in undo.pop("demote", []):
+            n += conn.execute(
+                "UPDATE equipment SET manufacturer_confidence = ? WHERE id = ?",
+                (conf, eid)).rowcount
+        print(f"  제조사 {n:,}행 복원")
 
     conn.commit()
-    os.rename(UNDO_PATH, UNDO_PATH + ".done")
+    # 복원하지 않고 남은 항목이 있으면 되돌리기 기록을 그만큼만 남긴다
+    if undo:
+        with open(UNDO_PATH, "w", encoding="utf-8") as f:
+            json.dump(undo, f, ensure_ascii=False)
+        print(f"남은 항목({', '.join(undo)})의 되돌리기 기록은 유지했습니다.")
+    else:
+        os.rename(UNDO_PATH, UNDO_PATH + ".done")
     print("복원 완료.")
     return 0
 
@@ -214,7 +244,7 @@ def main():
     print(f"DB: {args.db}")
 
     if args.restore:
-        return restore(conn)
+        return restore(conn, set(args.only or SECTIONS))
 
     todo = set(args.only or SECTIONS)
     undo = {}
@@ -299,9 +329,17 @@ def main():
                          [(r[0],) for r in demote])
         print(f"'미확인' 강등 {len(demote):,}행")
 
+    # --only 로 일부만 반영할 때 다른 항목의 되돌리기 기록을 지우면 안 된다.
+    # 같은 항목을 다시 반영한 경우에는 이어붙인다 — 먼저 기록된 쪽이 더 오래된 원본이다.
+    if os.path.exists(UNDO_PATH):
+        with open(UNDO_PATH, encoding="utf-8") as f:
+            prev = json.load(f)
+        for k, v in undo.items():
+            undo[k] = prev.get(k, []) + v
+        undo = {**prev, **undo}
     with open(UNDO_PATH, "w", encoding="utf-8") as f:
         json.dump(undo, f, ensure_ascii=False)
-    print(f"되돌리기 기록: {UNDO_PATH}")
+    print(f"되돌리기 기록: {UNDO_PATH} ({', '.join(undo)})")
 
     conn.commit()
     conn.execute("ANALYZE")
