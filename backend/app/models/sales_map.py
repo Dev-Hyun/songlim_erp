@@ -55,6 +55,9 @@ class Equipment(Base):
         Index("idx_eq_year_cat_cover", "year", "category", "hospital_id", "model", "eq_count"),
         # 제조사 목록(/api/med/catalog/manufacturers) 커버링 — 실측 1,590ms -> 64ms
         Index("idx_eq_mfr_cover", "manufacturer", "category", "year", "model", "hospital_id", "eq_count"),
+        # 표시용 제조사(brand) 집계 커버링 — 위와 같은 모양. brand 가 전 행에 채워져 있어
+        # 카탈로그·검색이 GROUP BY brand 한 줄로 끝난다 (app/brand_map.py 참고)
+        Index("idx_eq_brand_cover", "brand", "category", "year", "model", "hospital_id", "eq_count"),
         Index("idx_eq_license", "license_no"),
     )
 

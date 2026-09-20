@@ -99,18 +99,27 @@ def brand_of(category: str, model: str):
 BRAND_CATEGORIES = frozenset({"us", "xray", "carm", "mri", "bmd", "ct"})
 
 
-def brand_expr():
-    """조회에서 '표시할 제조사'로 쓸 SQL 식.
+def display_maker(category, brand, manufacturer):
+    """그 행에 **표시할 제조사**. 6분류는 브랜드, 나머지는 제조원.
 
-    6분류는 brand 우선(없으면 manufacturer), 나머지는 manufacturer 그대로.
-    규칙을 화면마다 되풀이하면 한쪽만 고치는 사고가 나므로 여기 한 곳에 둔다.
+    equipment.brand 는 이 값을 미리 계산해 둔 칸이다(scripts/apply_brand.py 가 채운다).
+    처음에는 '표가 바꾼 행만 non-NULL' 로 뒀는데, 그러면 조회마다 CASE 식이 필요해
+    manufacturer 선두 커버링 인덱스(idx_eq_mfr_cover)가 죽는다 — 제조사 목록이 64ms 에서
+    1.5초대로 돌아간다. 전 행에 채워 두면 질의는 `GROUP BY brand` 한 줄로 끝나고
+    같은 모양의 인덱스(idx_eq_brand_cover)가 그대로 받아준다.
+    manufacturer 는 원본 제조원 값으로 그대로 남아 있어 근거 추적이 가능하다.
     """
-    from sqlalchemy import case, func
+    if category in BRAND_CATEGORIES:
+        return brand or manufacturer
+    return manufacturer
 
+
+def brand_expr():
+    """조회에서 '표시할 제조사'로 쓸 컬럼.
+
+    brand 가 전 행에 채워져 있으므로 그냥 그 칸이다. 화면마다 규칙을 되풀이하지 않도록
+    이 이름으로만 접근한다(규칙이 바뀌면 여기와 apply_brand.py 두 곳만 고치면 된다).
+    """
     from app.models.sales_map import Equipment
 
-    return case(
-        (Equipment.category.in_(BRAND_CATEGORIES),
-         func.coalesce(Equipment.brand, Equipment.manufacturer)),
-        else_=Equipment.manufacturer,
-    )
+    return Equipment.brand

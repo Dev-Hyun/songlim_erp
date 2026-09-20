@@ -41,14 +41,17 @@ LEGACY_CATEGORIES = ("us", "xray", "carm", "mri", "bmd", "ct")
 
 
 def plan(conn):
-    """바꿔야 할 (id, 현재 brand, 새 brand) 목록. 이미 같은 값이면 계획에서 빠진다(멱등)."""
-    ph = ",".join("?" * len(LEGACY_CATEGORIES))
+    """바꿔야 할 (id, 현재 brand, 새 brand) 목록. 이미 같은 값이면 빠진다(멱등).
+
+    **brand 는 전 행에 채운다** — 6분류는 표에 있으면 그 브랜드, 없으면 manufacturer,
+    나머지 분류는 manufacturer 그대로. 조회에서 CASE 식을 없애려는 것이다(app/brand_map.py
+    display_maker 주석 참고). manufacturer 원본은 건드리지 않으므로 근거는 그대로 남는다.
+    """
     todo = []
     for eid, cat, model, mfr, cur in conn.execute(
-        f"SELECT id, category, model, manufacturer, brand FROM equipment "
-        f"WHERE category IN ({ph}) AND model IS NOT NULL", LEGACY_CATEGORIES
+        "SELECT id, category, model, manufacturer, brand FROM equipment"
     ):
-        want = brand_of(cat, model)
+        want = (brand_of(cat, model) or mfr) if cat in LEGACY_CATEGORIES else mfr
         if want != cur:
             todo.append((eid, cat, model, mfr, cur, want))
     return todo
@@ -113,7 +116,14 @@ def main():
     n_out = conn.execute(
         f"SELECT COUNT(*) FROM equipment WHERE brand IS NOT NULL "
         f"AND category NOT IN ({ph})", LEGACY_CATEGORIES).fetchone()[0]
-    print(f"\n[반영 후] brand 보유 {n_brand:,}행 · 6분류 밖 brand {n_out}행 (0이어야 정상)")
+    # brand 는 이제 '표시용 제조사'라 전 행에 들어간다. 6분류 밖에서는 manufacturer 와
+    # 같아야 하고(브랜드 규칙을 적용하지 않는다), 다르면 계산이 어긋난 것이다.
+    bad = conn.execute(
+        "SELECT COUNT(*) FROM equipment WHERE category NOT IN "
+        "('us','xray','carm','mri','bmd','ct') AND brand IS NOT manufacturer"
+    ).fetchone()[0]
+    filled = conn.execute("SELECT COUNT(*) FROM equipment WHERE brand IS NOT NULL").fetchone()[0]
+    print(f"[반영 후] brand 보유 {filled:,}행 · 6분류 밖에서 manufacturer 와 다른 행 {bad}행 (0이어야 정상)")
     return 0
 
 

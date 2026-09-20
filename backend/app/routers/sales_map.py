@@ -11,7 +11,7 @@ from sqlalchemy import select, func, text, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.brand_map import BRAND_CATEGORIES, brand_expr as _brand_expr
+from app.brand_map import brand_expr as _brand_expr, display_maker as _display_of
 from app.manufacturer_map import model_series as _compute_model_series
 from app.models import Hospital, Equipment, SalesNote, User, PersonalMemo
 from app.routers.auth import require_staff
@@ -360,13 +360,9 @@ async def get_hospital_detail(hospital_id: int, db: AsyncSession = Depends(get_d
 
 
 def _display_maker(e) -> str | None:
-    """화면에 보여줄 제조사. 레거시 6분류는 브랜드 우선, 나머지는 제조원 그대로.
-    SQL 쪽 규칙(brand_map.brand_expr)과 반드시 같은 결과여야 필터와 표시가 어긋나지 않는다."""
-    if e is None:
-        return None
-    if e.category in BRAND_CATEGORIES:
-        return e.brand or e.manufacturer
-    return e.manufacturer
+    """화면에 보여줄 제조사. equipment.brand 가 전 행에 채워져 있으므로 그 칸이다
+    (규칙은 app/brand_map.py, 채우는 곳은 scripts/apply_brand.py)."""
+    return e.brand if e is not None else None
 
 
 MANUAL_CATEGORIES = {"us", "xray", "ct", "mri", "bmd", "carm"}
@@ -407,6 +403,8 @@ async def register_manual_equipment(payload: ManualEquipmentIn, db: AsyncSession
         category=payload.category,
         year=payload.year,
         manufacturer=payload.manufacturer,
+        # brand(표시용 제조사)는 쓰는 쪽에서 같이 채운다 — 비워 두면 화면에서 제조사가 사라진다
+        brand=_display_of(payload.category, None, payload.manufacturer),
         model=payload.model,
         model_series=_compute_model_series(payload.model, "xr") if payload.category == "xray" else None,
         eq_count=payload.eq_count,
@@ -435,6 +433,7 @@ async def update_manual_equipment(equipment_id: int, payload: ManualEquipmentUpd
     if eq.source != "manual":
         raise HTTPException(status_code=403, detail="공공데이터로 임포트된 장비는 수정할 수 없습니다")
     eq.manufacturer = payload.manufacturer
+    eq.brand = _display_of(eq.category, None, payload.manufacturer)
     eq.model = payload.model
     eq.model_series = _compute_model_series(payload.model, "xr") if eq.category == "xray" else None
     eq.year = payload.year

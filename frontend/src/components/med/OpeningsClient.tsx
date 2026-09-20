@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import { ApexOptions } from "apexcharts";
 import { useEffect, useState } from "react";
 import {
+  OpeningItem,
   OpeningStatus,
   OpeningsDeptMixData,
   OpeningsHeatmapData,
@@ -18,6 +19,7 @@ import {
   fetchOpeningsSummary,
   fetchOpeningsTrend,
 } from "./api";
+import { TermsFaq } from "./CatalogParts";
 import { EmptyState, Pagination, Panel, StatTile, useChartTheme } from "./ui";
 
 const ReactApexChart = dynamic(() => import("react-apexcharts"), { ssr: false });
@@ -93,6 +95,8 @@ export default function OpeningsClient() {
   const [heat, setHeat] = useState<OpeningsHeatmapData | null>(null);
   const [list, setList] = useState<OpeningsListData | null>(null);
 
+  // 행을 누르면 열리는 상세 팝오버 (페이지 이동이 아니다 — 메디하루 3-9와 같다).
+  const [picked, setPicked] = useState<OpeningItem | null>(null);
   const [pending, setPending] = useState(false);
   const [loading, setLoading] = useState(true);
   const [listLoading, setListLoading] = useState(true);
@@ -605,7 +609,7 @@ export default function OpeningsClient() {
             list
               ? `총 ${list.total.toLocaleString()}건 · ${
                   isOpenStatus ? "" : `${applied.status} 기준 · `
-                }최대 ${PAGE_SIZE}건씩 표시`
+                }최대 ${PAGE_SIZE}건씩 표시 · 행을 누르면 주소와 지도 링크가 열립니다`
               : undefined
           }
         >
@@ -625,7 +629,18 @@ export default function OpeningsClient() {
                   </thead>
                   <tbody>
                     {list.items.map((h) => (
-                      <tr key={h.id} className="row-hover">
+                      <tr
+                        key={h.id}
+                        className="row-hover cursor-pointer"
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => setPicked(h)}
+                        onKeyDown={(e) => {
+                          if (e.key !== "Enter" && e.key !== " ") return;
+                          e.preventDefault();
+                          setPicked(h);
+                        }}
+                      >
                         <td className="td-dense max-w-[240px]">
                           <div className="fg-strong truncate font-medium">{h.name}</div>
                           <div className="fg-subtle truncate text-ui-xs">
@@ -670,12 +685,164 @@ export default function OpeningsClient() {
         </Panel>
       )}
 
+      <TermsFaq
+        intro="행정안전부 지방행정 인허가(개설·등록) 데이터를 기반으로 전국 의료기관의 신규 개설 흐름을 지역·진료과·시기별로 정리해 보여 줍니다. 월별 개설 추이와 수도권·비수도권 구성, 지역 × 진료과 분포를 한 화면에서 확인하고, 관심 지역과 진료과의 개설 밀도를 비교할 수 있습니다."
+        method="집계는 인허가일(개설일)을 기준으로 합니다. 최근 30일 신규 개설 건수를 최근 90일을 30일로 환산한 평균과 비교하고, 수도권(서울·경기·인천)과 비수도권 비중, 최근 12개월 월별 추이, 의원 대상 지역 × 진료과 분포를 함께 정리합니다. 진료과는 등록 진료과목이 아니라 기관명(간판)에서 파생하며, 문장·인사이트는 모두 규칙 기반으로 산출합니다. 모든 기간 창은 브라우저의 오늘이 아니라 데이터 기준일에 맞춰 잡습니다."
+        terms={[
+          {
+            term: "신규 개설",
+            desc: "인허가(개설·등록) 데이터에서 새로 등록된 건입니다. 실제 개원일이 아니라 등록 시점을 기준으로 셉니다.",
+          },
+          {
+            term: "인허가일(개설일)",
+            desc: "기관이 관할 지자체에 개설을 등록해 인허가된 날짜로, 이 화면 모든 집계의 기준 일자입니다.",
+          },
+          {
+            term: "수도권 · 비수도권",
+            desc: "수도권은 서울·경기·인천을 묶은 권역이며, 그 외 지역은 비수도권으로 구분합니다.",
+          },
+          {
+            term: "30일 환산 평균",
+            desc: "최근 90일 개설 건수를 30일 기준으로 환산(÷90×30)한 값으로, 최근 30일 실적과 비교하는 기준선입니다.",
+          },
+        ]}
+        faqs={[
+          {
+            q: "'신규 병원' 탭이 비어 있는 이유는 무엇인가요?",
+            a: "병원급 인허가 데이터셋은 활용신청 절차가 끝나지 않아 아직 적재되지 않았습니다. 고장이 아니라 '준비 중' 상태이며, 의원급(신규 의원) 탭은 정상 동작합니다.",
+          },
+          {
+            q: "이번 달 수치가 지난달보다 작게 보이는 이유는 무엇인가요?",
+            a: "이번 달 값은 데이터 기준일까지 누적된 '진행 중' 부분 집계라 월말로 갈수록 늘어납니다. 또 집계 기준이 인허가·등록일이어서 실제 진료 시작일과는 시차가 있을 수 있습니다.",
+          },
+          {
+            q: "진료과 분포는 어떻게 정해지나요?",
+            a: "지역 × 진료과 분포와 권역 비교는 의원만을 대상으로 하며, 진료과는 등록 진료과목이 아니라 기관명(간판)에서 파생한 값입니다. 실제 등록 진료과목과 다를 수 있어 대략적인 구분으로만 참고하시기 바랍니다.",
+          },
+          {
+            q: "폐업이나 순증도 확인할 수 있나요?",
+            a: "일부만 확인할 수 있습니다. 상태 필터로 휴업·폐업·취소/말소/정지를 조회할 수 있고 '개설 추이' 막대 아래쪽에 그 달의 폐업·휴업 수를 함께 그립니다. 다만 수집 범위 밖에서 개설된 기관의 폐업은 담기지 않으므로 순증(개설−폐업)은 산출하지 않습니다.",
+          },
+        ]}
+      />
+
+      {picked && <OpeningDetail item={picked} onClose={() => setPicked(null)} />}
+
       <p className="fg-subtle text-ui-xs leading-relaxed">
         출처: {meta?.source ?? "행정안전부 지방행정 인허가(개설·등록) 데이터"}
         {asOf ? ` · 기준일 ${asOf}` : ""} · 인허가 등록 기준이라 실제 개원일과 차이가 있을 수 있습니다 · 본
         개설현황은 재구성한 참고용 사실 정보이며, 특정 의료기관·지역에 대한 추천·순위·전망·평가나 의학적 판단이
         아닙니다.
       </p>
+    </div>
+  );
+}
+
+/**
+ * 목록 행을 눌렀을 때 열리는 기관 상세 팝오버 (메디하루 3-9 `행 클릭 시 동작`).
+ * 페이지 이동이 아니라 그 자리에서 열린다. 지도 미리보기는 좌표가 없어 넣지 않고,
+ * 주소로 네이버 지도를 새 탭에 여는 링크와 주소 복사만 둔다.
+ */
+function OpeningDetail({ item, onClose }: { item: OpeningItem; onClose: () => void }) {
+  const [copied, setCopied] = useState("");
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  const address = item.address || "";
+  const mapHref = address
+    ? `https://map.naver.com/p/search/${encodeURIComponent(address)}`
+    : "";
+
+  async function copyAddress() {
+    try {
+      await navigator.clipboard.writeText(address);
+      setCopied("주소를 복사했습니다.");
+    } catch {
+      setCopied("주소 복사에 실패했습니다.");
+    }
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-gray-900/40 p-4 sm:items-center dark:bg-black/60"
+      onClick={onClose}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={`${item.name} 상세`}
+        className="surface-card w-full max-w-md p-4"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-start gap-3">
+          <div className="min-w-0 flex-1">
+            <h3 className="card-title truncate">{item.name}</h3>
+            <p className="fg-muted mt-0.5 text-ui-sm">
+              {[item.biz_type, item.dept].filter(Boolean).join(" · ") || "분류 정보가 없습니다."}
+            </p>
+          </div>
+          <button type="button" className="btn btn-default shrink-0" onClick={onClose}>
+            닫기
+          </button>
+        </div>
+
+        <dl className="mt-3 divide-y divide-gray-100 dark:divide-gray-800">
+          <div className="grid grid-cols-[72px_1fr] gap-3 py-2">
+            <dt className="label-eyebrow">주소</dt>
+            <dd className="fg-base text-ui-sm leading-relaxed">{address || "주소 정보가 없습니다."}</dd>
+          </div>
+          <div className="grid grid-cols-[72px_1fr] gap-3 py-2">
+            <dt className="label-eyebrow">개설일</dt>
+            <dd className="fg-base text-ui-sm tabular-nums">{item.opened_date || "—"}</dd>
+          </div>
+          <div className="grid grid-cols-[72px_1fr] gap-3 py-2">
+            <dt className="label-eyebrow">상태</dt>
+            <dd className="fg-base text-ui-sm">
+              <span className="chip">
+                <span className={`dot ${STATUS_DOT[item.status]}`} />
+                {item.detail_status || item.status}
+              </span>
+            </dd>
+          </div>
+          <div className="grid grid-cols-[72px_1fr] gap-3 py-2">
+            <dt className="label-eyebrow">지역</dt>
+            <dd className="fg-base text-ui-sm">
+              {[item.sido, item.sigungu].filter(Boolean).join(" ") || "—"}
+            </dd>
+          </div>
+        </dl>
+
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          {mapHref ? (
+            <a href={mapHref} target="_blank" rel="noreferrer" className="btn btn-primary">
+              네이버 지도에서 보기
+            </a>
+          ) : (
+            <span className="fg-subtle text-ui-xs">주소 정보가 없어 지도를 열 수 없습니다.</span>
+          )}
+          {address && (
+            <button type="button" className="btn btn-default" onClick={copyAddress}>
+              주소 복사
+            </button>
+          )}
+        </div>
+        {mapHref && (
+          <p className="fg-subtle mt-1.5 text-ui-xs">
+            새 탭에서 네이버 지도가 열립니다. 주소 위치를 확인할 수 있습니다.
+          </p>
+        )}
+        {copied && (
+          <p className="fg-muted mt-1.5 text-ui-xs" role="status">
+            {copied}
+          </p>
+        )}
+      </div>
     </div>
   );
 }

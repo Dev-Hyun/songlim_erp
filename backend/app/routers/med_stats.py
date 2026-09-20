@@ -146,7 +146,8 @@ def _apply_equipment_filters(
     if year:
         q = q.where(Equipment.year == year)
     if manufacturer:
-        q = q.where(Equipment.manufacturer == manufacturer)
+        # 필터는 화면에 보이는 값(표시용 제조사) 기준이어야 목록과 맞물린다
+        q = q.where(Equipment.brand == manufacturer)
     if model:
         q = q.where(Equipment.model.ilike(f"%{model}%"))
     return q
@@ -512,12 +513,12 @@ async def hospital_equipment(
             select(
                 Equipment.year,
                 Equipment.category,
-                Equipment.manufacturer,
+                Equipment.brand,
                 Equipment.model,
                 func.sum(Equipment.eq_count),
             )
             .where(Equipment.hospital_id == hospital_id)
-            .group_by(Equipment.year, Equipment.category, Equipment.manufacturer, Equipment.model)
+            .group_by(Equipment.year, Equipment.category, Equipment.brand, Equipment.model)
             .order_by(Equipment.year.desc(), Equipment.category)
         )
     ).all()
@@ -1487,7 +1488,7 @@ async def _manufacturer_rows(db: AsyncSession, year: int) -> dict:
 
     has_conf = await _has_manufacturer_confidence(db)
     cols = [
-        Equipment.manufacturer,
+        Equipment.brand,
         Equipment.category,
         func.count(func.distinct(Equipment.model)),
         func.count(func.distinct(Equipment.hospital_id)),
@@ -1496,19 +1497,19 @@ async def _manufacturer_rows(db: AsyncSession, year: int) -> dict:
     ]
     pair_q = (
         select(*cols)
-        .where(Equipment.year == year, Equipment.manufacturer.is_not(None), Equipment.manufacturer != "")
-        .group_by(Equipment.manufacturer, Equipment.category)
+        .where(Equipment.year == year, Equipment.brand.is_not(None), Equipment.brand != "")
+        .group_by(Equipment.brand, Equipment.category)
     )
     pairs = (await db.execute(pair_q)).all()
 
     mfr_q = (
         select(
-            Equipment.manufacturer,
+            Equipment.brand,
             func.count(func.distinct(Equipment.hospital_id)),
             func.count(func.distinct(Equipment.model)),
         )
-        .where(Equipment.year == year, Equipment.manufacturer.is_not(None), Equipment.manufacturer != "")
-        .group_by(Equipment.manufacturer)
+        .where(Equipment.year == year, Equipment.brand.is_not(None), Equipment.brand != "")
+        .group_by(Equipment.brand)
     )
     totals = {m: (h or 0, md or 0) for m, h, md in (await db.execute(mfr_q)).all()}
 
@@ -1749,15 +1750,15 @@ async def catalog_model_detail(
 
     mfr_rows = (
         await db.execute(
-            select(Equipment.manufacturer, func.sum(Equipment.eq_count))
+            select(Equipment.brand, func.sum(Equipment.eq_count))
             .where(
                 Equipment.year == year,
                 Equipment.category == category,
                 Equipment.model == model,
-                Equipment.manufacturer.is_not(None),
-                Equipment.manufacturer != "",
+                Equipment.brand.is_not(None),
+                Equipment.brand != "",
             )
-            .group_by(Equipment.manufacturer)
+            .group_by(Equipment.brand)
             .order_by(func.sum(Equipment.eq_count).desc())
         )
     ).all()
@@ -2098,7 +2099,7 @@ async def catalog_hospital_detail(
                 Equipment.year,
                 Equipment.category,
                 Equipment.model,
-                Equipment.manufacturer,
+                Equipment.brand,
                 Equipment.manufacturer_confidence,
                 func.sum(Equipment.eq_count),
             )
@@ -2107,7 +2108,7 @@ async def catalog_hospital_detail(
                 Equipment.year,
                 Equipment.category,
                 Equipment.model,
-                Equipment.manufacturer,
+                Equipment.brand,
                 Equipment.manufacturer_confidence,
             )
         )

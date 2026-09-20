@@ -31,10 +31,10 @@ export default function CatalogModelAliasClient({ slug }: { slug: string }) {
     if (only) router.replace(modelHref(only.category, only.slug));
   }, [only, router]);
 
-  if (loading) return <EmptyState message="불러오는 중..." />;
+  if (loading) return <EmptyState message="불러오는 중…" />;
   if (error) return <p className="text-ui text-red-500">{error}</p>;
   if (!data) return <EmptyState message="모델명을 찾을 수 없습니다." />;
-  if (only) return <EmptyState message="모델 상세로 이동합니다..." />;
+  if (only) return <EmptyState message="모델 상세로 이동합니다…" />;
 
   const multiCategory = data.categories > 1;
   const title = multiCategory ? "여러 장비 분류에 있는 모델명" : "같은 분류 안의 표기 변형";
@@ -46,6 +46,7 @@ export default function CatalogModelAliasClient({ slug }: { slug: string }) {
     <div className="space-y-6">
       <Crumbs
         items={[
+          { label: "의료기관 장비 검색", href: "/med/equipment-search" },
           { label: "의료장비 모델", href: "/med/equipment/models" },
           { label: data.names[0] },
         ]}
@@ -61,6 +62,9 @@ export default function CatalogModelAliasClient({ slug }: { slug: string }) {
               </span>
               <span className="fg-muted shrink-0 text-ui-sm tabular-nums">
                 {o.hospitals.toLocaleString()}개 기관 · {o.units.toLocaleString()}대
+              </span>
+              <span className="fg-subtle shrink-0" aria-hidden>
+                →
               </span>
             </Link>
           ))}

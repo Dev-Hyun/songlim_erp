@@ -169,7 +169,9 @@ def main() -> int:
         makers.add(name)
         if name != cur_mfr or grade != cur_conf:
             changed += 1
-        updates.append((name, grade, synced_at, eid))
+        # brand(표시용 제조사)도 같이 채운다. 이 스크립트가 건드리는 출처(hira_*/odcloud_*)는
+        # 레거시 6분류가 아니므로 표시값 = 제조원이다 (app/brand_map.py display_maker 참고).
+        updates.append((name, name, grade, synced_at, eid))
 
     if args.apply:
         backup = f"{args.db}.bak_eq_maker_{int(time.time())}"
@@ -177,7 +179,7 @@ def main() -> int:
         print(f"백업 생성: {backup}")
         for i in range(0, len(updates), BATCH):
             conn.executemany(
-                "UPDATE equipment SET manufacturer = ?, manufacturer_confidence = ?, "
+                "UPDATE equipment SET manufacturer = ?, brand = ?, manufacturer_confidence = ?, "
                 "manufacturer_synced_at = ? WHERE id = ?", updates[i:i + BATCH])
         conn.commit()
         conn.execute("ANALYZE")

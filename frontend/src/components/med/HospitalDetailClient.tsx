@@ -5,7 +5,7 @@ import Link from "next/link";
 import { ApexOptions } from "apexcharts";
 import { useEffect, useMemo, useState } from "react";
 import { CatalogHospitalDetail, CatalogHospitalGroup, fetchCatalogHospital } from "./api";
-import { Crumbs, categoryHref, hospitalHref, modelHref } from "./CatalogParts";
+import { Crumbs, DataNote, categoryHref, hospitalHref, modelHref } from "./CatalogParts";
 import { EmptyState, Panel, StatTile, selectClass, useChartTheme } from "./ui";
 
 const ReactApexChart = dynamic(() => import("react-apexcharts"), { ssr: false });
@@ -14,9 +14,9 @@ const ReactApexChart = dynamic(() => import("react-apexcharts"), { ssr: false })
 const OPEN_GROUPS = 6;
 
 const SORTS = [
-  { value: "units", label: "등록 수량순" },
   { value: "delta", label: "최근 변화순" },
   { value: "name", label: "장비명순" },
+  { value: "units", label: "등록 수량순" },
 ] as const;
 type SortKey = (typeof SORTS)[number]["value"];
 
@@ -35,15 +35,20 @@ export default function HospitalDetailClient({ hospitalId }: { hospitalId: numbe
   const [error, setError] = useState("");
   const chart = useChartTheme();
 
+  // 로딩 플래그는 effect가 아니라 연도를 바꾸는 핸들러에서 켠다 (effect 안 동기 setState 금지 규칙).
   useEffect(() => {
-    setLoading(true);
+    let alive = true;
     fetchCatalogHospital(hospitalId, { year })
       .then((d) => {
+        if (!alive) return;
         setData(d);
         setExpanded(new Set(d.groups.slice(0, OPEN_GROUPS).map((g) => g.category)));
       })
-      .catch((e) => setError(e.message))
-      .finally(() => setLoading(false));
+      .catch((e) => alive && setError(e.message))
+      .finally(() => alive && setLoading(false));
+    return () => {
+      alive = false;
+    };
   }, [hospitalId, year]);
 
   const groups = useMemo(() => {
@@ -54,11 +59,16 @@ export default function HospitalDetailClient({ hospitalId }: { hospitalId: numbe
     return rows;
   }, [data, sort]);
 
-  if (loading && !data) return <EmptyState message="불러오는 중..." />;
+  if (loading && !data) return <EmptyState message="장비 현황 불러오는 중…" />;
   if (error) return <p className="text-ui text-red-500">{error}</p>;
   if (!data) return <EmptyState message="의료기관을 찾을 수 없습니다." />;
 
   const h = data.hospital;
+  // 분류 정렬과 무관하게 '가장 많은 분류'는 등록 대수 기준이다.
+  const topGroup = data.groups.reduce<CatalogHospitalGroup | null>(
+    (best, g) => (best === null || g.units > best.units ? g : best),
+    null,
+  );
   const yearOptions: ApexOptions = {
     ...chart.base,
     chart: { ...chart.base.chart, type: "bar" },
@@ -97,11 +107,19 @@ export default function HospitalDetailClient({ hospitalId }: { hospitalId: numbe
       {h.address && <p className="fg-muted text-ui-sm">{h.address}</p>}
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatTile label="장비 분류" value={data.stats.categories} sub={`${data.year}년 스냅샷`} />
-        <StatTile label="등록 장비" value={data.stats.units} sub={`모델 ${data.stats.models.toLocaleString()}종`} />
+        <StatTile
+          label="장비 분류"
+          value={`${data.stats.categories.toLocaleString()}종`}
+          sub={`${data.year}년 스냅샷`}
+        />
+        <StatTile
+          label="등록 장비"
+          value={`${data.stats.units.toLocaleString()}대`}
+          sub={`모델 ${data.stats.models.toLocaleString()}종`}
+        />
         <StatTile
           label={data.prev_year ? `${data.prev_year}년 대비 증감` : "직전 연도 대비"}
-          value={deltaText(data.stats.delta_units)}
+          value={data.stats.delta_units === null ? "—" : `${deltaText(data.stats.delta_units)}대`}
           sub={
             data.prev_year === null
               ? "비교할 이전 스냅샷이 없습니다"
@@ -111,9 +129,9 @@ export default function HospitalDetailClient({ hospitalId }: { hospitalId: numbe
           }
         />
         <StatTile
-          label="요양기관기호"
-          value={h.ykiho ? "있음" : "없음"}
-          sub={h.ykiho ? h.ykiho.slice(0, 12) + "…" : "심평원 임포트 대상이 아닙니다"}
+          label="가장 많은 장비 분류"
+          value={topGroup ? topGroup.name : "—"}
+          sub={topGroup ? `${topGroup.units.toLocaleString()}대 · 모델 ${topGroup.models.toLocaleString()}종` : undefined}
         />
       </div>
 
@@ -124,7 +142,10 @@ export default function HospitalDetailClient({ hospitalId }: { hospitalId: numbe
           <div className="flex flex-wrap items-center gap-2">
             <select
               value={data.year}
-              onChange={(e) => setYear(Number(e.target.value))}
+              onChange={(e) => {
+                setLoading(true);
+                setYear(Number(e.target.value));
+              }}
               className={selectClass}
               aria-label="연도 선택"
             >
@@ -275,11 +296,10 @@ export default function HospitalDetailClient({ hospitalId }: { hospitalId: numbe
         </Panel>
       </div>
 
-      <p className="fg-subtle text-ui-xs leading-relaxed">
-        기준 시점: 심평원 의료장비 {data.year}년 스냅샷 · 본 장비 현황은 건강보험심사평가원에 등록된 사용 중 장비
-        기준이며 실제 운영 현황과 다를 수 있습니다 · 모델명은 신고 표기를 그대로 쓰므로 통용 명칭과 다를 수
-        있습니다 · 제조·수입사는 허가번호로 대조한 결과이며 신뢰도(확인·유력·미확인)를 함께 표시합니다.
-      </p>
+      <DataNote
+        year={data.year}
+        extra="본 장비 현황은 건강보험심사평가원에 등록된 사용 중 장비 기준이라 실제 운영 현황과 다를 수 있습니다. 제조·수입사는 의료장비 허가 자료를 허가번호로 대조한 결과이며 신뢰도(확인·유력·미확인)를 함께 표시합니다."
+      />
     </div>
   );
 }
@@ -296,10 +316,23 @@ function GroupRows({
 }) {
   return (
     <>
+      {/* 행 아무 데나 눌러도 펼쳐지되(마우스), 안에 분류 링크가 있어 행 자체를 버튼으로 만들 수는 없다.
+          그래서 키보드용 펼침 버튼은 앞의 삼각형 하나가 맡는다. */}
       <tr className="row-hover cursor-pointer" onClick={onToggle}>
         <td className="td-dense">
           <span className="flex min-w-0 items-center gap-1.5">
-            <span className="fg-subtle shrink-0 text-ui-xs">{open ? "▾" : "▸"}</span>
+            <button
+              type="button"
+              aria-expanded={open}
+              aria-label={`${group.name} ${open ? "접기" : "펼치기"}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggle();
+              }}
+              className="fg-subtle shrink-0 text-ui-xs"
+            >
+              {open ? "▾" : "▸"}
+            </button>
             <Link
               href={categoryHref(group.category)}
               onClick={(e) => e.stopPropagation()}

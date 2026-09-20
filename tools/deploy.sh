@@ -21,6 +21,8 @@ APPLY=0
 ONLY=""
 SYNC_ENV=""
 DB_REPORT=0
+RUN_IMPORT=""
+IMPORT_LOG=""
 for a in "$@"; do
   case "$a" in
     --data-fixes) DATA_FIXES=1 ;;
@@ -30,6 +32,8 @@ for a in "$@"; do
     --only=*)     ONLY="$ONLY --only ${a#--only=}" ;;
     --sync-env=*) SYNC_ENV="$SYNC_ENV ${a#--sync-env=}" ;;
     --db-report)  DB_REPORT=1 ;;
+    --run-import=*) RUN_IMPORT="${a#--run-import=}" ;;
+    --import-log=*) IMPORT_LOG="${a#--import-log=}" ;;
     *) echo "모르는 옵션: $a" >&2; exit 2 ;;
   esac
 done
@@ -94,6 +98,36 @@ print('  equipment hospital_id 범위 ', q('SELECT MIN(hospital_id), MAX(hospita
 print('  고아 장비                  ', q('SELECT COUNT(*) FROM equipment e LEFT JOIN hospitals h ON h.id=e.hospital_id WHERE h.id IS NULL')[0][0])
 print('  alembic                    ', q('SELECT version_num FROM alembic_version')[0][0])
 PY"
+  exit 0
+fi
+
+# --run-import=NAME : 공공데이터 임포트를 서버에서 **분리 실행**한다.
+#   수십만~백만 행을 API 로 받느라 SSH 세션보다 오래 살아야 해서 nohup 으로 띄우고 로그만 본다.
+#   임의 스크립트 실행 통로가 되지 않게 이름을 아래 5종으로 한정한다.
+# --import-log=NAME : 그 로그 확인.
+case "$RUN_IMPORT" in
+  ""|mfds|localdata|hospitals|odcloud|manufacturer) ;;
+  *) echo "모르는 임포트: $RUN_IMPORT (mfds|localdata|hospitals|odcloud|manufacturer)" >&2; exit 2 ;;
+esac
+
+if [ -n "$IMPORT_LOG" ]; then
+  ssh_run "tail -c 1500 /var/log/songlim_import_$IMPORT_LOG.log 2>/dev/null | tr '\r' '\n' | tail -12 || echo '(로그 없음)'"
+  exit 0
+fi
+
+if [ -n "$RUN_IMPORT" ]; then
+  case "$RUN_IMPORT" in
+    mfds)         SCRIPT="sync_mfds_device_makers.py --apply" ;;
+    localdata)    SCRIPT="sync_localdata_clinics.py --apply" ;;
+    hospitals)    SCRIPT="sync_hira_hospital_info.py --apply" ;;
+    odcloud)      SCRIPT="import_odcloud_equipment_years.py --apply --years 2023,2024,2025" ;;
+    manufacturer) SCRIPT="assign_equipment_manufacturer.py --apply" ;;
+  esac
+  echo "== 서버 DB 백업 =="
+  ssh_run "cd $APP_DIR && cp backend/data.db backend/data.db.bak_before_${RUN_IMPORT}_\$(date +%Y%m%d_%H%M%S) && ls -la backend/data.db.bak_before_${RUN_IMPORT}_* | tail -1"
+  echo "== $RUN_IMPORT 시작 (분리 실행) =="
+  ssh_run "cd $APP_DIR && setsid nohup docker compose exec -T backend python scripts/$SCRIPT > /var/log/songlim_import_$RUN_IMPORT.log 2>&1 < /dev/null & sleep 6; echo started"
+  echo "진행 확인: bash tools/deploy.sh --import-log=$RUN_IMPORT"
   exit 0
 fi
 

@@ -33,16 +33,28 @@ export default function CatalogManufacturersClient() {
       .finally(() => setLoading(false));
   }, [sort, page]);
 
-  if (loading && !data) return <EmptyState message="불러오는 중..." />;
+  if (loading && !data) return <EmptyState message="불러오는 중…" />;
   if (error) return <p className="text-ui text-red-500">{error}</p>;
   if (!data) return <EmptyState message="데이터가 없습니다." />;
 
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatTile label="제조·수입사" value={data.totals.manufacturers} sub={`${data.year}년 스냅샷`} />
-        <StatTile label="연결된 모델" value={data.totals.models} sub="제조사가 확인된 모델" />
-        <StatTile label="등록 대수" value={data.totals.units} sub="제조사가 채워진 등록분" />
+        <StatTile
+          label="제조·수입사"
+          value={`${data.totals.manufacturers.toLocaleString()}곳`}
+          sub={`${data.year}년 스냅샷`}
+        />
+        <StatTile
+          label="연결된 모델"
+          value={`${data.totals.models.toLocaleString()}종`}
+          sub="제조·수입사가 확인된 모델"
+        />
+        <StatTile
+          label="등록 대수"
+          value={`${data.totals.units.toLocaleString()}대`}
+          sub="제조·수입사가 채워진 등록분"
+        />
         <StatTile
           label="제조사 채움율"
           value={`${data.coverage.share.toFixed(1)}%`}
@@ -66,7 +78,7 @@ export default function CatalogManufacturersClient() {
       ) : (
         <Panel
           title="제조·수입사"
-          desc="행을 누르면 그 업체가 연결된 장비 분류가 펼쳐집니다."
+          desc={`의료기관 등록 장비와 연결된 제조·수입사 ${data.total.toLocaleString()}곳 · 행을 누르면 그 업체가 연결된 장비 분류가 펼쳐집니다.`}
           right={
             <div className="seg" role="group" aria-label="제조사 정렬">
               {SORTS.map((s) => (
@@ -94,9 +106,9 @@ export default function CatalogManufacturersClient() {
                   <th className="th-dense w-12 text-right">#</th>
                   <th className="th-dense">업체명</th>
                   <th className="th-dense text-right">모델</th>
-                  <th className="th-dense text-right">보유 의료기관</th>
+                  <th className="th-dense text-right">확인 의료기관</th>
                   <th className="th-dense text-right">등록 대수</th>
-                  <th className="th-dense">연결 장비 분류</th>
+                  <th className="th-dense">연결된 의료장비 분류</th>
                   {data.has_confidence && <th className="th-dense">연결 신뢰도</th>}
                 </tr>
               </thead>
@@ -107,7 +119,15 @@ export default function CatalogManufacturersClient() {
                     <tr
                       key={m.manufacturer}
                       className="row-hover cursor-pointer"
+                      role="button"
+                      tabIndex={0}
+                      aria-expanded={expanded}
                       onClick={() => setOpen(expanded ? null : m.manufacturer)}
+                      onKeyDown={(e) => {
+                        if (e.key !== "Enter" && e.key !== " ") return;
+                        e.preventDefault();
+                        setOpen(expanded ? null : m.manufacturer);
+                      }}
                     >
                       <td className="td-dense fg-subtle text-right">{m.rank}</td>
                       <td className="td-dense fg-strong font-medium">
@@ -174,7 +194,7 @@ export default function CatalogManufacturersClient() {
 
       <DataNote
         year={data.year}
-        extra="같은 업체의 표기 통합(대표명)은 아직 적용하지 않아 원문 표기 그대로 집계합니다"
+        extra="같은 업체의 표기 통합(대표명)은 아직 적용하지 않아 원문 표기 그대로 집계합니다. 등록 대수는 보유 대수·판매량이나 중복을 제거한 전체 의료기관 수가 아닙니다."
       />
     </div>
   );

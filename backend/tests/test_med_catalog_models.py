@@ -28,6 +28,9 @@ async def _seed(db_session) -> tuple[Hospital, Hospital]:
     await db_session.flush()
 
     def eq(h, category, cat_name, model, year, count, **kw):
+        # brand(표시용 제조사)는 실제 쓰기 경로가 항상 같이 채운다(app/brand_map.py 참고).
+        # 여기서도 같이 넣어야 화면이 보는 값과 같은 조건이 된다.
+        kw.setdefault("brand", kw.get("manufacturer"))
         return Equipment(
             hospital_id=h.id, category=category, category_name=cat_name, category_code=category,
             model=model, year=year, eq_count=count, source="import", **kw,

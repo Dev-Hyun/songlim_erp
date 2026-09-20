@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import Script from "next/script";
+import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   EquipmentSearchItem,
@@ -15,6 +16,7 @@ import {
   fetchMedSigungu,
   fetchModels,
 } from "./api";
+import { TermsFaq } from "./CatalogParts";
 import { EmptyState, Pagination, Panel, StatTile, inputClass, selectClass } from "./ui";
 
 const NAVER_CLIENT_ID = process.env.NEXT_PUBLIC_NAVER_CLIENT_ID || "";
@@ -93,10 +95,21 @@ export default function EquipmentSearchClient() {
   const [meta, setMeta] = useState<MedMeta | null>(null);
   const [sigunguList, setSigunguList] = useState<string[]>([]);
 
+  // 분류·모델 상세의 `…보유 의료기관 검색` CTA로 들어오면 고급 검색을 미리 채운 채로 시작한다.
+  // 서버·클라이언트 첫 렌더가 같은 값을 보도록 useSearchParams를 쓴다(window.location은 어긋난다).
+  const search = useSearchParams();
+  const deepLink = useMemo<Cond | null>(() => {
+    if (search.get("mode") !== "advanced") return null;
+    const eq = search.get("eq");
+    if (!eq) return null;
+    const model = search.get("model");
+    return { ...EMPTY, mode: "advanced", categories: [eq], models: model ? [model] : [] };
+  }, [search]);
+
   // 입력 중인 값(draft)과 마지막 검색에 쓰인 값(applied)을 나눈다.
   // 메디하루의 핵심 규칙: 조건을 바꿔도 결과는 그대로이고 '검색하기'를 눌러야 갱신된다.
-  const [draft, setDraft] = useState<Cond>(EMPTY);
-  const [applied, setApplied] = useState<Cond | null>(null);
+  const [draft, setDraft] = useState<Cond>(() => deepLink ?? EMPTY);
+  const [applied, setApplied] = useState<Cond | null>(() => deepLink);
 
   // 결과 영역 컨트롤 — 조건이 아니라 '마지막 검색 결과를 보는 방식'이라 즉시 반영한다.
   const [sort, setSort] = useState<SortKey>("name");
@@ -129,6 +142,28 @@ export default function EquipmentSearchClient() {
       })
       .catch(() => setError("필터 정보를 불러오지 못했습니다. 선택 조건은 유지됩니다."));
   }, []);
+
+
+  useEffect(() => {
+    if (!deepLink) return;
+    let alive = true;
+    fetchEquipmentSearch({
+      ...paramsOf(deepLink),
+      sort: "name",
+      order: "asc",
+      page: 1,
+      page_size: PAGE_SIZES[0],
+    })
+      .then((r) => alive && setResult(r))
+      .catch(
+        () =>
+          alive &&
+          setError("검색 결과를 불러오지 못했습니다. 조건은 유지됩니다. 잠시 후 다시 시도해 주세요.")
+      );
+    return () => {
+      alive = false;
+    };
+  }, [deepLink]);
 
   useEffect(() => {
     if (!draft.sido) return;
@@ -657,6 +692,7 @@ export default function EquipmentSearchClient() {
 
       <CheckBeforeSearch year={applied?.year ?? draft.year} />
       <BrowseCards />
+      <EquipmentTermsFaq year={applied?.year ?? draft.year} />
     </div>
   );
 }
@@ -1079,5 +1115,51 @@ function BrowseCards() {
         ))}
       </div>
     </Panel>
+  );
+}
+
+/** 하단 설명·용어·FAQ — 메디하루 2-9. 문구는 우리 데이터(연도 스냅샷, 자체 임포트)에 맞춰 적는다. */
+function EquipmentTermsFaq({ year }: { year: number }) {
+  return (
+    <TermsFaq
+      intro="장비 검색은 전국 의료기관의 장비 보유 현황을 공공데이터 기반으로 정리해, 병원·의원명·장비명·모델명·지역으로 조회할 수 있게 한 기능입니다. 초음파·CT·MRI 등 특정 장비나 모델을 어떤 지역의 어떤 기관이 보유했는지 검색하고, 기관별 장비 구성과 위치를 함께 확인·비교할 수 있습니다."
+      method={`검색 결과는 건강보험심사평가원의 의료장비 등록 데이터를 바탕으로 합니다. 연도별 스냅샷 가운데 기본값은 가장 최근인 ${year}년 기준이며, 의료기관은 기관명과 지역명으로 찾고 장비·모델은 장비 분류·모델명·제조·수입사로 매칭합니다. 결과 행의 장비 목록은 검색 조건에 맞은 항목부터 일부만 보여 주고 나머지는 '상세 정보 보기'로 펼칩니다. 제조·수입사 표기는 레거시 6개 분류(초음파·일반엑스선·C-Arm·MRI·골밀도·CT)에서는 시장 브랜드를, 나머지 분류에서는 허가 자료의 제조원을 씁니다.`}
+      terms={[
+        {
+          term: "의료장비 등록",
+          desc: "의료기관이 건강보험심사평가원에 장비를 등록한 기록입니다. 등록 시점을 기준으로 하므로 실제 설치·가동 시점과는 차이가 있을 수 있습니다.",
+        },
+        {
+          term: "연도별 스냅샷",
+          desc: "매년 특정 시점의 데이터를 고정 저장한 판본입니다. 2019~2022 스냅샷에는 레거시 6개 분류만 적재돼 있어 그 밖의 분류는 2023년 이후에만 나옵니다.",
+        },
+        {
+          term: "모델명(신고 표기)",
+          desc: "검색에 쓰이는 모델명은 의료장비 허가증 기재 형태를 따르므로 시중 통용 명칭과 다를 수 있습니다.",
+        },
+        {
+          term: "연결 신뢰도",
+          desc: "모델과 제조·수입사의 연결이 어떤 근거로 붙었는지를 확인 · 유력 · 미확인 3단계로 표시합니다. 개별 의료기관의 계약·공급 경로를 뜻하지 않습니다.",
+        },
+      ]}
+      faqs={[
+        {
+          q: "검색되지 않는 병원이 있는 이유는 무엇인가요?",
+          a: "검색은 건강보험심사평가원의 장비 등록 데이터를 기반으로 하므로, 장비를 등록한 기관만 결과에 나타납니다. 장비를 등록하지 않은 기관은 실제 운영 중이더라도 검색에 표시되지 않습니다.",
+        },
+        {
+          q: "결과 목록에 장비가 일부만 보입니다.",
+          a: "행에는 조건에 맞은 장비부터 몇 줄만 먼저 보여 줍니다. 행의 '상세 정보 보기'를 누르면 그 기관의 전체 목록을 볼 수 있습니다.",
+        },
+        {
+          q: "모델명이 실제 제품명과 다르게 보입니다.",
+          a: "모델명은 허가증에 기재된 형태를 따르므로 시중에서 통용되는 이름과 다를 수 있습니다. 같은 제품이 표기만 다르게 여러 건 등록돼 있을 수도 있습니다.",
+        },
+        {
+          q: "'개설 현황'은 이 화면과 같은 데이터인가요?",
+          a: "아니요. 개설 현황은 행정안전부 인허가(개설·등록) 정보를 따로 적재한 별도 화면이고, 기관·장비·모델 검색은 건강보험심사평가원 장비 데이터를 기준으로 합니다.",
+        },
+      ]}
+    />
   );
 }
