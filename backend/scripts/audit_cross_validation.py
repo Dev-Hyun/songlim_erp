@@ -125,12 +125,19 @@ def collapse_sgg(s):
 
 def load_hira(refresh):
     if refresh or not os.path.exists(CACHE):
-        key = ""
+        # 환경변수를 먼저 본다 — 도커에서는 compose 의 env_file 로 키가 환경에만 들어오고
+        # .env 파일은 이미지 안에 없다. sync_hira_hospital_info.load_key() 와 같은 규칙.
+        key = os.environ.get("HIRA_API_KEY", "")
         env = os.path.join(BASE, ".env")
-        if os.path.exists(env):
+        if not key and os.path.exists(env):
             for line in open(env, encoding="utf-8"):
                 if line.startswith("HIRA_API_KEY"):
                     key = line.split("=", 1)[1].strip()
+        if not key:
+            raise SystemExit(
+                "HIRA_API_KEY 를 찾을 수 없습니다 (환경변수 또는 backend/.env). "
+                "심평원 대조가 필요한 항목은 이 키 없이 돌릴 수 없습니다."
+            )
         os.makedirs(os.path.dirname(CACHE), exist_ok=True)
         page, n = 1, 0
         with open(CACHE, "w", encoding="utf-8") as f:
