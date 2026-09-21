@@ -113,11 +113,23 @@ fi
 
 # --clean-old-backups : data.db.bak_* 를 정리한다(현재 data.db 는 안 건드림).
 #   서버 디스크가 20GB 라 임포트마다 만드는 1GB 백업이 금방 찬다. 날짜 계산 대신
-#   **남길 것을 이름으로 명시**한다 — 자정을 넘기면 "오늘" 필터가 어제 만든 백업을
-#   놓쳐서 하나도 안 지워지는 사고가 났었다(이 스크립트가 그 사고의 결과다).
-#   KEEP: 이번 작업 세션 시작 전 앵커 + 가장 최근 것 하나. 나머지 전부 삭제.
+#   **가장 최근 파일 하나만 동적으로 찾아 보존**한다 — 두 가지 사고를 겪은 뒤 이렇게 됐다.
+#   ① date +%Y%m%d 로 "오늘 것만 보존"을 했다가 자정을 넘기며 하나도 안 지워졌다.
+#   ② 그다음 특정 파일명을 하드코딩해 KEEP 으로 뒀는데, --run-import 가 매번 새
+#      data.db.bak_before_<이름>_<시각> 을 만들다 보니 그 하드코딩값이 금방 낡아서,
+#      --run-import 직후 --clean-old-backups 를 돌리면 방금 만든 안전백업까지
+#      지워지는 함정이 있었다(2026-09-21 전수조사에서 발견). `ls -t | head -1` 로
+#      항상 가장 최근 것을 찾아 보존하면 이 함정 자체가 사라진다.
 if [ "$CLEAN_BACKUPS" = 1 ]; then
-  ssh_run "cd $APP_DIR/backend &&     KEEP=data.db.bak_before_localdata-hospitals_20260921_093155;     for f in data.db.bak_* data.db.bak.*; do [ -e \"\$f\" ] || continue;       [ \"\$f\" = \"\$KEEP\" ] && continue;       rm -fv -- \"\$f\";     done;     echo '--- 남은 것 ---'; ls -la data.db.bak_* 2>/dev/null;     echo '--- 도커 빌드캐시 정리 ---'; docker builder prune -af 2>&1 | tail -3;     df -h / | tail -1"
+  ssh_run "cd $APP_DIR/backend && KEEP=\$(ls -t data.db.bak_* data.db.bak.* 2>/dev/null | head -1); \
+    for f in data.db.bak_* data.db.bak.*; do \
+      [ -e \"\$f\" ] || continue; \
+      [ \"\$f\" = \"\$KEEP\" ] && continue; \
+      rm -fv -- \"\$f\"; \
+    done; \
+    echo '--- 남은 것(가장 최근 것만 보존) ---'; ls -la data.db.bak_* 2>/dev/null; \
+    echo '--- 도커 빌드캐시 정리 ---'; docker builder prune -af 2>&1 | tail -3; \
+    df -h / | tail -1"
   exit 0
 fi
 

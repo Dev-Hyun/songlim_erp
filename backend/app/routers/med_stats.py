@@ -1,6 +1,6 @@
 """의료기관 데이터 조회 (장비 검색 / 개설 현황 / 분포 현황).
 
-equipment 976K행 · hospitals 64K행이므로 모든 집계는 SQL GROUP BY로 서버에서 끝내고,
+equipment 209만행 · hospitals 89K행이므로 모든 집계는 SQL GROUP BY로 서버에서 끝내고,
 목록은 반드시 페이지네이션한다. 원시 행을 프론트로 내려보내지 않는다.
 
 장비 분류는 심평원 전체 장비군(195 대분류)이라 하드코딩하지 않고 DB에서 읽는다
@@ -1349,9 +1349,15 @@ async def _catalog_index(db: AsyncSession) -> dict[str, dict]:
     cached = _cache_get("index")
     if cached is not None:
         return cached
+    # bare column GROUP BY는 SQLite가 그룹당 어느 행을 돌려줄지 정해두지 않는다 — 임포트
+    # 배치마다 표기가 갈리는 분류(예: F202)가 실제로 있어 category_name이 들쭉날쭉했다.
+    # category_name만 func.max()로 고정한다(_categories()와 같은 패턴). category_code까지
+    # 감싸면 idx_eq_cat_name(category, category_name) 루즈 인덱스 스캔이 깨져 130ms대가
+    # 19초로 뛴다(실측) — category_code는 표기 드리프트가 보고되지 않았으니 bare column 유지.
     rows = (
         await db.execute(
-            select(Equipment.category, Equipment.category_code, Equipment.category_name).group_by(Equipment.category)
+            select(Equipment.category, Equipment.category_code, func.max(Equipment.category_name))
+            .group_by(Equipment.category)
         )
     ).all()
     return _cache_put("index", {c: {"code": code or c, "name": name or c} for c, code, name in rows})
@@ -1515,11 +1521,14 @@ async def _manufacturer_rows(db: AsyncSession, year: int) -> dict:
 
     conf: dict[str, dict[str, int]] = {}
     if has_conf:
+        # 위 pairs/totals 가 brand(표시용 제조사) 기준으로 묶이므로 이 조회도 brand 로 묶어야
+        # conf.get(mfr) 가 맞물린다. manufacturer 로 묶으면 brand != manufacturer 인
+        # BRAND_RULES 예외 모델(SONIMAGE HS1 등 약 15종)에서 신뢰도 배지가 조용히 안 붙는다.
         conf_q = text(
-            "SELECT manufacturer, manufacturer_confidence, COUNT(*) FROM equipment "
-            "WHERE year = :y AND manufacturer IS NOT NULL AND manufacturer <> '' "
+            "SELECT brand, manufacturer_confidence, COUNT(*) FROM equipment "
+            "WHERE year = :y AND brand IS NOT NULL AND brand <> '' "
             "AND manufacturer_confidence IS NOT NULL "
-            "GROUP BY manufacturer, manufacturer_confidence"
+            "GROUP BY brand, manufacturer_confidence"
         )
         for m, c, n in (await db.execute(conf_q, {"y": year})).all():
             conf.setdefault(m, {})[c] = n

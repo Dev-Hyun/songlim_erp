@@ -47,7 +47,14 @@ class Equipment(Base):
     source='hira_2025'는 심평원 '의료장비 상세 현황' 2025-12-31 스냅샷."""
     __tablename__ = "equipment"
     __table_args__ = (
-        CheckConstraint("source IN ('import','manual','hira_2025')", name="ck_equipment_source"),
+        # odcloud_2023/2024/2025는 alembic f1a6c3d9e2b5 에서 실제 DB 제약에 추가됐는데
+        # 이 모델 문자열은 그때 안 따라와 있었다 — Base.metadata.create_all로 스키마를
+        # 만드는 테스트(conftest.py)에서만 odcloud_* 값이 IntegrityError로 막히는 잠재
+        # 버그였다(실서비스는 alembic으로 만들어져 있어 무관).
+        CheckConstraint(
+            "source IN ('import','manual','hira_2025','odcloud_2023','odcloud_2024','odcloud_2025')",
+            name="ck_equipment_source",
+        ),
         Index("idx_eq_hosp_cat", "hospital_id", "category"),
         Index("idx_eq_cat_year", "category", "year"),
         Index("idx_eq_series", "model_series"),
