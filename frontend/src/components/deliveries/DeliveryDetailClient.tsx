@@ -151,7 +151,7 @@ export default function DeliveryDetailClient({ id }: { id: number }) {
             <h2 className="card-title">{isDemo ? "🧪 DEMO 현황" : "🔬 초음파 & 유지보수 현황"}</h2>
             <div className="flex items-center gap-2">
               <span
-                className={`rounded-full px-3 py-1.5 text-xs font-medium text-white ${isDemo ? "bg-brand-500" : "bg-success-500"}`}
+                className={`rounded-full px-3 py-2.5 text-xs sm:py-1.5 font-medium text-white ${isDemo ? "bg-brand-500" : "bg-success-500"}`}
               >
                 {isDemo ? "DEMO" : "납품 & 관리"}
               </span>

@@ -111,7 +111,7 @@ export default function AdminCatalogClient() {
             </button>
           </div>
         </div>
-        <table className="table-dense min-w-[720px]">
+        <table className="table-cards table-dense min-w-[720px]">
           <thead>
             <tr>
               <th className="th-dense">사진</th>
@@ -127,7 +127,7 @@ export default function AdminCatalogClient() {
           <tbody>
             {visibleItems.map((it) => (
               <tr key={it.id} className="row-hover">
-                <td className="td-dense py-1.5">
+                <td data-label="사진" className="td-dense py-1.5">
                   <div className="surface-sub hairline fg-subtle flex h-10 w-10 items-center justify-center overflow-hidden rounded-control border">
                     {it.image_key ? (
                       // eslint-disable-next-line @next/next/no-img-element
@@ -137,13 +137,13 @@ export default function AdminCatalogClient() {
                     )}
                   </div>
                 </td>
-                <td className="td-dense fg-muted py-1.5">{it.code || "-"}</td>
-                <td className="td-dense fg-strong py-1.5 font-medium">{it.name}</td>
-                <td className="td-dense fg-muted py-1.5">{it.manufacturer || "-"}</td>
-                <td className="td-dense fg-muted py-1.5">{it.category}</td>
-                <td className="td-dense fg-muted py-1.5">{it.unit}</td>
-                <td className="td-dense fg-muted py-1.5 tabular-nums">{it.unit_price.toLocaleString()}원</td>
-                <td className="td-dense py-1.5 text-center">{it.is_active ? "✅" : "⬜"}</td>
+                <td data-label="코드" className="td-dense fg-muted py-1.5">{it.code || "-"}</td>
+                <td data-label="품목명" className="td-dense fg-strong py-1.5 font-medium">{it.name}</td>
+                <td data-label="제조사" className="td-dense fg-muted py-1.5">{it.manufacturer || "-"}</td>
+                <td data-label="카테고리" className="td-dense fg-muted py-1.5">{it.category}</td>
+                <td data-label="단위" className="td-dense fg-muted py-1.5">{it.unit}</td>
+                <td data-label="기본금액" className="td-dense fg-muted py-1.5 tabular-nums">{it.unit_price.toLocaleString()}원</td>
+                <td data-label="노출" className="td-dense py-1.5 text-center">{it.is_active ? "✅" : "⬜"}</td>
               </tr>
             ))}
             {filtered.length === 0 && <tr><td colSpan={8} className="empty-state">{search ? "검색 결과가 없습니다" : "등록된 품목이 없습니다"}</td></tr>}

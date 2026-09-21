@@ -94,13 +94,13 @@ export default function DeliveryCreateClient({ fixedSiteType }: { fixedSiteType?
             <div className="seg">
               <button
                 onClick={() => setSiteType("delivery")}
-                className={`rounded-full px-3 py-1.5 text-xs font-medium ${!isDemo ? "bg-brand-500 text-white" : "text-gray-500"}`}
+                className={`rounded-full px-3 py-2.5 text-xs sm:py-1.5 font-medium ${!isDemo ? "bg-brand-500 text-white" : "text-gray-500"}`}
               >
                 납품 &amp; 관리
               </button>
               <button
                 onClick={() => setSiteType("demo")}
-                className={`rounded-full px-3 py-1.5 text-xs font-medium ${isDemo ? "bg-brand-500 text-white" : "text-gray-500"}`}
+                className={`rounded-full px-3 py-2.5 text-xs sm:py-1.5 font-medium ${isDemo ? "bg-brand-500 text-white" : "text-gray-500"}`}
               >
                 DEMO
               </button>

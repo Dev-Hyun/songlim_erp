@@ -208,7 +208,7 @@ export default function StatsClient() {
             <button
               key={c}
               onClick={() => { setCategory(c); if (c !== "xray" && groupBy === "series") setGroupBy("maker"); }}
-              className={`rounded-full px-3 py-1.5 text-xs font-medium transition ${
+              className={`rounded-full px-3 py-2.5 text-xs sm:py-1.5 font-medium transition ${
                 category === c ? "bg-brand-500 text-white" : "text-gray-500 dark:text-gray-400"
               }`}
             >
@@ -297,7 +297,7 @@ export default function StatsClient() {
 
         <ComponentCard title="전체 순위 (TOP 20)">
           <div className="overflow-x-auto">
-            <table className="w-full text-ui">
+            <table className="table-cards w-full text-ui">
               <thead>
                 <tr className="border-b border-gray-200 text-left fg-subtle text-ui-sm dark:border-gray-800">
                   <th className="py-2">순위</th>
@@ -309,10 +309,10 @@ export default function StatsClient() {
               <tbody>
                 {share.slice(0, 20).map((s, i) => (
                   <tr key={s.label} className="border-b border-gray-100 dark:border-gray-800">
-                    <td className="py-2 text-gray-400">{i + 1}</td>
-                    <td className="py-2 font-medium text-gray-700 dark:text-gray-300">{s.label}</td>
-                    <td className="py-2 text-right text-gray-700 dark:text-gray-300">{s.count.toLocaleString()}</td>
-                    <td className="py-2 text-right">
+                    <td data-label="순위" className="py-2 text-gray-400">{i + 1}</td>
+                    <td data-label="항목" className="py-2 font-medium text-gray-700 dark:text-gray-300">{s.label}</td>
+                    <td data-label="장비 수" className="py-2 text-right text-gray-700 dark:text-gray-300">{s.count.toLocaleString()}</td>
+                    <td data-label="점유율" className="py-2 text-right">
                       <div className="flex items-center justify-end gap-2">
                         <div className="h-1.5 w-24 overflow-hidden rounded-full bg-gray-100 dark:bg-white/10">
                           <div className="h-full bg-brand-500" style={{ width: `${s.share}%` }} />

@@ -1101,6 +1101,14 @@ span.flatpickr-weekday,
 .fc .fc-list-empty {
   @apply bg-transparent px-4 py-10 text-ui text-gray-400 dark:text-gray-500;
 }
+/* 목록 보기는 .fc.fc-media-screen{min-h-screen}(월 그리드용)을 상속하면
+   일정이 적은 달에 화면 하나만큼 빈 공간이 생긴다. 내용 높이만 쓰게 되돌린다. */
+.fc.fc-media-screen:has(.fc-list-view) {
+  @apply min-h-0;
+}
+.fc .fc-list-view .fc-scroller {
+  height: auto !important;
+}
 .fc-theme-standard .fc-list-day-cushion {
   @apply dark:bg-gray-900;
 }

@@ -122,7 +122,7 @@ export default function MileagePage() {
             {loading ? (
               <div className="empty-state">불러오는 중...</div>
             ) : (
-              <table className="w-full text-ui">
+              <table className="table-cards w-full text-ui">
                 <thead>
                   <tr className="border-b border-gray-200 bg-gray-50 text-left fg-subtle text-ui-sm dark:border-gray-800 dark:bg-white/[0.02]">
                     <th className="px-3 py-2">날짜</th>
@@ -137,13 +137,13 @@ export default function MileagePage() {
                 <tbody>
                   {logs.map((l) => (
                     <tr key={l.id} className="border-b border-gray-100 text-gray-700 dark:border-gray-800 dark:text-gray-300">
-                      <td className="px-3 py-2">{l.log_date}</td>
-                      <td className="px-3 py-2">{l.prev_km}</td>
-                      <td className="px-3 py-2">{l.final_km}</td>
-                      <td className="px-3 py-2 font-semibold text-brand-500">{l.daily_km}km</td>
-                      <td className="px-3 py-2">{l.nonbiz_km || 0}km</td>
-                      <td className="px-3 py-2">{l.purpose}</td>
-                      <td className="px-3 py-2">{l.vehicle}</td>
+                      <td data-label="날짜" className="px-3 py-2">{l.log_date}</td>
+                      <td data-label="전일 km" className="px-3 py-2">{l.prev_km}</td>
+                      <td data-label="금일 km" className="px-3 py-2">{l.final_km}</td>
+                      <td data-label="주행거리" className="px-3 py-2 font-semibold text-brand-500">{l.daily_km}km</td>
+                      <td data-label="비업무용" className="px-3 py-2">{l.nonbiz_km || 0}km</td>
+                      <td data-label="목적" className="px-3 py-2">{l.purpose}</td>
+                      <td data-label="차량번호" className="px-3 py-2">{l.vehicle}</td>
                     </tr>
                   ))}
                   {logs.length === 0 && (

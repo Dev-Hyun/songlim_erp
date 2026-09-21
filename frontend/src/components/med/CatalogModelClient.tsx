@@ -150,7 +150,7 @@ export default function CatalogModelClient({ code, slug }: { code: string; slug:
         ) : list && list.items.length > 0 ? (
           <>
             <div className="overflow-x-auto">
-              <table className="table-dense min-w-[720px]">
+              <table className="table-cards table-dense min-w-[720px]">
                 <thead>
                   <tr>
                     <th className="th-dense w-12 text-right">순위</th>
@@ -164,8 +164,8 @@ export default function CatalogModelClient({ code, slug }: { code: string; slug:
                 <tbody className="tabular-nums">
                   {list.items.map((h, i) => (
                     <tr key={h.hospital_id} className="row-hover">
-                      <td className="td-dense fg-subtle text-right">{(page - 1) * PAGE_SIZE + i + 1}</td>
-                      <td className="td-dense">
+                      <td data-label="순위" className="td-dense fg-subtle text-right">{(page - 1) * PAGE_SIZE + i + 1}</td>
+                      <td data-label="기관명" className="td-dense">
                         <span className="flex min-w-0 items-center gap-1.5">
                           <Link
                             href={hospitalHref(h.hospital_id)}
@@ -176,12 +176,12 @@ export default function CatalogModelClient({ code, slug }: { code: string; slug:
                           {h.is_member && <span className="chip-quiet shrink-0">회원</span>}
                         </span>
                       </td>
-                      <td className="td-dense text-right">{h.units.toLocaleString()}대</td>
-                      <td className="td-dense fg-muted whitespace-nowrap">
+                      <td data-label="보유 대수" className="td-dense text-right">{h.units.toLocaleString()}대</td>
+                      <td data-label="위치" className="td-dense fg-muted whitespace-nowrap">
                         {[h.sido, h.sigungu].filter(Boolean).join(" ") || "—"}
                       </td>
-                      <td className="td-dense fg-muted whitespace-nowrap">{h.type || "—"}</td>
-                      <td className="td-dense fg-muted max-w-[280px] truncate">{h.address || "—"}</td>
+                      <td data-label="종별" className="td-dense fg-muted whitespace-nowrap">{h.type || "—"}</td>
+                      <td data-label="주소" className="td-dense fg-muted max-w-[280px] truncate">{h.address || "—"}</td>
                     </tr>
                   ))}
                 </tbody>

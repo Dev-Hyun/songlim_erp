@@ -135,13 +135,19 @@ export default function SimpleBoard({ endpoint, title, hasStatus, statusOptions,
             <div key={item.id} className="border-b border-gray-100 last:border-0 dark:border-gray-800">
               <button
                 onClick={() => (detailHrefBase ? (window.location.href = `${detailHrefBase}/${item.id}`) : setExpanded(expanded === item.id ? null : item.id))}
-                className="flex w-full items-center gap-2 px-4 py-3 text-left hover:bg-gray-50 dark:hover:bg-white/[0.02]"
+                className="grid w-full grid-cols-[1fr_auto] items-center gap-x-2 gap-y-1 px-4 py-3 text-left hover:bg-gray-50 dark:hover:bg-white/[0.02] sm:flex sm:gap-2"
               >
-                <span className="w-14 shrink-0 truncate fg-subtle text-ui-sm" title={item.hospital_name || item.created_by_name || ""}>
+                <span className="hidden w-14 shrink-0 truncate fg-subtle text-ui-sm sm:block" title={item.hospital_name || item.created_by_name || ""}>
                   {item.hospital_name || item.created_by_name || ""}
                 </span>
                 <span className="min-w-0 flex-1 truncate text-ui font-medium text-gray-800 dark:text-white/90">
                   {item.title}
+                </span>
+                {/* 폰 전용 둘째 줄 — 데스크톱에서 양옆에 붙는 작성자·작성일을 여기 모아 둔다 */}
+                <span className="fg-subtle order-last col-span-2 flex flex-wrap items-center gap-x-2 text-ui-sm sm:hidden">
+                  <span className="min-w-0 truncate">{item.hospital_name || item.created_by_name || "-"}</span>
+                  <span aria-hidden>·</span>
+                  <span className="tabular-nums">{item.created_at?.slice(0, 10)}</span>
                 </span>
                 <div className="flex shrink-0 items-center gap-2">
                   {hasStatus && item.status && (
@@ -166,7 +172,7 @@ export default function SimpleBoard({ endpoint, title, hasStatus, statusOptions,
                       </span>
                     )
                   )}
-                  <span className="w-20 shrink-0 text-right fg-subtle text-ui-sm">{item.created_at?.slice(0, 10)}</span>
+                  <span className="hidden w-20 shrink-0 text-right fg-subtle text-ui-sm sm:block">{item.created_at?.slice(0, 10)}</span>
                   {!detailHrefBase && (item.is_mine || user?.is_admin) && (
                     <span
                       onClick={(e) => {

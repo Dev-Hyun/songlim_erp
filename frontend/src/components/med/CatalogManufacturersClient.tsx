@@ -100,7 +100,7 @@ export default function CatalogManufacturersClient() {
           }
         >
           <div className="overflow-x-auto">
-            <table className="table-dense min-w-[680px]">
+            <table className="table-cards table-dense min-w-[680px]">
               <thead>
                 <tr>
                   <th className="th-dense w-12 text-right">#</th>
@@ -129,17 +129,17 @@ export default function CatalogManufacturersClient() {
                         setOpen(expanded ? null : m.manufacturer);
                       }}
                     >
-                      <td className="td-dense fg-subtle text-right">{m.rank}</td>
-                      <td className="td-dense fg-strong font-medium">
+                      <td data-label="#" className="td-dense fg-subtle text-right">{m.rank}</td>
+                      <td data-label="업체명" className="td-dense fg-strong font-medium">
                         <span className="flex min-w-0 items-center gap-1.5">
                           <span className="fg-subtle shrink-0">{expanded ? "▾" : "▸"}</span>
                           <span className="truncate">{m.manufacturer}</span>
                         </span>
                       </td>
-                      <td className="td-dense text-right">{m.models.toLocaleString()}</td>
-                      <td className="td-dense fg-strong text-right font-semibold">{m.hospitals.toLocaleString()}</td>
-                      <td className="td-dense text-right">{m.units.toLocaleString()}</td>
-                      <td className="td-dense fg-muted max-w-[260px] truncate">
+                      <td data-label="모델" className="td-dense text-right">{m.models.toLocaleString()}</td>
+                      <td data-label="확인 의료기관" className="td-dense fg-strong text-right font-semibold">{m.hospitals.toLocaleString()}</td>
+                      <td data-label="등록 대수" className="td-dense text-right">{m.units.toLocaleString()}</td>
+                      <td data-label="연결된 분류" className="td-dense fg-muted max-w-[260px] truncate">
                         {m.categories
                           .slice(0, 3)
                           .map((c) => c.name)
@@ -147,7 +147,7 @@ export default function CatalogManufacturersClient() {
                         {m.category_count > 3 ? ` 외 ${m.category_count - 3}종` : ""}
                       </td>
                       {data.has_confidence && (
-                        <td className="td-dense fg-muted">
+                        <td data-label="연결 신뢰도" className="td-dense fg-muted">
                           {m.confidence
                             ? Object.entries(m.confidence)
                                 .map(([k, v]) => `${k} ${v.toLocaleString()}`)

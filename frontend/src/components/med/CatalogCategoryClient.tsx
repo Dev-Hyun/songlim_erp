@@ -123,7 +123,7 @@ export default function CatalogCategoryClient({ code }: { code: string }) {
         ) : models && models.items.length > 0 ? (
           <>
             <div className="overflow-x-auto">
-              <table className="table-dense min-w-[560px]">
+              <table className="table-cards table-dense min-w-[560px]">
                 <thead>
                   <tr>
                     <th className="th-dense w-12 text-right">#</th>
@@ -135,8 +135,8 @@ export default function CatalogCategoryClient({ code }: { code: string }) {
                 <tbody className="tabular-nums">
                   {models.items.map((m) => (
                     <tr key={m.slug} className="row-hover">
-                      <td className="td-dense fg-subtle text-right">{m.rank}</td>
-                      <td className="td-dense">
+                      <td data-label="#" className="td-dense fg-subtle text-right">{m.rank}</td>
+                      <td data-label="모델명" className="td-dense">
                         <Link
                           href={modelHref(detail.category, m.slug)}
                           className="fg-strong font-medium hover:underline"
@@ -144,8 +144,8 @@ export default function CatalogCategoryClient({ code }: { code: string }) {
                           {m.model}
                         </Link>
                       </td>
-                      <td className="td-dense fg-strong text-right font-semibold">{m.hospitals.toLocaleString()}</td>
-                      <td className="td-dense text-right">{m.units.toLocaleString()}</td>
+                      <td data-label="확인 의료기관" className="td-dense fg-strong text-right font-semibold">{m.hospitals.toLocaleString()}</td>
+                      <td data-label="등록 대수" className="td-dense text-right">{m.units.toLocaleString()}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -200,7 +200,7 @@ export default function CatalogCategoryClient({ code }: { code: string }) {
         {detail.top_hospitals.length > 0 ? (
           <>
             <div className="overflow-x-auto">
-              <table className="table-dense min-w-[560px]">
+              <table className="table-cards table-dense min-w-[560px]">
                 <thead>
                   <tr>
                     <th className="th-dense w-12 text-right">순위</th>
@@ -213,15 +213,15 @@ export default function CatalogCategoryClient({ code }: { code: string }) {
                 <tbody className="tabular-nums">
                   {hospitals.map((h, i) => (
                     <tr key={h.hospital_id} className="row-hover">
-                      <td className="td-dense fg-subtle text-right">{i + 1}</td>
-                      <td className="td-dense">
+                      <td data-label="순위" className="td-dense fg-subtle text-right">{i + 1}</td>
+                      <td data-label="기관명" className="td-dense">
                         <Link href={hospitalHref(h.hospital_id)} className="fg-strong font-medium hover:underline">
                           {h.name}
                         </Link>
                       </td>
-                      <td className="td-dense text-right">{h.units.toLocaleString()}대</td>
-                      <td className="td-dense fg-muted">{[h.sido, h.sigungu].filter(Boolean).join(" ") || "—"}</td>
-                      <td className="td-dense fg-muted">{h.type || "—"}</td>
+                      <td data-label="보유 대수" className="td-dense text-right">{h.units.toLocaleString()}대</td>
+                      <td data-label="위치" className="td-dense fg-muted">{[h.sido, h.sigungu].filter(Boolean).join(" ") || "—"}</td>
+                      <td data-label="종별" className="td-dense fg-muted">{h.type || "—"}</td>
                     </tr>
                   ))}
                 </tbody>

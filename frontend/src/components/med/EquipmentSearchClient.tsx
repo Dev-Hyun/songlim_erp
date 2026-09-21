@@ -643,7 +643,7 @@ export default function EquipmentSearchClient() {
         {!loading && result && result.items.length > 0 && view === "list" && (
           <>
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[720px] text-sm">
+              <table className="table-cards w-full min-w-[720px] text-sm">
                 <thead className="text-xs text-gray-500 dark:text-gray-400">
                   <tr className="border-b border-gray-200 dark:border-gray-800">
                     <th className="py-2 text-left font-medium">병원명</th>
@@ -904,7 +904,7 @@ function HospitalRowView({
         onClick={onToggle}
         className="cursor-pointer border-b border-gray-100 align-top hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-white/[0.04]"
       >
-        <td className="py-2.5 pr-3">
+        <td data-label="병원명" className="py-2.5 pr-3">
           <div className="flex min-w-0 items-center gap-1.5">
             {/* 행 클릭은 펼치기라서 기관 상세로 가는 링크는 전파를 막는다 */}
             <Link
@@ -924,11 +924,11 @@ function HospitalRowView({
             <div className="mt-0.5 truncate text-xs text-gray-400 dark:text-gray-500">{item.address}</div>
           )}
         </td>
-        <td className="py-2.5 pr-3 text-gray-600 dark:text-gray-300">
+        <td data-label="지역" className="py-2.5 pr-3 text-gray-600 dark:text-gray-300">
           {item.sido} {item.sigungu}
         </td>
-        <td className="py-2.5 pr-3 text-gray-600 dark:text-gray-300">{item.type || "-"}</td>
-        <td className="py-2.5 pr-3">
+        <td data-label="요양종별" className="py-2.5 pr-3 text-gray-600 dark:text-gray-300">{item.type || "-"}</td>
+        <td data-label="장비" className="py-2.5 pr-3">
           <div className="flex flex-wrap gap-1">
             {matched.map((e, i) => (
               <span
@@ -943,7 +943,7 @@ function HospitalRowView({
             )}
           </div>
         </td>
-        <td className="py-2.5 text-right font-semibold tabular-nums text-gray-800 dark:text-gray-100">
+        <td data-label="수량" className="py-2.5 text-right font-semibold tabular-nums text-gray-800 dark:text-gray-100">
           {item.matched_units.toLocaleString()}
         </td>
       </tr>

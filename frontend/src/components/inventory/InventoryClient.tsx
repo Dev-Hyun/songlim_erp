@@ -603,7 +603,7 @@ export default function InventoryClient({ category }: { category: "지멘스" | 
 
   return (
     <div className="space-y-4">
-      <div className="surface-card flex flex-wrap items-center gap-2 px-3 py-2.5">
+      <div className="surface-card flex flex-wrap items-center gap-1.5 px-2 py-2 sm:gap-2 sm:px-3 sm:py-2.5">
         <div className="seg">
           {SUBTYPES[category].map((t) => (
             <button
@@ -633,15 +633,15 @@ export default function InventoryClient({ category }: { category: "지멘스" | 
         <div className="ml-auto flex flex-wrap items-center gap-2">
           <button
             onClick={() => setFilterRowOpen((v) => !v)}
-            className={`btn sm:hidden ${filterRowOpen ? "btn-primary" : "btn-default"}`}
+            className={`btn !px-2.5 sm:hidden ${filterRowOpen ? "btn-primary" : "btn-default"}`}
           >
-            칸별 필터
+            필터
           </button>
           <button
             onClick={undo}
             disabled={undoDepth === 0}
             title="Ctrl+Z"
-            className="btn btn-default"
+            className="btn btn-default !px-2.5 sm:!px-3.5"
           >
             실행취소
           </button>
@@ -650,7 +650,7 @@ export default function InventoryClient({ category }: { category: "지멘스" | 
               setHistoryRow(null);
               setHistoryOpen((v) => !v);
             }}
-            className={`btn ${historyOpen ? "btn-primary" : "btn-default"}`}
+            className={`btn !px-2.5 sm:!px-3.5 ${historyOpen ? "btn-primary" : "btn-default"}`}
           >
             변경 내역
           </button>
@@ -662,7 +662,7 @@ export default function InventoryClient({ category }: { category: "지멘스" | 
               {selectedRowIds.length}개 행 삭제
             </button>
           )}
-          <button onClick={addRow} className="btn btn-primary">
+          <button onClick={addRow} className="btn btn-primary !px-2.5 sm:!px-3.5">
             + 행 추가
           </button>
         </div>
@@ -672,8 +672,7 @@ export default function InventoryClient({ category }: { category: "지멘스" | 
           Delete로 범위 비우기 · Ctrl+Z 실행취소 · 수정 즉시 자동 저장되고 {POLL_MS / 1000}초마다 다른 사람 변경이 반영됩니다
         </p>
         <p className="fg-subtle w-full text-ui-xs sm:hidden">
-          왼쪽 이름 칸은 고정됩니다 · 표를 옆으로 밀어 나머지 칸을 보세요 · 칸을 누르면 바로 수정되고
-          자동 저장되며 {POLL_MS / 1000}초마다 다른 사람 변경이 반영됩니다
+          이름 칸 고정 · 옆으로 밀어 나머지 칸 보기 · 누르면 바로 수정·자동저장
         </p>
       </div>
 
@@ -730,7 +729,10 @@ export default function InventoryClient({ category }: { category: "지멘스" | 
                       <th
                         key={c.key}
                         onClick={() => toggleSort(c.key)}
-                        className={`${c.width} th-dense cursor-pointer select-none`}
+                        className={`${c.width} th-dense cursor-pointer select-none ${
+                          // 폰에서는 왼쪽 고정 머리글이 이름을 이미 보여주므로 중복을 없앤다
+                          c.key === "name" ? "hidden sm:table-cell" : ""
+                        }`}
                         title="클릭하여 정렬"
                       >
                         {c.label}
@@ -744,7 +746,10 @@ export default function InventoryClient({ category }: { category: "지멘스" | 
                   <tr className={`bg-white dark:bg-gray-900 ${filterRowOpen ? "" : "hidden sm:table-row"}`}>
                     <th className="hairline sticky left-0 z-30 border-b border-r bg-white px-1 py-1 dark:bg-gray-900 sm:border-r-0" />
                     {cols.map((c) => (
-                      <th key={c.key} className="hairline border-b px-1 py-1">
+                      <th
+                        key={c.key}
+                        className={`hairline border-b px-1 py-1 ${c.key === "name" ? "hidden sm:table-cell" : ""}`}
+                      >
                         <input
                           value={filters[c.key] || ""}
                           onChange={(e) => setFilters((f) => ({ ...f, [c.key]: e.target.value }))}
@@ -796,7 +801,11 @@ export default function InventoryClient({ category }: { category: "지멘스" | 
                           flashed ? "bg-warning-50 dark:bg-warning-500/15" : ""
                         }`;
                         return (
-                          <td key={col.key} className={base} title={flashed ? `${flashed}님이 방금 수정` : undefined}>
+                          <td
+                            key={col.key}
+                            className={`${base} ${col.key === "name" ? "hidden sm:table-cell" : ""}`}
+                            title={flashed ? `${flashed}님이 방금 수정` : undefined}
+                          >
                             {col.type === "bool" ? (
                               <button
                                 data-cell={`${r}-${c}`}
@@ -812,7 +821,7 @@ export default function InventoryClient({ category }: { category: "지멘스" | 
                                 onClick={() =>
                                   runEdits([{ row_id: row.id, field: "is_opened", old_value: row.is_opened, new_value: !row.is_opened }])
                                 }
-                                className={`w-full rounded-control px-2 py-2.5 text-ui-xs font-medium focus:outline-none sm:py-1.5 ${
+                                className={`w-full whitespace-nowrap rounded-control px-2 py-2.5 text-ui-xs font-medium focus:outline-none sm:py-1.5 ${
                                   row.is_opened
                                     ? "bg-warning-50 text-warning-700 dark:bg-warning-500/15 dark:text-warning-400"
                                     : "bg-success-50 text-success-600 dark:bg-success-500/15 dark:text-success-400"

@@ -148,7 +148,7 @@ export default function AdminPage() {
           <div className="py-4 text-center text-ui text-gray-400">승인 대기 중인 계정이 없습니다</div>
         ) : (
           <div className="overflow-x-auto">
-          <table className="w-full min-w-[560px] text-ui">
+          <table className="table-cards w-full min-w-[560px] text-ui">
             <thead>
               <tr className="border-b border-gray-200 text-left fg-subtle text-ui-sm dark:border-gray-800">
                 <th className="py-1.5">아이디</th>
@@ -161,14 +161,14 @@ export default function AdminPage() {
             <tbody>
               {pendingUsers.map((u) => (
                 <tr key={u.id} className="border-b border-gray-100 dark:border-gray-800">
-                  <td className="py-1.5">{u.username}</td>
-                  <td className="py-1.5">{u.display_name}</td>
-                  <td className="py-1.5">
+                  <td data-label="아이디" className="py-1.5">{u.username}</td>
+                  <td data-label="이름" className="py-1.5">{u.display_name}</td>
+                  <td data-label="구분" className="py-1.5">
                     <span className={`rounded-full px-2 py-0.5 text-ui-xs font-medium ${u.role === "songrim" ? "bg-brand-50 text-brand-600 dark:bg-brand-500/15 dark:text-brand-400" : "bg-success-50 text-success-600 dark:bg-success-500/15 dark:text-success-400"}`}>
                       {u.role === "songrim" ? "송림직원" : "병원"}
                     </span>
                   </td>
-                  <td className="py-1.5">{u.role === "songrim" ? (u.department ? `${u.department} · ${u.position}` : "-") : (u.hospital_name || "-")}</td>
+                  <td data-label="부서/직급 · 병원명" className="py-1.5">{u.role === "songrim" ? (u.department ? `${u.department} · ${u.position}` : "-") : (u.hospital_name || "-")}</td>
                   <td className="py-1.5">
                     <button onClick={() => approveUser(u.id)} className="rounded-full bg-brand-500 px-3 py-1 text-xs font-medium text-white">승인</button>
                   </td>
@@ -183,7 +183,7 @@ export default function AdminPage() {
       <div className="surface-card p-3">
         <h2 className="mb-3 card-title">등급 관리 (할인율)</h2>
         <p className="mb-3 fg-subtle text-ui-xs">사은품 등급/구간 설정은 소모품 관리 → 사은품 관리 탭으로 옮겨졌습니다.</p>
-        <table className="w-full text-ui">
+        <table className="table-cards w-full text-ui">
           <thead>
             <tr className="border-b border-gray-200 text-left fg-subtle text-ui-sm dark:border-gray-800">
               <th className="py-1.5">코드</th>
@@ -195,16 +195,16 @@ export default function AdminPage() {
           <tbody>
             {grades.filter((g) => g.grade_type === "discount").map((g) => (
               <tr key={g.grade_code} className="border-b border-gray-100 dark:border-gray-800">
-                <td className="py-1.5">{g.grade_code}</td>
-                <td className="py-1.5">{g.label}</td>
-                <td className="py-1.5">{g.discount_rate ?? "-"}</td>
+                <td data-label="코드" className="py-1.5">{g.grade_code}</td>
+                <td data-label="라벨" className="py-1.5">{g.label}</td>
+                <td data-label="할인율" className="py-1.5">{g.discount_rate ?? "-"}</td>
                 <td><button onClick={() => deleteGrade(g.grade_code)} className="text-error-500">×</button></td>
               </tr>
             ))}
             <tr>
-              <td><input value={newGrade.grade_code} onChange={(e) => setNewGrade({ ...newGrade, grade_code: e.target.value })} placeholder="코드" className="field-auto w-full px-1.5 py-0.5 text-ui-sm" /></td>
-              <td><input value={newGrade.label} onChange={(e) => setNewGrade({ ...newGrade, label: e.target.value })} placeholder="라벨" className="field-auto w-full px-1.5 py-0.5 text-ui-sm" /></td>
-              <td><input value={newGrade.discount_rate} onChange={(e) => setNewGrade({ ...newGrade, discount_rate: e.target.value })} placeholder="%" className="field-auto w-full px-1.5 py-0.5 text-ui-sm" /></td>
+              <td data-label="코드"><input value={newGrade.grade_code} onChange={(e) => setNewGrade({ ...newGrade, grade_code: e.target.value })} placeholder="코드" className="field-auto w-full px-1.5 py-0.5 text-ui-sm" /></td>
+              <td data-label="라벨"><input value={newGrade.label} onChange={(e) => setNewGrade({ ...newGrade, label: e.target.value })} placeholder="라벨" className="field-auto w-full px-1.5 py-0.5 text-ui-sm" /></td>
+              <td data-label="할인율"><input value={newGrade.discount_rate} onChange={(e) => setNewGrade({ ...newGrade, discount_rate: e.target.value })} placeholder="%" className="field-auto w-full px-1.5 py-0.5 text-ui-sm" /></td>
               <td><button onClick={addGrade} className="text-brand-500">+</button></td>
             </tr>
           </tbody>
@@ -222,7 +222,7 @@ export default function AdminPage() {
           />
         </div>
         <div className="overflow-x-auto">
-        <table className="w-full min-w-[720px] text-ui">
+        <table className="table-cards w-full min-w-[720px] text-ui">
           <thead>
             <tr className="border-b border-gray-200 text-left fg-subtle text-ui-sm dark:border-gray-800">
               <th className="py-1.5">아이디</th>
@@ -239,26 +239,26 @@ export default function AdminPage() {
           <tbody>
             {visibleUsers.map((u) => (
               <tr key={u.id} className="border-b border-gray-100 dark:border-gray-800">
-                <td className="py-1.5">{u.username}</td>
-                <td className="py-1.5">{u.display_name}</td>
-                <td className="py-1.5">
+                <td data-label="아이디" className="py-1.5">{u.username}</td>
+                <td data-label="이름" className="py-1.5">{u.display_name}</td>
+                <td data-label="구분" className="py-1.5">
                   <span className={`rounded-full px-2 py-0.5 text-ui-xs font-medium ${u.role === "songrim" ? "bg-brand-50 text-brand-600 dark:bg-brand-500/15 dark:text-brand-400" : "bg-success-50 text-success-600 dark:bg-success-500/15 dark:text-success-400"}`}>
                     {u.role === "songrim" ? "송림직원" : "병원"}
                   </span>
                 </td>
-                <td className="py-1.5">{u.role === "songrim" ? (u.department ? `${u.department} · ${u.position}` : "-") : (u.hospital_name || "-")}</td>
-                <td className="py-1.5 text-xs text-gray-500 dark:text-gray-400">
+                <td data-label="부서/직급 · 병원명" className="py-1.5">{u.role === "songrim" ? (u.department ? `${u.department} · ${u.position}` : "-") : (u.hospital_name || "-")}</td>
+                <td data-label="연락처" className="py-1.5 text-xs text-gray-500 dark:text-gray-400">
                   <div>{u.phone || "-"}</div>
                   {u.email && <div className="fg-subtle text-ui-xs">{u.email}</div>}
                 </td>
-                <td className="py-1.5">
+                <td data-label="승인상태" className="py-1.5">
                   {u.is_approved ? (
                     <span className="text-xs text-success-600 dark:text-success-400">승인됨</span>
                   ) : (
                     <button onClick={() => approveUser(u.id)} className="rounded-full bg-brand-500 px-2 py-0.5 text-xs font-medium text-white">승인 대기 · 승인하기</button>
                   )}
                 </td>
-                <td className="py-1.5">
+                <td data-label="관리자" className="py-1.5">
                   <button
                     onClick={() => toggleAdmin(u.id, u.is_admin)}
                     className={`rounded-full px-2 py-0.5 text-xs font-medium ${u.is_admin ? "bg-brand-500 text-white" : "bg-gray-100 text-gray-500 dark:bg-white/10"}`}
@@ -266,12 +266,12 @@ export default function AdminPage() {
                     {u.is_admin ? "관리자" : "일반"}
                   </button>
                 </td>
-                <td className="py-1.5">
+                <td data-label="비밀번호" className="py-1.5">
                   <button onClick={() => resetPassword(u.id, u.username)} className="text-xs font-semibold text-gray-500 hover:text-brand-500 dark:text-gray-400">
                     초기화
                   </button>
                 </td>
-                <td className="py-1.5">
+                <td data-label="삭제" className="py-1.5">
                   {u.username !== "admin" && (
                     <button onClick={() => deleteUser(u.id, u.username)} className="text-ui-sm font-medium text-error-600 hover:underline dark:text-error-400">
                       삭제

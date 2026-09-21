@@ -178,7 +178,7 @@ export default function HospitalDetailClient({ hospitalId }: { hospitalId: numbe
           <EmptyState message={`${data.year}년 스냅샷에 등록된 장비가 없습니다.`} />
         ) : (
           <div className="overflow-x-auto">
-            <table className="table-dense min-w-[720px]">
+            <table className="table-cards table-dense min-w-[720px]">
               <thead>
                 <tr>
                   <th className="th-dense">장비 · 모델</th>
@@ -217,7 +217,7 @@ export default function HospitalDetailClient({ hospitalId }: { hospitalId: numbe
                 type="bar"
                 height={240}
               />
-              <table className="table-dense mt-2">
+              <table className="table-cards table-dense mt-2">
                 <thead>
                   <tr>
                     <th className="th-dense">연도</th>
@@ -231,9 +231,9 @@ export default function HospitalDetailClient({ hospitalId }: { hospitalId: numbe
                     .reverse()
                     .map((y) => (
                       <tr key={y.year} className="row-hover">
-                        <td className="td-dense">{y.year}</td>
-                        <td className="td-dense fg-muted text-right">{y.categories.toLocaleString()}</td>
-                        <td className="td-dense fg-strong text-right font-medium">{y.units.toLocaleString()}</td>
+                        <td data-label="연도" className="td-dense">{y.year}</td>
+                        <td data-label="장비 분류" className="td-dense fg-muted text-right">{y.categories.toLocaleString()}</td>
+                        <td data-label="등록 대수" className="td-dense fg-strong text-right font-medium">{y.units.toLocaleString()}</td>
                       </tr>
                     ))}
                 </tbody>
@@ -263,7 +263,7 @@ export default function HospitalDetailClient({ hospitalId }: { hospitalId: numbe
                   {data.peers.rank ?? "—"} / {data.peers.total.toLocaleString()}
                 </strong>
               </p>
-              <table className="table-dense">
+              <table className="table-cards table-dense">
                 <thead>
                   <tr>
                     <th className="th-dense w-12 text-right">#</th>
@@ -275,8 +275,8 @@ export default function HospitalDetailClient({ hospitalId }: { hospitalId: numbe
                 <tbody className="tabular-nums">
                   {data.peers.items.map((p, i) => (
                     <tr key={p.hospital_id} className={`row-hover ${p.is_self ? "bg-brand-500/[0.06]" : ""}`}>
-                      <td className="td-dense fg-subtle text-right">{i + 1}</td>
-                      <td className="td-dense">
+                      <td data-label="#" className="td-dense fg-subtle text-right">{i + 1}</td>
+                      <td data-label="기관명" className="td-dense">
                         {p.is_self ? (
                           <span className="fg-strong font-semibold">{p.name}</span>
                         ) : (
@@ -285,8 +285,8 @@ export default function HospitalDetailClient({ hospitalId }: { hospitalId: numbe
                           </Link>
                         )}
                       </td>
-                      <td className="td-dense fg-muted text-right">{p.categories.toLocaleString()}</td>
-                      <td className="td-dense fg-strong text-right font-medium">{p.units.toLocaleString()}</td>
+                      <td data-label="장비 분류" className="td-dense fg-muted text-right">{p.categories.toLocaleString()}</td>
+                      <td data-label="등록 대수" className="td-dense fg-strong text-right font-medium">{p.units.toLocaleString()}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -319,7 +319,7 @@ function GroupRows({
       {/* 행 아무 데나 눌러도 펼쳐지되(마우스), 안에 분류 링크가 있어 행 자체를 버튼으로 만들 수는 없다.
           그래서 키보드용 펼침 버튼은 앞의 삼각형 하나가 맡는다. */}
       <tr className="row-hover cursor-pointer" onClick={onToggle}>
-        <td className="td-dense">
+        <td data-label="장비 · 모델" className="td-dense">
           <span className="flex min-w-0 items-center gap-1.5">
             <button
               type="button"
@@ -343,14 +343,14 @@ function GroupRows({
             <span className="chip-quiet shrink-0">{group.models}종</span>
           </span>
         </td>
-        <td className="td-dense fg-subtle">{group.code}</td>
-        <td className="td-dense fg-strong text-right font-semibold">{group.units.toLocaleString()}대</td>
-        <td className="td-dense fg-muted text-right">{deltaText(group.delta)}</td>
+        <td data-label="제조·수입사" className="td-dense fg-subtle">{group.code}</td>
+        <td data-label="수량" className="td-dense fg-strong text-right font-semibold">{group.units.toLocaleString()}대</td>
+        <td data-label="증감" className="td-dense fg-muted text-right">{deltaText(group.delta)}</td>
       </tr>
       {open &&
         group.items.map((it, i) => (
           <tr key={`${group.category}-${i}`} className="row-hover">
-            <td className="td-dense pl-8">
+            <td data-label="모델" className="td-dense pl-8">
               {it.model && it.slug ? (
                 <Link href={modelHref(group.category, it.slug)} className="link-quiet">
                   {it.model}
@@ -359,14 +359,14 @@ function GroupRows({
                 <span className="fg-muted">{it.model || "모델 미상"}</span>
               )}
             </td>
-            <td className="td-dense fg-muted">
+            <td data-label="제조·수입사" className="td-dense fg-muted">
               <span className="flex min-w-0 items-center gap-1.5">
                 <span className="truncate">{it.manufacturer || "—"}</span>
                 {it.confidence && <span className="chip-quiet shrink-0">{it.confidence}</span>}
               </span>
             </td>
-            <td className="td-dense text-right">{it.units.toLocaleString()}대</td>
-            <td className="td-dense fg-subtle text-right">{deltaText(it.delta)}</td>
+            <td data-label="수량" className="td-dense text-right">{it.units.toLocaleString()}대</td>
+            <td data-label="증감" className="td-dense fg-subtle text-right">{deltaText(it.delta)}</td>
           </tr>
         ))}
     </>

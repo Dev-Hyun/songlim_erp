@@ -79,7 +79,7 @@ export default function BidsPage() {
               <button
                 key={t.v}
                 onClick={() => setSource(t.v)}
-                className={`rounded-full px-3 py-1.5 text-xs font-medium ${source === t.v ? "bg-brand-500 text-white" : "text-gray-500"}`}
+                className={`rounded-full px-3 py-2.5 text-xs sm:py-1.5 font-medium ${source === t.v ? "bg-brand-500 text-white" : "text-gray-500"}`}
               >
                 {t.l}
               </button>
@@ -97,7 +97,7 @@ export default function BidsPage() {
           {loading ? (
             <div className="empty-state">불러오는 중...</div>
           ) : (
-            <table className="w-full text-ui">
+            <table className="table-cards w-full text-ui">
               <thead>
                 <tr className="border-b border-gray-200 bg-gray-50 text-left fg-subtle text-ui-sm dark:border-gray-800 dark:bg-white/[0.02]">
                   <th className="px-3 py-2">출처</th>
@@ -115,8 +115,8 @@ export default function BidsPage() {
                   return (
                     <Fragment key={b.id}>
                       <tr className="border-b border-gray-100 dark:border-gray-800">
-                        <td className="px-3 py-2 align-top text-gray-400">{b.source || "-"}</td>
-                        <td className="max-w-md px-3 py-2">
+                        <td data-label="출처" className="px-3 py-2 align-top text-gray-400">{b.source || "-"}</td>
+                        <td data-label="공고명" className="max-w-md px-3 py-2">
                           <button
                             type="button"
                             onClick={() => setOpenId(open ? null : b.id)}
@@ -141,15 +141,15 @@ export default function BidsPage() {
                             )}
                           </button>
                         </td>
-                        <td className="px-3 py-2 align-top text-gray-700 dark:text-gray-300">{b.agency}</td>
-                        <td className="px-3 py-2 align-top text-gray-700 dark:text-gray-300">{b.budget}</td>
-                        <td className="px-3 py-2 align-top">
+                        <td data-label="수요기관" className="px-3 py-2 align-top text-gray-700 dark:text-gray-300">{b.agency}</td>
+                        <td data-label="추정가격" className="px-3 py-2 align-top text-gray-700 dark:text-gray-300">{b.budget}</td>
+                        <td data-label="마감일" className="px-3 py-2 align-top">
                           <span className={b.expires_soon ? "font-medium text-error-500" : "text-gray-700 dark:text-gray-300"}>
                             {b.end_date}
                             {b.expires_soon && " ⚠ 마감임박"}
                           </span>
                         </td>
-                        <td className="whitespace-nowrap px-3 py-2 align-top">
+                        <td data-label="원문" className="whitespace-nowrap px-3 py-2 align-top">
                           {b.url ? (
                             <a
                               href={b.url}

@@ -218,7 +218,7 @@ export function DistPanel({
             height={Math.max(220, shown.length * 26)}
           />
           <div className="mt-2 overflow-x-auto">
-            <table className="table-dense">
+            <table className="table-cards table-dense">
               <thead>
                 <tr>
                   <th className="th-dense">{keyHeader}</th>
@@ -230,10 +230,10 @@ export function DistPanel({
               <tbody className="tabular-nums">
                 {shown.map((r) => (
                   <tr key={r.key} className="row-hover">
-                    <td className="td-dense">{r.key}</td>
-                    <td className="td-dense fg-strong text-right font-medium">{r.hospitals.toLocaleString()}</td>
-                    <td className="td-dense text-right">{r.units.toLocaleString()}</td>
-                    <td className="td-dense fg-muted text-right">{r.share.toFixed(1)}%</td>
+                    <td data-label="항목" className="td-dense">{r.key}</td>
+                    <td data-label="확인 의료기관" className="td-dense fg-strong text-right font-medium">{r.hospitals.toLocaleString()}</td>
+                    <td data-label="등록 대수" className="td-dense text-right">{r.units.toLocaleString()}</td>
+                    <td data-label="비중" className="td-dense fg-muted text-right">{r.share.toFixed(1)}%</td>
                   </tr>
                 ))}
               </tbody>
@@ -311,7 +311,7 @@ export function YearPanel({
             height={240}
           />
           <div className="mt-2 overflow-x-auto">
-            <table className="table-dense">
+            <table className="table-cards table-dense">
               <thead>
                 <tr>
                   <th className="th-dense">연도</th>
@@ -326,12 +326,12 @@ export function YearPanel({
                   const delta = prev === null ? null : r.hospitals - prev;
                   return (
                     <tr key={r.year} className="row-hover">
-                      <td className="td-dense">{r.year}</td>
-                      <td className="td-dense fg-strong text-right font-medium">{r.hospitals.toLocaleString()}</td>
-                      <td className="td-dense fg-muted text-right">
+                      <td data-label="연도" className="td-dense">{r.year}</td>
+                      <td data-label="확인 기관 수" className="td-dense fg-strong text-right font-medium">{r.hospitals.toLocaleString()}</td>
+                      <td data-label="전년 대비" className="td-dense fg-muted text-right">
                         {delta === null ? "—" : `${delta >= 0 ? "+" : "−"}${Math.abs(delta).toLocaleString()}`}
                       </td>
-                      <td className="td-dense text-right">{r.units.toLocaleString()}</td>
+                      <td data-label="등록 대수" className="td-dense text-right">{r.units.toLocaleString()}</td>
                     </tr>
                   );
                 })}

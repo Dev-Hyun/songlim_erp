@@ -83,7 +83,7 @@ export default function MyOrdersClient() {
               {expanded === o.id && (
                 <div className="surface-sub px-3 pb-3">
                   <div className="overflow-x-auto">
-                  <table className="table-dense min-w-[520px]">
+                  <table className="table-cards table-dense min-w-[520px]">
                     <thead>
                       <tr>
                         <th className="label-eyebrow py-1.5 text-left">품목</th>
@@ -98,13 +98,13 @@ export default function MyOrdersClient() {
                     <tbody>
                       {o.items.map((it) => (
                         <tr key={it.id} className="hairline border-t">
-                          <td className="fg-base py-1.5 pr-3 font-medium">{it.name}</td>
-                          <td className="fg-muted py-1.5 pr-3">{it.manufacturer || "-"}</td>
-                          <td className="fg-muted py-1.5 pr-3">{it.spec || "-"}</td>
-                          <td className="fg-muted py-1.5 pr-3">{it.unit}</td>
-                          <td className="fg-base py-1.5 text-right tabular-nums">{it.unit_price.toLocaleString()}원</td>
-                          <td className="fg-base py-1.5 text-right tabular-nums">{it.qty}</td>
-                          <td className="fg-strong py-1.5 text-right font-medium tabular-nums">{it.subtotal.toLocaleString()}원</td>
+                          <td data-label="품목" className="fg-base py-1.5 pr-3 font-medium">{it.name}</td>
+                          <td data-label="제조사" className="fg-muted py-1.5 pr-3">{it.manufacturer || "-"}</td>
+                          <td data-label="규격" className="fg-muted py-1.5 pr-3">{it.spec || "-"}</td>
+                          <td data-label="단위" className="fg-muted py-1.5 pr-3">{it.unit}</td>
+                          <td data-label="단가" className="fg-base py-1.5 text-right tabular-nums">{it.unit_price.toLocaleString()}원</td>
+                          <td data-label="수량" className="fg-base py-1.5 text-right tabular-nums">{it.qty}</td>
+                          <td data-label="소계" className="fg-strong py-1.5 text-right font-medium tabular-nums">{it.subtotal.toLocaleString()}원</td>
                         </tr>
                       ))}
                     </tbody>

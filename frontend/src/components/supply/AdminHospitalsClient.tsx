@@ -201,7 +201,7 @@ export default function AdminHospitalsClient() {
                       <span className="fg-subtle text-ui-xs">설정된 전용 단가가 없습니다</span>
                     ) : (
                       <div className="hairline overflow-x-auto rounded-control border">
-                        <table className="table-dense min-w-[520px]">
+                        <table className="table-cards table-dense min-w-[520px]">
                           <thead>
                             <tr>
                               <th className="th-dense">품목명</th>
@@ -218,12 +218,12 @@ export default function AdminHospitalsClient() {
                               const c = catalog.find((x) => x.id === o.catalog_id);
                               return (
                                 <tr key={o.id} className="row-hover">
-                                  <td className="td-dense fg-strong py-1.5 font-medium">{c?.name || `#${o.catalog_id}`}</td>
-                                  <td className="td-dense fg-muted py-1.5">{c?.manufacturer || "-"}</td>
-                                  <td className="td-dense fg-muted py-1.5">{c?.spec || "-"}</td>
-                                  <td className="td-dense fg-muted py-1.5">{c?.unit || "-"}</td>
-                                  <td className="td-dense fg-subtle py-1.5 tabular-nums">{c ? c.unit_price.toLocaleString() : "-"}원</td>
-                                  <td className="td-dense py-1.5 font-medium tabular-nums text-success-600 dark:text-success-400">{o.override_price.toLocaleString()}원</td>
+                                  <td data-label="품목명" className="td-dense fg-strong py-1.5 font-medium">{c?.name || `#${o.catalog_id}`}</td>
+                                  <td data-label="제조사" className="td-dense fg-muted py-1.5">{c?.manufacturer || "-"}</td>
+                                  <td data-label="규격" className="td-dense fg-muted py-1.5">{c?.spec || "-"}</td>
+                                  <td data-label="단위" className="td-dense fg-muted py-1.5">{c?.unit || "-"}</td>
+                                  <td data-label="기본가" className="td-dense fg-subtle py-1.5 tabular-nums">{c ? c.unit_price.toLocaleString() : "-"}원</td>
+                                  <td data-label="적용가" className="td-dense py-1.5 font-medium tabular-nums text-success-600 dark:text-success-400">{o.override_price.toLocaleString()}원</td>
                                   <td className="td-dense py-1.5 text-right">
                                     <button onClick={async () => { await adminDeletePriceOverride(o.id); adminFetchPriceOverrides(h.id).then(setOverrides); }} className="text-ui font-medium text-error-600 hover:underline dark:text-error-400">삭제</button>
                                   </td>

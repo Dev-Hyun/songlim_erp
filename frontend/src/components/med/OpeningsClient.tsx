@@ -407,7 +407,7 @@ export default function OpeningsClient() {
                   height={300}
                 />
                 <div className="mt-2 max-h-64 overflow-auto">
-                  <table className="table-dense">
+                  <table className="table-cards table-dense">
                     <thead>
                       <tr>
                         <th className="th-dense th-sticky">월</th>
@@ -420,16 +420,16 @@ export default function OpeningsClient() {
                     <tbody className="tabular-nums">
                       {points.map((p) => (
                         <tr key={p.month} className="row-hover">
-                          <td className="td-dense whitespace-nowrap">
+                          <td data-label="월" className="td-dense whitespace-nowrap">
                             {p.month}
                             {p.partial && <span className="chip-quiet ml-1">진행 중</span>}
                           </td>
-                          <td className="td-dense fg-strong text-right font-medium">
+                          <td data-label="신규 개설" className="td-dense fg-strong text-right font-medium">
                             {p.opened.toLocaleString()}
                           </td>
-                          <td className="td-dense text-right">{p.closed.toLocaleString()}</td>
-                          <td className="td-dense text-right">{p.revoked.toLocaleString()}</td>
-                          <td className="td-dense text-right">{p.suspended.toLocaleString()}</td>
+                          <td data-label="폐업" className="td-dense text-right">{p.closed.toLocaleString()}</td>
+                          <td data-label="취소·말소·정지" className="td-dense text-right">{p.revoked.toLocaleString()}</td>
+                          <td data-label="휴업" className="td-dense text-right">{p.suspended.toLocaleString()}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -458,7 +458,7 @@ export default function OpeningsClient() {
                     height={260}
                   />
                   <div className="mt-2 overflow-x-auto">
-                    <table className="table-dense">
+                    <table className="table-cards table-dense">
                       <thead>
                         <tr>
                           <th className="th-dense">권역</th>
@@ -468,18 +468,18 @@ export default function OpeningsClient() {
                       </thead>
                       <tbody className="tabular-nums">
                         <tr className="row-hover">
-                          <td className="td-dense">수도권</td>
-                          <td className="td-dense fg-strong text-right font-medium">
+                          <td data-label="권역" className="td-dense">수도권</td>
+                          <td data-label="건수" className="td-dense fg-strong text-right font-medium">
                             {summary.metro.count.toLocaleString()}
                           </td>
-                          <td className="td-dense text-right">{summary.metro.share.toFixed(1)}%</td>
+                          <td data-label="비중" className="td-dense text-right">{summary.metro.share.toFixed(1)}%</td>
                         </tr>
                         <tr className="row-hover">
-                          <td className="td-dense">비수도권</td>
-                          <td className="td-dense fg-strong text-right font-medium">
+                          <td data-label="권역" className="td-dense">비수도권</td>
+                          <td data-label="건수" className="td-dense fg-strong text-right font-medium">
                             {summary.metro.non_count.toLocaleString()}
                           </td>
-                          <td className="td-dense text-right">{summary.metro.non_share.toFixed(1)}%</td>
+                          <td data-label="비중" className="td-dense text-right">{summary.metro.non_share.toFixed(1)}%</td>
                         </tr>
                       </tbody>
                     </table>
@@ -499,7 +499,7 @@ export default function OpeningsClient() {
               {mixRows.length ? (
                 <>
                   <div className="overflow-x-auto">
-                    <table className="table-dense min-w-[420px]">
+                    <table className="table-cards table-dense min-w-[420px]">
                       <thead>
                         <tr>
                           <th className="th-dense">진료과</th>
@@ -515,8 +515,8 @@ export default function OpeningsClient() {
                           const up = r.diff >= 0;
                           return (
                             <tr key={r.dept} className="row-hover">
-                              <td className="td-dense whitespace-nowrap">{r.dept}</td>
-                              <td className="td-dense w-40">
+                              <td data-label="진료과" className="td-dense whitespace-nowrap">{r.dept}</td>
+                              <td data-label="차이" className="td-dense w-40">
                                 <div className="relative h-3.5 w-full min-w-[120px]">
                                   <div className="absolute inset-y-0 left-1/2 w-px bg-gray-200 dark:bg-gray-700" />
                                   <div
@@ -529,9 +529,9 @@ export default function OpeningsClient() {
                                   />
                                 </div>
                               </td>
-                              <td className="td-dense fg-strong text-right font-medium">{signedPp(r.diff)}</td>
-                              <td className="td-dense text-right">{r.metro_share.toFixed(1)}%</td>
-                              <td className="td-dense text-right">{r.non_metro_share.toFixed(1)}%</td>
+                              <td data-label="차이(%p)" className="td-dense fg-strong text-right font-medium">{signedPp(r.diff)}</td>
+                              <td data-label="수도권" className="td-dense text-right">{r.metro_share.toFixed(1)}%</td>
+                              <td data-label="비수도권" className="td-dense text-right">{r.non_metro_share.toFixed(1)}%</td>
                             </tr>
                           );
                         })}
@@ -622,7 +622,7 @@ export default function OpeningsClient() {
           ) : list && list.items.length > 0 ? (
             <>
               <div className="overflow-x-auto">
-                <table className="table-dense min-w-[680px]">
+                <table className="table-cards table-dense min-w-[680px]">
                   <thead>
                     <tr>
                       <th className="th-dense">사업장명</th>
@@ -645,17 +645,17 @@ export default function OpeningsClient() {
                           setPicked(h);
                         }}
                       >
-                        <td className="td-dense max-w-[240px]">
+                        <td data-label="사업장명" className="td-dense max-w-[240px]">
                           <div className="fg-strong truncate font-medium">{h.name}</div>
                           <div className="fg-subtle truncate text-ui-xs">
                             {[h.biz_type, category === "hospitals" ? null : h.dept].filter(Boolean).join(" · ") || "—"}
                           </div>
                         </td>
-                        <td className="td-dense max-w-[360px]">
+                        <td data-label="도로명주소" className="td-dense max-w-[360px]">
                           <div className="fg-muted truncate">{h.address || "주소 정보가 없습니다."}</div>
                         </td>
-                        <td className="td-dense whitespace-nowrap tabular-nums">{h.opened_date || "—"}</td>
-                        <td className="td-dense whitespace-nowrap">
+                        <td data-label="개설일" className="td-dense whitespace-nowrap tabular-nums">{h.opened_date || "—"}</td>
+                        <td data-label="상태" className="td-dense whitespace-nowrap">
                           <span className="chip">
                             <span className={`dot ${STATUS_DOT[h.status]}`} />
                             {h.detail_status || h.status}

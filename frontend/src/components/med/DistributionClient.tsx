@@ -270,7 +270,7 @@ export default function DistributionClient() {
 
             <Panel title="지역별 표" desc="행을 누르면 아래 의료기관 목록이 바뀝니다.">
               <div className="max-h-[520px] overflow-auto">
-                <table className="w-full text-sm">
+                <table className="table-cards w-full text-sm">
                   <thead className="sticky top-0 bg-white text-xs text-gray-500 dark:bg-gray-900 dark:text-gray-400">
                     <tr className="border-b border-gray-200 dark:border-gray-800">
                       <th className="py-2 text-left font-medium">지역</th>
@@ -292,18 +292,18 @@ export default function DistributionClient() {
                             : "hover:bg-gray-50 dark:hover:bg-white/[0.04]"
                         }`}
                       >
-                        <td className="py-2 text-gray-800 dark:text-gray-200">{r.region}</td>
-                        <td className="py-2 text-right text-gray-700 dark:text-gray-300">
+                        <td data-label="지역" className="py-2 text-gray-800 dark:text-gray-200">{r.region}</td>
+                        <td data-label="기관 수" className="py-2 text-right text-gray-700 dark:text-gray-300">
                           {r.hospitals.toLocaleString()}
                         </td>
-                        <td className="py-2 text-right text-gray-700 dark:text-gray-300">
+                        <td data-label="장비 보유" className="py-2 text-right text-gray-700 dark:text-gray-300">
                           {r.eq_hospitals.toLocaleString()}
                         </td>
-                        <td className="py-2 text-right text-gray-500 dark:text-gray-400">{r.eq_share}%</td>
-                        <td className="py-2 text-right text-gray-700 dark:text-gray-300">
+                        <td data-label="보유율" className="py-2 text-right text-gray-500 dark:text-gray-400">{r.eq_share}%</td>
+                        <td data-label="장비 대수" className="py-2 text-right text-gray-700 dark:text-gray-300">
                           {r.units.toLocaleString()}
                         </td>
-                        <td className="py-2 text-right text-gray-500 dark:text-gray-400">{r.units_per_100}</td>
+                        <td data-label="100개소당" className="py-2 text-right text-gray-500 dark:text-gray-400">{r.units_per_100}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -331,7 +331,7 @@ export default function DistributionClient() {
             {shownList && shownList.items.length > 0 ? (
               <>
                 <div className="overflow-x-auto">
-                  <table className="w-full min-w-[560px] text-sm">
+                  <table className="table-cards w-full min-w-[560px] text-sm">
                     <thead className="text-xs text-gray-500 dark:text-gray-400">
                       <tr className="border-b border-gray-200 dark:border-gray-800">
                         <th className="py-2 text-left font-medium">의료기관</th>
@@ -343,14 +343,14 @@ export default function DistributionClient() {
                     <tbody>
                       {shownList.items.map((h) => (
                         <tr key={h.hospital_id} className="border-b border-gray-100 dark:border-gray-800">
-                          <td className="max-w-[220px] py-2.5 pr-3">
+                          <td data-label="의료기관" className="max-w-[220px] py-2.5 pr-3">
                             <div className="truncate font-medium text-gray-800 dark:text-gray-100">{h.name}</div>
                           </td>
-                          <td className="py-2.5 pr-3 text-gray-600 dark:text-gray-300">{h.type || "-"}</td>
-                          <td className="py-2.5 pr-3 text-gray-600 dark:text-gray-300">
+                          <td data-label="종별" className="py-2.5 pr-3 text-gray-600 dark:text-gray-300">{h.type || "-"}</td>
+                          <td data-label="지역" className="py-2.5 pr-3 text-gray-600 dark:text-gray-300">
                             {h.sido} {h.sigungu}
                           </td>
-                          <td className="max-w-[300px] py-2.5">
+                          <td data-label="주소" className="max-w-[300px] py-2.5">
                             <div className="truncate text-gray-500 dark:text-gray-400">{h.address || "-"}</div>
                           </td>
                         </tr>

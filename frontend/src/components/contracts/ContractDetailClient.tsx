@@ -153,7 +153,7 @@ export default function ContractDetailClient({ id }: { id: number }) {
                 <button
                   key={s}
                   onClick={() => setStatus(s)}
-                  className={`rounded-full px-3 py-1.5 text-xs font-medium text-white ${c.status === s ? STATUS_COLOR[s] : "bg-gray-200 text-gray-500 dark:bg-white/10"}`}
+                  className={`rounded-full px-3 py-2.5 text-xs sm:py-1.5 font-medium text-white ${c.status === s ? STATUS_COLOR[s] : "bg-gray-200 text-gray-500 dark:bg-white/10"}`}
                 >
                   {s}
                 </button>

@@ -44,13 +44,13 @@ export default function NewsPage() {
               <button
                 key={t.v}
                 onClick={() => setSource(t.v)}
-                className={`rounded-full px-3 py-1.5 text-xs font-medium ${source === t.v ? "bg-brand-500 text-white" : "text-gray-500"}`}
+                className={`rounded-full px-3 py-2.5 text-xs sm:py-1.5 font-medium ${source === t.v ? "bg-brand-500 text-white" : "text-gray-500"}`}
               >
                 {t.l}
               </button>
             ))}
           </div>
-          <span className="ml-auto fg-subtle text-ui-sm">MedicalTimes(RSS)·의협신문 인기기사 자동수집</span>
+          <span className="fg-subtle w-full min-w-0 text-ui-sm sm:ml-auto sm:w-auto">MedicalTimes(RSS)·의협신문 인기기사 자동수집</span>
         </div>
 
         <div className="surface-card overflow-hidden">
