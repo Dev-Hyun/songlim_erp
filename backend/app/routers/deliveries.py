@@ -38,6 +38,7 @@ class DeliveryCreateIn(BaseModel):
     warranty_end: Optional[str] = None
     maintenance: Optional[str] = None
     demo_result: Optional[str] = None
+    equipment_kind: Optional[str] = None  # demo 전용: 초음파 | X-ray | 기타
     items: list[DeliveryItemIn] = []
 
 
@@ -54,6 +55,7 @@ class DeliveryUpdateIn(BaseModel):
     warranty_end: Optional[str] = None
     maintenance: Optional[str] = None
     demo_result: Optional[str] = None
+    equipment_kind: Optional[str] = None
     items: Optional[list[DeliveryItemIn]] = None
 
 
@@ -69,6 +71,7 @@ def _serialize(d: Delivery) -> dict:
         "created_by": d.created_by, "site_type": d.site_type,
         "warranty_start": d.warranty_start, "warranty_end": d.warranty_end,
         "maintenance": d.maintenance, "demo_result": d.demo_result,
+        "equipment_kind": d.equipment_kind,
         "created_at": d.created_at, "updated_at": d.updated_at,
     }
 
@@ -81,6 +84,7 @@ def _apply_site_type_fields(site_type: str, data: dict) -> dict:
         data["maintenance"] = None
     else:
         data["demo_result"] = None
+        data["equipment_kind"] = None  # 장비 종류는 DEMO 전용 칸이다
     return data
 
 

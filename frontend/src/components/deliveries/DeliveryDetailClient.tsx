@@ -6,9 +6,11 @@ import { useAuth } from "@/context/AuthContext";
 import { addComment, deleteDelivery, fetchDeliveryDetail, photoUrl, updateDelivery, uploadPhoto } from "./api";
 import { DeliveryDetail, DeliveryItemRow } from "./types";
 import PhotoLightbox from "@/components/common/PhotoLightbox";
+import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 
 export default function DeliveryDetailClient({ id }: { id: number }) {
   const [detail, setDetail] = useState<DeliveryDetail | null>(null);
+  const [notFound, setNotFound] = useState(false);
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<Record<string, string>>({});
   const [items, setItems] = useState<DeliveryItemRow[]>([]);
@@ -18,23 +20,25 @@ export default function DeliveryDetailClient({ id }: { id: number }) {
   const router = useRouter();
 
   function load() {
-    fetchDeliveryDetail(id).then((d) => {
-      setDetail(d);
-      setForm({
-        hospital_name: d.delivery.hospital_name,
-        hospital_type: d.delivery.hospital_type || "의원",
-        installation_date: d.delivery.installation_date || "",
-        installation_location: d.delivery.installation_location || "",
-        rep_doctor: d.delivery.rep_doctor || "",
-        address: d.delivery.address || "",
-        person_in_charge: d.delivery.person_in_charge || "",
-        warranty_start: d.delivery.warranty_start || "",
-        warranty_end: d.delivery.warranty_end || "",
-        maintenance: d.delivery.maintenance || "",
-        demo_result: d.delivery.demo_result || "",
-      });
-      setItems(d.items);
-    });
+    fetchDeliveryDetail(id)
+      .then((d) => {
+        setDetail(d);
+        setForm({
+          hospital_name: d.delivery.hospital_name,
+          hospital_type: d.delivery.hospital_type || "의원",
+          installation_date: d.delivery.installation_date || "",
+          installation_location: d.delivery.installation_location || "",
+          rep_doctor: d.delivery.rep_doctor || "",
+          address: d.delivery.address || "",
+          person_in_charge: d.delivery.person_in_charge || "",
+          warranty_start: d.delivery.warranty_start || "",
+          warranty_end: d.delivery.warranty_end || "",
+          maintenance: d.delivery.maintenance || "",
+          demo_result: d.delivery.demo_result || "",
+        });
+        setItems(d.items);
+      })
+      .catch(() => setNotFound(true));
   }
 
   useEffect(() => {
@@ -42,54 +46,84 @@ export default function DeliveryDetailClient({ id }: { id: number }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
-  if (!detail) return <div className="empty-state">불러오는 중...</div>;
+  // 아직 레코드를 모르는 단계라 제목은 중립으로 둔다(DEMO/납품 판별은 detail 도착 후).
+  if (notFound)
+    return (
+      <>
+        <PageBreadcrumb pageTitle="상세" />
+        <div className="empty-state">삭제되었거나 존재하지 않는 건입니다</div>
+      </>
+    );
+  if (!detail)
+    return (
+      <>
+        <PageBreadcrumb pageTitle="상세" />
+        <div className="empty-state">불러오는 중...</div>
+      </>
+    );
   const d = detail.delivery;
   const isDemo = d.site_type === "demo";
 
   async function saveEdits() {
-    await updateDelivery(id, {
-      hospital_name: form.hospital_name,
-      hospital_type: form.hospital_type,
-      installation_date: form.installation_date,
-      installation_location: form.installation_location,
-      rep_doctor: form.rep_doctor,
-      address: form.address,
-      person_in_charge: form.person_in_charge,
-      warranty_start: isDemo ? undefined : form.warranty_start,
-      warranty_end: form.warranty_end,
-      maintenance: isDemo ? undefined : form.maintenance,
-      demo_result: isDemo ? form.demo_result : undefined,
-      items: items.map((it) => ({
-        description: it.description || undefined,
-        serial_no: it.serial_no || undefined,
-        price: it.price ?? undefined,
-        sys_id: it.sys_id || undefined,
-      })),
-    });
-    setEditing(false);
-    load();
+    try {
+      await updateDelivery(id, {
+        hospital_name: form.hospital_name,
+        hospital_type: form.hospital_type,
+        installation_date: form.installation_date,
+        installation_location: form.installation_location,
+        rep_doctor: form.rep_doctor,
+        address: form.address,
+        person_in_charge: form.person_in_charge,
+        warranty_start: isDemo ? undefined : form.warranty_start,
+        warranty_end: form.warranty_end,
+        maintenance: isDemo ? undefined : form.maintenance,
+        demo_result: isDemo ? form.demo_result : undefined,
+        items: items.map((it) => ({
+          description: it.description || undefined,
+          serial_no: it.serial_no || undefined,
+          price: it.price ?? undefined,
+          sys_id: it.sys_id || undefined,
+        })),
+      });
+      setEditing(false);
+      load();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "납품 건 수정에 실패했습니다");
+    }
   }
 
   async function handleDelete() {
     if (!confirm("이 납품 건을 삭제하시겠습니까?")) return;
-    await deleteDelivery(id);
-    router.push("/deliveries");
+    try {
+      await deleteDelivery(id);
+      router.push("/deliveries");
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "납품 건 삭제에 실패했습니다");
+    }
   }
 
   async function submitComment() {
     if (!commentText.trim()) return;
-    await addComment(id, commentText);
-    setCommentText("");
-    load();
+    try {
+      await addComment(id, commentText);
+      setCommentText("");
+      load();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "댓글 등록에 실패했습니다");
+    }
   }
 
   async function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const files = e.target.files;
     if (!files || files.length === 0) return;
-    for (const file of Array.from(files)) {
-      await uploadPhoto(id, file);
+    try {
+      for (const file of Array.from(files)) {
+        await uploadPhoto(id, file);
+      }
+      load();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "사진 업로드에 실패했습니다");
     }
-    load();
   }
 
   const inputClass = "w-full field-auto";
@@ -106,11 +140,13 @@ export default function DeliveryDetailClient({ id }: { id: number }) {
   );
 
   return (
+    <>
+    <PageBreadcrumb pageTitle={isDemo ? "DEMO 현황 상세" : "초음파 & 유지보수 현황 상세"} />
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
       <div className="space-y-4 lg:col-span-2">
         <div className="surface-card p-4">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-            <h2 className="card-title">🔬 초음파 & 유지보수 현황</h2>
+            <h2 className="card-title">{isDemo ? "🧪 DEMO 현황" : "🔬 초음파 & 유지보수 현황"}</h2>
             <div className="flex items-center gap-2">
               <span
                 className={`rounded-full px-3 py-1.5 text-xs font-medium text-white ${isDemo ? "bg-brand-500" : "bg-success-500"}`}
@@ -292,5 +328,6 @@ export default function DeliveryDetailClient({ id }: { id: number }) {
         </div>
       </div>
     </div>
+    </>
   );
 }

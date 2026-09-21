@@ -27,6 +27,9 @@ class Delivery(Base, TimestampMixin):
     warranty_end: Mapped[Optional[str]] = mapped_column(default=None)  # delivery: W/A 종료 / demo: DEMO 종료일자
     maintenance: Mapped[Optional[str]] = mapped_column(default=None)  # delivery 전용: O | X
     demo_result: Mapped[Optional[str]] = mapped_column(default=None)  # demo 전용: 예정 | 진행중 | 성공 | 실패
+    # demo 전용: 초음파 | X-ray | 기타. DEMO 목록에서 장비 종류를 색으로 구분해 보여준다.
+    # 기존 행은 NULL이라 화면에서 '미지정'으로 뜬다(소급 입력은 사용자가 직접).
+    equipment_kind: Mapped[Optional[str]] = mapped_column(default=None)
 
     items: Mapped[list["DeliveryItem"]] = relationship(back_populates="delivery", cascade="all, delete-orphan")
     photos: Mapped[list["DeliveryPhoto"]] = relationship(back_populates="delivery", cascade="all, delete-orphan")

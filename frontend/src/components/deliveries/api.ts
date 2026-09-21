@@ -20,6 +20,8 @@ export interface DeliveryCreatePayload {
   warranty_end?: string;
   maintenance?: string;
   demo_result?: string;
+  /** DEMO 전용: 초음파 | X-ray | 기타 */
+  equipment_kind?: string;
   items?: { description?: string; serial_no?: string; price?: number; sys_id?: string }[];
 }
 
@@ -36,7 +38,7 @@ export async function createDelivery(payload: DeliveryCreatePayload): Promise<De
 
 export async function fetchDeliveryDetail(id: number): Promise<DeliveryDetail> {
   const res = await fetch(`${API}/api/deliveries/${id}`, { credentials: "include" });
-  return res.json();
+  return res.ok ? res.json() : Promise.reject();
 }
 
 export async function updateDelivery(
@@ -54,6 +56,7 @@ export async function updateDelivery(
     warranty_end: string | null;
     maintenance: string;
     demo_result: string;
+    equipment_kind: string | null;
     items: { description?: string; serial_no?: string; price?: number; sys_id?: string }[];
   }>
 ) {
@@ -68,7 +71,8 @@ export async function updateDelivery(
 }
 
 export async function deleteDelivery(id: number) {
-  await fetch(`${API}/api/deliveries/${id}`, { method: "DELETE", credentials: "include" });
+  const res = await fetch(`${API}/api/deliveries/${id}`, { method: "DELETE", credentials: "include" });
+  if (!res.ok) throw new Error("납품 건 삭제 실패");
 }
 
 export async function addComment(id: number, content: string) {
@@ -78,6 +82,7 @@ export async function addComment(id: number, content: string) {
     credentials: "include",
     body: JSON.stringify({ content }),
   });
+  if (!res.ok) throw new Error("댓글 등록 실패");
   return res.json();
 }
 
@@ -85,6 +90,7 @@ export async function uploadPhoto(id: number, file: File) {
   const form = new FormData();
   form.append("file", file);
   const res = await fetch(`${API}/api/deliveries/${id}/photos`, { method: "POST", credentials: "include", body: form });
+  if (!res.ok) throw new Error("사진 업로드 실패");
   return res.json();
 }
 

@@ -16,6 +16,22 @@ const DEMO_RESULT_DOT: Record<string, string> = {
 };
 
 const DEMO_STATUSES = ["예정", "진행중", "성공", "실패"] as const;
+
+// DEMO 장비 종류 — 목록에서 한눈에 갈리도록 종류마다 다른 색을 준다.
+// 미지정(기존 행)은 회색으로 둬서 "아직 안 골랐다"가 보이게 한다.
+const EQUIPMENT_KIND_CHIP: Record<string, string> = {
+  초음파: "bg-brand-500/12 text-brand-700 dark:text-brand-300",
+  "X-ray": "bg-warning-500/15 text-warning-700 dark:text-warning-300",
+  기타: "bg-success-500/12 text-success-700 dark:text-success-300",
+};
+
+/** DEMO 목록 기본 조회 창: 과거는 3개월치만, 미래 예정 건은 기간 제한 없이 전부.
+ *  기준은 DEMO 예정일(installation_date)이다. */
+function defaultDemoFrom(): string {
+  const d = new Date();
+  d.setMonth(d.getMonth() - 3);
+  return localISODate(d);
+}
 const MAINT_STATUSES = ["유지보수 진행중", "유지보수 만료"] as const;
 
 const MAINT_DOT: Record<string, string> = {
@@ -84,8 +100,12 @@ export default function DeliveriesListClient({ fixedSiteType }: { fixedSiteType?
   const [view, setView] = useState<"list" | "kanban">("list");
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [query, setQuery] = useState("");
+  // DEMO 전용 기간 필터. from을 비우면 과거 전체, to를 비우면 미래 전체(기본값)를 본다.
+  const [dateFrom, setDateFrom] = useState(fixedSiteType === "demo" ? defaultDemoFrom() : "");
+  const [dateTo, setDateTo] = useState("");
   const [loading, setLoading] = useState(true);
   const router = useRouter();
+  const isDemoView = fixedSiteType === "demo";
 
   useEffect(() => {
     fetchDeliveries().then(setDeliveries).finally(() => setLoading(false));
@@ -104,10 +124,16 @@ export default function DeliveriesListClient({ fixedSiteType }: { fixedSiteType?
       byType.filter((d) => {
         if (statusFilter && statusOf(d) !== statusFilter) return false;
         if (query && !d.hospital_name.includes(query)) return false;
+        // 기간은 DEMO 예정일(installation_date) 기준. 예정일이 없는 건은 기간을
+        // 판단할 수 없으므로 항상 남긴다(숨기면 입력 누락 건을 영영 못 찾는다).
+        if (d.installation_date) {
+          if (dateFrom && d.installation_date < dateFrom) return false;
+          if (dateTo && d.installation_date > dateTo) return false;
+        }
         return true;
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [byType, statusFilter, query, siteType]
+    [byType, statusFilter, query, siteType, dateFrom, dateTo]
   );
 
   function handleCreate() {
@@ -182,6 +208,41 @@ export default function DeliveriesListClient({ fixedSiteType }: { fixedSiteType?
           placeholder="병원명 검색"
           className="field w-40 sm:w-52"
         />
+        {fixedSiteType === "demo" && (
+          // 기본은 "최근 3개월 + 앞으로 예정된 전부". 종료일을 비워두면 미래가 안 잘린다.
+          <span className="flex flex-wrap items-center gap-1.5">
+            <input
+              type="date"
+              value={dateFrom}
+              onChange={(e) => setDateFrom(e.target.value)}
+              aria-label="DEMO 예정일 시작"
+              className="field date-picker-visible w-36"
+            />
+            <span className="fg-subtle text-ui-sm">~</span>
+            <input
+              type="date"
+              value={dateTo}
+              onChange={(e) => setDateTo(e.target.value)}
+              aria-label="DEMO 예정일 종료"
+              className="field date-picker-visible w-36"
+            />
+            <button
+              type="button"
+              onClick={() => { setDateFrom(defaultDemoFrom()); setDateTo(""); }}
+              className="btn btn-default"
+              title="최근 3개월 + 앞으로 예정된 건 전부"
+            >
+              기본 기간
+            </button>
+            <button
+              type="button"
+              onClick={() => { setDateFrom(""); setDateTo(""); }}
+              className="btn btn-default"
+            >
+              전체 기간
+            </button>
+          </span>
+        )}
         <span className="fg-subtle ml-auto hidden text-ui-sm sm:block">{filtered.length}건</span>
         <button onClick={handleCreate} className="btn btn-primary ml-auto sm:ml-0">
           {fixedSiteType === "demo" ? "새 DEMO 등록" : "새 납품 등록"}
@@ -192,31 +253,73 @@ export default function DeliveriesListClient({ fixedSiteType }: { fixedSiteType?
 
       {!loading && view === "list" && (
         <div className="surface-card overflow-hidden">
-          <div className="hidden gap-3 border-b border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-800 dark:bg-gray-900 sm:grid sm:grid-cols-[1fr_96px_88px_150px]">
-            <span className="label-eyebrow">병원</span>
-            <span className="label-eyebrow">구분</span>
-            <span className="label-eyebrow">설치일</span>
-            <span className="label-eyebrow text-right">상태</span>
-          </div>
-          {filtered.map((d) => (
-            <div
-              key={d.id}
-              role="button"
-              tabIndex={0}
-              onClick={() => router.push(`/deliveries/${d.id}`)}
-              onKeyDown={(e) => { if (e.key === "Enter") router.push(`/deliveries/${d.id}`); }}
-              className="grid w-full cursor-pointer grid-cols-[1fr_auto] items-center gap-3 border-b border-gray-100 px-3 py-2 text-left transition-colors last:border-0 hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-white/[0.03] sm:grid-cols-[1fr_96px_88px_150px]"
-            >
-              <span className="fg-strong min-w-0 truncate text-ui font-medium">{d.hospital_name}</span>
-              <span className="hidden sm:block">
-                <span className="chip-quiet">{d.site_type === "demo" ? "DEMO" : "납품·관리"}</span>
-              </span>
-              <span className="fg-subtle hidden text-ui-sm tabular-nums sm:block">{d.installation_date || "-"}</span>
-              <span className="flex justify-end" onClick={(e) => e.stopPropagation()}>
-                <StatusPicker d={d} onSetDemoResult={quickSetDemoResult} onSetMaintenance={quickSetMaintenance} />
-              </span>
+          {/* DEMO는 상태 -> 장비종류 -> 병원 -> 구분 -> 예정일 -> 종료일 순서로 본다.
+              납품&관리는 기존 순서를 그대로 유지한다(운영 중 화면이라 바꾸지 않는다). */}
+          {isDemoView ? (
+            <div className="hidden gap-3 border-b border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-800 dark:bg-gray-900 sm:grid sm:grid-cols-[150px_84px_1fr_80px_104px_104px]">
+              <span className="label-eyebrow">상태</span>
+              <span className="label-eyebrow">장비종류</span>
+              <span className="label-eyebrow">병원</span>
+              <span className="label-eyebrow">구분</span>
+              <span className="label-eyebrow">DEMO 예정일</span>
+              <span className="label-eyebrow">DEMO 종료일</span>
             </div>
-          ))}
+          ) : (
+            <div className="hidden gap-3 border-b border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-800 dark:bg-gray-900 sm:grid sm:grid-cols-[1fr_96px_88px_150px]">
+              <span className="label-eyebrow">병원</span>
+              <span className="label-eyebrow">구분</span>
+              <span className="label-eyebrow">설치일</span>
+              <span className="label-eyebrow text-right">상태</span>
+            </div>
+          )}
+          {filtered.map((d) =>
+            isDemoView ? (
+              <div
+                key={d.id}
+                role="button"
+                tabIndex={0}
+                onClick={() => router.push(`/deliveries/${d.id}`)}
+                onKeyDown={(e) => { if (e.key === "Enter") router.push(`/deliveries/${d.id}`); }}
+                className="grid w-full cursor-pointer grid-cols-[auto_1fr] items-center gap-3 border-b border-gray-100 px-3 py-2 text-left transition-colors last:border-0 hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-white/[0.03] sm:grid-cols-[150px_84px_1fr_80px_104px_104px]"
+              >
+                <span className="flex" onClick={(e) => e.stopPropagation()}>
+                  <StatusPicker d={d} onSetDemoResult={quickSetDemoResult} onSetMaintenance={quickSetMaintenance} />
+                </span>
+                <span className="hidden sm:block">
+                  <span
+                    className={`inline-block rounded-full px-2 py-0.5 text-ui-sm font-medium ${
+                      EQUIPMENT_KIND_CHIP[d.equipment_kind || ""] ||
+                      "bg-gray-200/70 text-gray-600 dark:bg-gray-700/60 dark:text-gray-300"
+                    }`}
+                  >
+                    {d.equipment_kind || "미지정"}
+                  </span>
+                </span>
+                <span className="fg-strong min-w-0 truncate text-ui font-medium">{d.hospital_name}</span>
+                <span className="fg-subtle hidden truncate text-ui-sm sm:block">{d.hospital_type || "-"}</span>
+                <span className="fg-subtle hidden text-ui-sm tabular-nums sm:block">{d.installation_date || "-"}</span>
+                <span className="fg-subtle hidden text-ui-sm tabular-nums sm:block">{d.warranty_end || "-"}</span>
+              </div>
+            ) : (
+              <div
+                key={d.id}
+                role="button"
+                tabIndex={0}
+                onClick={() => router.push(`/deliveries/${d.id}`)}
+                onKeyDown={(e) => { if (e.key === "Enter") router.push(`/deliveries/${d.id}`); }}
+                className="grid w-full cursor-pointer grid-cols-[1fr_auto] items-center gap-3 border-b border-gray-100 px-3 py-2 text-left transition-colors last:border-0 hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-white/[0.03] sm:grid-cols-[1fr_96px_88px_150px]"
+              >
+                <span className="fg-strong min-w-0 truncate text-ui font-medium">{d.hospital_name}</span>
+                <span className="hidden sm:block">
+                  <span className="chip-quiet">{d.site_type === "demo" ? "DEMO" : "납품·관리"}</span>
+                </span>
+                <span className="fg-subtle hidden text-ui-sm tabular-nums sm:block">{d.installation_date || "-"}</span>
+                <span className="flex justify-end" onClick={(e) => e.stopPropagation()}>
+                  <StatusPicker d={d} onSetDemoResult={quickSetDemoResult} onSetMaintenance={quickSetMaintenance} />
+                </span>
+              </div>
+            )
+          )}
           {filtered.length === 0 && <div className="empty-state">등록된 건이 없습니다</div>}
         </div>
       )}
@@ -244,7 +347,9 @@ export default function DeliveriesListClient({ fixedSiteType }: { fixedSiteType?
                       className="w-full cursor-pointer rounded-control border border-gray-200 bg-white px-2.5 py-2 text-left transition-colors hover:border-gray-300 dark:border-gray-800 dark:bg-gray-900 dark:hover:border-gray-700"
                     >
                       <div className="fg-strong truncate text-ui font-medium">{d.hospital_name}</div>
-                      <div className="fg-subtle mt-0.5 text-ui-sm">설치일 {d.installation_date || "-"}</div>
+                      <div className="fg-subtle mt-0.5 text-ui-sm">
+                        {isDemoView ? "DEMO 예정일" : "설치일"} {d.installation_date || "-"}
+                      </div>
                       <div className="mt-1.5" onClick={(e) => e.stopPropagation()}>
                         <StatusPicker d={d} onSetDemoResult={quickSetDemoResult} onSetMaintenance={quickSetMaintenance} />
                       </div>

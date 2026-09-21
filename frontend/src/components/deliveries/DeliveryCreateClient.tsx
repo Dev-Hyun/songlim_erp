@@ -65,6 +65,7 @@ export default function DeliveryCreateClient({ fixedSiteType }: { fixedSiteType?
         warranty_end: form.warranty_end,
         maintenance: isDemo ? undefined : form.maintenance,
         demo_result: isDemo ? form.demo_result : undefined,
+        equipment_kind: isDemo ? form.equipment_kind : undefined,
         items: items
           .filter((it) => it.description.trim() || it.serial_no.trim())
           .map((it) => ({
@@ -75,6 +76,8 @@ export default function DeliveryCreateClient({ fixedSiteType }: { fixedSiteType?
           })),
       });
       router.push(`/deliveries/${d.id}`);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "납품 건 등록에 실패했습니다");
     } finally {
       setSaving(false);
     }
@@ -106,6 +109,18 @@ export default function DeliveryCreateClient({ fixedSiteType }: { fixedSiteType?
         </div>
 
         <div className="grid grid-cols-2 gap-3">
+          {/* DEMO는 목록에서 장비 종류를 맨 앞 칸으로 보여주므로 입력도 병원명 앞에 둔다 */}
+          {isDemo && (
+            <div>
+              <label className="label-eyebrow mb-1 block">장비 종류</label>
+              <select value={form.equipment_kind || ""} onChange={set("equipment_kind")} className={inputClass}>
+                <option value="">선택 안 함</option>
+                <option value="초음파">초음파</option>
+                <option value="X-ray">X-ray</option>
+                <option value="기타">기타</option>
+              </select>
+            </div>
+          )}
           {field("hospital_name", "병원명 *")}
           <div>
             <label className="label-eyebrow mb-1 block">구분</label>
@@ -115,7 +130,7 @@ export default function DeliveryCreateClient({ fixedSiteType }: { fixedSiteType?
               <option value="종합병원">종합병원</option>
             </select>
           </div>
-          {field("installation_date", isDemo ? "DEMO 시작일자" : "설치일자", "date")}
+          {field("installation_date", isDemo ? "DEMO 예정일" : "설치일자", "date")}
           {field("installation_location", "설치장소")}
           {field("rep_doctor", "대표 원장")}
           {field("address", "주소")}
@@ -133,7 +148,7 @@ export default function DeliveryCreateClient({ fixedSiteType }: { fixedSiteType?
             field("person_in_charge", "담당자")
           )}
           {isDemo ? (
-            field("warranty_end", "DEMO 종료일자", "date")
+            field("warranty_end", "DEMO 종료일", "date")
           ) : (
             <>
               {field("warranty_start", "Warranty 시작", "date")}

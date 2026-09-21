@@ -16,6 +16,8 @@ export interface DeliveryListItem {
   warranty_end: string | null;
   maintenance: string | null;
   demo_result: string | null;
+  /** DEMO 전용: 초음파 | X-ray | 기타. 기존 행은 null(미지정). */
+  equipment_kind: string | null;
   created_at: string;
   updated_at: string;
 }
