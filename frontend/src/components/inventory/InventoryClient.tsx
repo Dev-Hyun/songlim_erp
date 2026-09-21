@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useAuth } from "@/context/AuthContext";
 import HistoryPanel from "./HistoryPanel";
 import {
@@ -56,6 +56,19 @@ const COLUMNS: Record<"지멘스" | "타사", Col[]> = {
     { key: "purchase_from", label: "매입처", type: "text", width: "w-[130px]" },
   ],
 };
+
+/** 폰 폭인지. 서버에서는 화면 폭을 알 수 없으므로 서버 스냅샷은 false다. */
+function useIsNarrow(): boolean {
+  return useSyncExternalStore(
+    (cb) => {
+      const mq = window.matchMedia("(max-width: 640px)");
+      mq.addEventListener("change", cb);
+      return () => mq.removeEventListener("change", cb);
+    },
+    () => window.matchMedia("(max-width: 640px)").matches,
+    () => false,
+  );
+}
 
 const GRADE_COLOR: Record<string, string> = {
   L: "bg-blue-50 text-blue-600 dark:bg-blue-500/15 dark:text-blue-400",
@@ -115,6 +128,13 @@ export default function InventoryClient({ category }: { category: "지멘스" | 
   // 칸별 필터 행. 폰에서는 칸 하나가 50px 남짓이라 필터 입력칸을 쓸 수 없다.
   // 그래서 기본으로 접어 두고 버튼으로 편다(데스크톱은 넓어서 항상 펼쳐 둔다).
   const [filterRowOpen, setFilterRowOpen] = useState(false);
+  const isNarrow = useIsNarrow();
+  // 폰 전용 칸 편집기. 재고 표는 칸 하나가 50px 남짓이라 비고·위치처럼 긴 값은
+  // 칸 안에서 읽지도 고치지도 못한다. 구글 시트 모바일처럼 칸은 "선택"만 하고
+  // (키보드를 띄우지 않는다) 실제 입력은 하단의 큰 입력창에서 한다.
+  const [editor, setEditor] = useState<
+    { rowId: number; colIndex: number; before: string; draft: string } | null
+  >(null);
 
   const gridRef = useRef<HTMLDivElement>(null);
   const sinceRef = useRef<string | null>(null);
@@ -333,6 +353,55 @@ export default function InventoryClient({ category }: { category: "지멘스" | 
       runEdits([{ row_id: rowId, field: col.key, old_value: before, new_value: current }]);
     },
     [runEdits]
+  );
+
+  // ---------------------------------------------- 폰 전용 칸 편집기(하단 큰 입력창)
+
+  /** 칸을 눌렀을 때 하단 편집기를 연다. 저장 전까지 rows는 건드리지 않고 draft만 들고 있어서
+   *  다른 사람 변경이 폴링으로 들어와도 입력 중인 글자가 덮이지 않는다. */
+  const openEditor = useCallback(
+    (row: InvEquipmentRow, colIndex: number) => {
+      const col = cols[colIndex];
+      if (!col || col.type === "bool") return; // 개봉 여부는 칸에서 바로 토글하는 게 빠르다
+      const text = cellText(row, col);
+      setEditor({ rowId: row.id, colIndex, before: text, draft: text });
+    },
+    [cols]
+  );
+
+  const closeEditor = useCallback(() => setEditor(null), []);
+
+  /** 하단 편집기의 값을 저장한다. 인라인 편집과 같은 runEdits 경로를 쓰므로
+   *  충돌 감지·실행취소가 그대로 동작한다. */
+  const saveEditor = useCallback(() => {
+    if (!editor) return;
+    const col = cols[editor.colIndex];
+    if (col && editor.draft !== editor.before) {
+      runEdits([{ row_id: editor.rowId, field: col.key, old_value: editor.before, new_value: editor.draft }]);
+    }
+    setEditor(null);
+  }, [editor, cols, runEdits]);
+
+  /** 편집기를 연 채로 같은 행의 이웃 칸으로 이동. 저장하고 넘어간다.
+   *  폰에서는 이름 칸이 표에서 숨겨져 있어(왼쪽 고정 머리글이 대신 보여준다) 눌러서 열 수가
+   *  없는데, 이 이동으로는 닿을 수 있다 — 폰에서 이름을 고치는 유일한 경로다. */
+  const stepEditor = useCallback(
+    (delta: number) => {
+      if (!editor) return;
+      const col = cols[editor.colIndex];
+      if (col && editor.draft !== editor.before) {
+        runEdits([{ row_id: editor.rowId, field: col.key, old_value: editor.before, new_value: editor.draft }]);
+      }
+      const row = rowsRef.current.find((r) => r.id === editor.rowId);
+      if (!row) return setEditor(null);
+      // 개봉 여부(bool)는 편집기로 다루지 않으므로 건너뛴다
+      let next = editor.colIndex + delta;
+      while (next >= 0 && next < cols.length && cols[next].type === "bool") next += delta;
+      if (next < 0 || next >= cols.length) return setEditor(null);
+      const text = cellText(row, cols[next]);
+      setEditor({ rowId: row.id, colIndex: next, before: text, draft: text });
+    },
+    [editor, cols, runEdits]
   );
 
   const focusCell = useCallback(
@@ -833,11 +902,15 @@ export default function InventoryClient({ category }: { category: "지멘스" | 
                               <input
                                 data-cell={`${r}-${c}`}
                                 value={cellText(row, col)}
+                                // 폰에서는 칸에서 직접 타이핑하지 않는다 — 누르면 선택만 되고
+                                // (readOnly라 키보드가 안 뜬다) 하단 큰 입력창이 열린다.
+                                readOnly={isNarrow}
                                 onChange={(e) => setLocal(row.id, col.key, e.target.value)}
                                 onFocus={() => {
                                   focusRef.current = { rowId: row.id, field: col.key };
                                   originalRef.current = cellText(row, col);
                                   setSel({ r, c, r2: r, c2: c });
+                                  if (isNarrow) openEditor(row, c);
                                 }}
                                 onBlur={() => {
                                   commit(row.id, col);
@@ -903,6 +976,82 @@ export default function InventoryClient({ category }: { category: "지멘스" | 
           </div>
         )}
       </div>
+
+      {/* 폰 전용 칸 편집기. 칸이 50px라 비고·위치 같은 긴 값을 칸 안에서 읽지도 고치지도
+          못하던 문제를 푼다. 저장은 인라인 편집과 같은 runEdits 경로라 충돌 감지·실행취소가
+          그대로 동작한다. */}
+      {isNarrow && editor && (() => {
+        const col = cols[editor.colIndex];
+        // ref가 아니라 state로 찾는다 — 편집기가 열려 있는 동안 다른 사람이 이름을 바꾸면
+        // 머리글도 따라 갱신돼야 한다.
+        const row = rows.find((r) => r.id === editor.rowId);
+        if (!col || !row) return null;
+        const dirty = editor.draft !== editor.before;
+        return (
+          <>
+            <div className="fixed inset-0 z-40 bg-gray-900/20 sm:hidden" onClick={saveEditor} />
+            <div className="surface-card fixed inset-x-0 bottom-0 z-50 rounded-b-none border-x-0 border-b-0 p-3 shadow-pop sm:hidden">
+              <div className="mb-2 flex items-center gap-2">
+                <span className="fg-strong min-w-0 flex-1 truncate text-ui font-medium">
+                  {row.name || `#${row.id}`}
+                </span>
+                <span className="chip-quiet shrink-0">{col.label}</span>
+              </div>
+
+              {col.type === "grade" ? (
+                <div className="flex gap-2">
+                  {["", "L", "H"].map((g) => (
+                    <button
+                      key={g || "none"}
+                      onClick={() => setEditor({ ...editor, draft: g })}
+                      className={`h-11 flex-1 rounded-control text-ui font-medium ${
+                        editor.draft === g
+                          ? "bg-brand-500 text-white"
+                          : g && GRADE_COLOR[g]
+                            ? GRADE_COLOR[g]
+                            : "surface-inset fg-muted"
+                      }`}
+                    >
+                      {g || "없음"}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <textarea
+                  autoFocus
+                  rows={3}
+                  value={editor.draft}
+                  onChange={(e) => setEditor({ ...editor, draft: e.target.value })}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      saveEditor();
+                    }
+                    if (e.key === "Escape") closeEditor();
+                  }}
+                  placeholder={`${col.label} 입력`}
+                  className={`field-auto w-full resize-none ${col.mono ? "font-mono" : ""}`}
+                />
+              )}
+
+              <div className="mt-2 flex items-center gap-2">
+                <button onClick={() => stepEditor(-1)} aria-label="이전 칸" className="btn btn-default !px-3">
+                  ‹
+                </button>
+                <button onClick={() => stepEditor(1)} aria-label="다음 칸" className="btn btn-default !px-3">
+                  ›
+                </button>
+                <button onClick={closeEditor} className="btn btn-default ml-auto">
+                  취소
+                </button>
+                <button onClick={saveEditor} className="btn btn-primary">
+                  {dirty ? "저장" : "닫기"}
+                </button>
+              </div>
+            </div>
+          </>
+        );
+      })()}
     </div>
   );
 }
