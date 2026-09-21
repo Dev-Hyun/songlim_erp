@@ -25,6 +25,7 @@ from app.models import (
     User,
 )
 from app.routers.kakao_bridge import enqueue as kakao_enqueue
+from app.push_notify import send_push_to_staff
 from app.routers.auth import require_staff, require_user
 
 router = APIRouter(prefix="/api/supply", tags=["supply"])
@@ -259,6 +260,11 @@ async def create_order(payload: OrderCreateIn, db: AsyncSession = Depends(get_db
         f"· 병원: {hp.hospital_name}\n"
         f"· 금액: {order.total_amount:,}원\n"
         f"· 품목: {len(order_items)}건",
+    )
+    await send_push_to_staff(
+        db, "새 소모품 발주",
+        f"{hp.hospital_name} · {order.total_amount:,}원 · {len(order_items)}건",
+        "/supply-orders",
     )
 
     await db.commit()
@@ -799,6 +805,12 @@ async def admin_update_order_status(oid: int, payload: OrderStatusIn, db: AsyncS
         raise HTTPException(status_code=404, detail="발주 내역을 찾을 수 없습니다")
     log_action(db, actor, "order_status_change", "supply_order", oid, detail=f"{o.status} → {payload.status}")
     o.status = payload.status
+    hp = (await db.execute(select(HospitalProfile).where(HospitalProfile.id == o.hospital_profile_id))).scalar_one_or_none()
+    await send_push_to_staff(
+        db, "발주 상태 변경",
+        f"{hp.hospital_name if hp else '병원'} 발주 #{o.id} · {payload.status}",
+        "/supply-orders",
+    )
     await db.commit()
     return {"ok": True}
 

@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.models import CalendarEvent, CalendarEventAssignee, CalendarEventTeam, StaffProfile, User
 from app.routers.kakao_bridge import enqueue as kakao_enqueue
+from app.push_notify import send_push_to_staff
 from app.routers.auth import require_staff
 
 router = APIRouter(prefix="/api/calendar-events", tags=["calendar"])
@@ -79,6 +80,11 @@ async def create_event(payload: CalendarEventIn, db: AsyncSession = Depends(get_
             db, "calendar_created",
             f"[송림 ERP] 새 일정 등록\n· {e.title}\n· {e.start_at} ~ {e.end_at}\n· 등록: {user.display_name}",
         )
+        await send_push_to_staff(
+            db, "새 공유 일정",
+            f"{e.title} ({e.start_at} ~ {e.end_at}) · 등록: {user.display_name}",
+            "/calendar",
+        )
     await db.commit()
     return {"id": e.id}
 
@@ -105,6 +111,11 @@ async def update_event(eid: int, payload: CalendarEventIn, db: AsyncSession = De
         await kakao_enqueue(
             db, "calendar_updated",
             f"[송림 ERP] 일정 변경\n· {e.title}\n· {e.start_at} ~ {e.end_at}\n· 수정: {user.display_name}",
+        )
+        await send_push_to_staff(
+            db, "공유 일정 변경",
+            f"{e.title} ({e.start_at} ~ {e.end_at}) · 수정: {user.display_name}",
+            "/calendar",
         )
     await db.commit()
     return {"ok": True}

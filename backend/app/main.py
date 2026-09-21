@@ -22,6 +22,7 @@ from app.routers import (
     med_stats,
     misc,
     notifications,
+    push,
     sales_map,
     stats,
     storage,
@@ -63,6 +64,7 @@ app.include_router(supply.router)
 app.include_router(uploads.router)
 app.include_router(storage.router)
 app.include_router(notifications.router)
+app.include_router(push.router)
 app.include_router(kakao_bridge.router)
 
 
