@@ -7,7 +7,6 @@ from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.google_calendar_sync import push_create_event, push_delete_event
 from app.models import CalendarEvent, CalendarEventAssignee, CalendarEventTeam, StaffProfile, User
 from app.routers.kakao_bridge import enqueue as kakao_enqueue
 from app.routers.auth import require_staff
@@ -81,12 +80,6 @@ async def create_event(payload: CalendarEventIn, db: AsyncSession = Depends(get_
             f"[송림 ERP] 새 일정 등록\n· {e.title}\n· {e.start_at} ~ {e.end_at}\n· 등록: {user.display_name}",
         )
     await db.commit()
-
-    google_event_id = await push_create_event(db, user.id, e)
-    if google_event_id:
-        e.google_event_id = google_event_id
-        await db.commit()
-
     return {"id": e.id}
 
 
@@ -124,8 +117,6 @@ async def delete_event(eid: int, db: AsyncSession = Depends(get_db), user: User 
         raise HTTPException(status_code=404, detail="일정을 찾을 수 없습니다")
     if e.created_by != user.id and not user.is_admin:
         raise HTTPException(status_code=403, detail="권한이 없습니다")
-    if e.google_event_id:
-        await push_delete_event(db, e.created_by, e.google_event_id)
     await db.delete(e)
     await db.commit()
     return {"ok": True}

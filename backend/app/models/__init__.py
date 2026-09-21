@@ -24,7 +24,7 @@ from .deliveries import Delivery, DeliveryItem, DeliveryPhoto, DeliveryComment
 from .inventory import InvChangeLog, InvEquipment, InvSupply
 from .board import Notice, CsTicket, CsComment, TechPost, TechComment
 from .misc import MileageLog, Bid, NewsArticle, StorageFile, StorageFolder, StorageFavorite, StorageAccess
-from .calendar import CalendarEvent, CalendarEventAssignee, CalendarEventTeam, GoogleCalendarLink
+from .calendar import CalendarEvent, CalendarEventAssignee, CalendarEventTeam
 from .audit import AuditLog
 from .kakao import KakaoOutbox
 from .localdata import LocaldataClinic
@@ -80,6 +80,5 @@ __all__ = [
     "CalendarEvent",
     "CalendarEventAssignee",
     "CalendarEventTeam",
-    "GoogleCalendarLink",
     "AuditLog",
 ]

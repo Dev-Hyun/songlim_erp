@@ -84,7 +84,6 @@ const Calendar: React.FC = () => {
   const [events, setEvents] = useState<ApiEvent[]>([]);
   const [staff, setStaff] = useState<StaffItem[]>([]);
   const [tab, setTab] = useState<Tab>("all");
-  const [googleConnected, setGoogleConnected] = useState(false);
   const calendarRef = useRef<FullCalendar>(null);
   const { isOpen, openModal, closeModal } = useModal();
   const { user } = useAuth();
@@ -95,30 +94,7 @@ const Calendar: React.FC = () => {
       .then(setEvents);
   }
 
-  function loadGoogleStatus() {
-    fetch(`${API}/api/google-calendar/status`, { credentials: "include" })
-      .then((r) => (r.ok ? r.json() : { connected: false }))
-      .then((d) => setGoogleConnected(d.connected))
-      .catch(() => setGoogleConnected(false));
-  }
-
   useEffect(load, []);
-  useEffect(loadGoogleStatus, []);
-
-  async function handleGoogleConnect() {
-    const res = await fetch(`${API}/api/google-calendar/connect`, { credentials: "include" });
-    if (!res.ok) {
-      alert("구글 캘린더 연동이 아직 설정되지 않았습니다");
-      return;
-    }
-    const { auth_url } = await res.json();
-    window.location.href = auth_url;
-  }
-
-  async function handleGoogleDisconnect() {
-    await fetch(`${API}/api/google-calendar/disconnect`, { method: "POST", credentials: "include" });
-    setGoogleConnected(false);
-  }
 
   useEffect(() => {
     fetch(`${API}/api/calendar-events/staff`, { credentials: "include" })
@@ -251,18 +227,6 @@ const Calendar: React.FC = () => {
             </button>
           ))}
         </div>
-        {user?.role === "songrim" && (
-          <button
-            onClick={googleConnected ? handleGoogleDisconnect : handleGoogleConnect}
-            className={`ml-auto rounded-full px-3 py-1.5 text-xs font-medium ${
-              googleConnected
-                ? "bg-success-50 text-success-600 dark:bg-success-500/15 dark:text-success-400"
-                : "bg-gray-100 text-gray-500 dark:bg-white/10 dark:text-gray-400"
-            }`}
-          >
-            {googleConnected ? "✅ 구글 캘린더 연동됨 (해제)" : "구글 캘린더 연동"}
-          </button>
-        )}
       </div>
       <div className="custom-calendar">
         <FullCalendar

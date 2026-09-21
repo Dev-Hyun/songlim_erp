@@ -18,7 +18,6 @@ from app.routers import (
     calendar,
     contracts,
     deliveries,
-    google_calendar,
     inventory,
     med_stats,
     misc,
@@ -59,7 +58,6 @@ app.include_router(board.router)
 app.include_router(misc.router)
 app.include_router(bids_news.router)
 app.include_router(calendar.router)
-app.include_router(google_calendar.router)
 app.include_router(admin.router)
 app.include_router(supply.router)
 app.include_router(uploads.router)
@@ -73,19 +71,6 @@ def health():
     return {"status": "ok", "sentry_enabled": _sentry_enabled}
 
 
-async def _sync_google_calendars_job():
-    from sqlalchemy import select
-
-    from app.database import AsyncSessionLocal
-    from app.google_calendar_sync import pull_events_for_link
-    from app.models import GoogleCalendarLink
-
-    async with AsyncSessionLocal() as db:
-        links = (await db.execute(select(GoogleCalendarLink))).scalars().all()
-        for link in links:
-            await pull_events_for_link(db, link)
-
-
 @app.on_event("startup")
 async def _startup():
     from app.routers.bids_news import refresh_bids_job, refresh_news_job
@@ -93,8 +78,6 @@ async def _startup():
     # 입찰정보/의료뉴스 모두 매일 07:00 1회 갱신으로 통일
     _scheduler.add_job(refresh_bids_job, "cron", hour=7, minute=0, id="bids")
     _scheduler.add_job(refresh_news_job, "cron", hour=7, minute=0, id="news")
-    # 구글 캘린더 → 사이트 역방향 동기화 (휴대폰에서 생성/수정/삭제한 일정 반영), 5분마다 폴링
-    _scheduler.add_job(_sync_google_calendars_job, "interval", minutes=5, id="google_calendar_sync")
     _scheduler.start()
     asyncio.create_task(refresh_bids_job())
     asyncio.create_task(refresh_news_job())
