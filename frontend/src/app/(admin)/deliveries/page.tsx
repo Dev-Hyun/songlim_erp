@@ -12,7 +12,8 @@ export default function DeliveriesPage() {
     <StaffOnly>
       <div>
         <PageBreadcrumb pageTitle="초음파 & 유지보수 현황" />
-        <DeliveriesListClient />
+        {/* DEMO는 /deliveries/demo 로 분리됐다 — 이 화면은 항상 납품&관리만 본다 */}
+        <DeliveriesListClient fixedSiteType="delivery" />
       </div>
     </StaffOnly>
   );

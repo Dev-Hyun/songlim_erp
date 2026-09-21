@@ -12,7 +12,8 @@ export default function DeliveryNewPage() {
     <StaffOnly>
       <div>
         <PageBreadcrumb pageTitle="새 납품 등록" />
-        <DeliveryCreateClient />
+        {/* DEMO는 /deliveries/demo/new 로 분리됐다 — 이 화면은 항상 납품 등록만 한다 */}
+        <DeliveryCreateClient fixedSiteType="delivery" />
       </div>
     </StaffOnly>
   );

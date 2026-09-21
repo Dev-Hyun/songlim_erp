@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { fetchDeliveries, updateDelivery } from "./api";
-import { DeliveryListItem } from "./types";
+import { DeliveryListItem, SiteType } from "./types";
 import { localISODate } from "@/lib/date";
 
 // 상태는 셀렉트 왼쪽의 작은 색 점으로만 구분한다(배경을 전부 칠하는 알약 배지 대체).
@@ -75,8 +75,10 @@ function StatusPicker({
   );
 }
 
-// fixedSiteType이 주어지면(예: DEMO 관리 화면) 탭 전환 없이 해당 site_type만 보여준다.
-export default function DeliveriesListClient({ fixedSiteType }: { fixedSiteType?: "demo" } = {}) {
+// fixedSiteType이 주어지면 탭 전환 없이 해당 site_type만 보여준다.
+// DEMO가 /deliveries/demo로 분리된 뒤로는 이 화면(초음파 & 유지보수 현황)도 항상
+// "delivery"로 고정해서 부른다 — 탭 자체가 이제 의미가 없다(DEMO는 다른 화면).
+export default function DeliveriesListClient({ fixedSiteType }: { fixedSiteType?: SiteType } = {}) {
   const [deliveries, setDeliveries] = useState<DeliveryListItem[]>([]);
   const [siteType, setSiteType] = useState<"delivery" | "demo">(fixedSiteType ?? "delivery");
   const [view, setView] = useState<"list" | "kanban">("list");
