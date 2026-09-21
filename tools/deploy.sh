@@ -117,7 +117,7 @@ fi
 #   놓쳐서 하나도 안 지워지는 사고가 났었다(이 스크립트가 그 사고의 결과다).
 #   KEEP: 이번 작업 세션 시작 전 앵커 + 가장 최근 것 하나. 나머지 전부 삭제.
 if [ "$CLEAN_BACKUPS" = 1 ]; then
-  ssh_run "cd $APP_DIR/backend &&     KEEP=data.db.bak_before_brand_20260921_091459;     for f in data.db.bak_* data.db.bak.*; do [ -e \"\$f\" ] || continue;       [ \"\$f\" = \"\$KEEP\" ] && continue;       rm -fv -- \"\$f\";     done;     echo '--- 남은 것 ---'; ls -la data.db.bak_* 2>/dev/null;     echo '--- 도커 빌드캐시 정리 ---'; docker builder prune -af 2>&1 | tail -3;     df -h / | tail -1"
+  ssh_run "cd $APP_DIR/backend &&     KEEP=data.db.bak_before_localdata-hospitals_20260921_093155;     for f in data.db.bak_* data.db.bak.*; do [ -e \"\$f\" ] || continue;       [ \"\$f\" = \"\$KEEP\" ] && continue;       rm -fv -- \"\$f\";     done;     echo '--- 남은 것 ---'; ls -la data.db.bak_* 2>/dev/null;     echo '--- 도커 빌드캐시 정리 ---'; docker builder prune -af 2>&1 | tail -3;     df -h / | tail -1"
   exit 0
 fi
 
