@@ -126,8 +126,8 @@ fi
 #   임의 스크립트 실행 통로가 되지 않게 이름을 아래 5종으로 한정한다.
 # --import-log=NAME : 그 로그 확인.
 case "$RUN_IMPORT" in
-  ""|mfds|localdata|hospitals|odcloud|backfill|manufacturer|brand) ;;
-  *) echo "모르는 임포트: $RUN_IMPORT (mfds|localdata|hospitals|odcloud|backfill|manufacturer|brand)" >&2; exit 2 ;;
+  ""|mfds|localdata|localdata-hospitals|hospitals|odcloud|backfill|manufacturer|brand) ;;
+  *) echo "모르는 임포트: $RUN_IMPORT (mfds|localdata|localdata-hospitals|hospitals|odcloud|backfill|manufacturer|brand)" >&2; exit 2 ;;
 esac
 
 if [ -n "$IMPORT_LOG" ]; then
@@ -139,6 +139,7 @@ if [ -n "$RUN_IMPORT" ]; then
   case "$RUN_IMPORT" in
     mfds)         SCRIPT="sync_mfds_device_makers.py --apply" ;;
     localdata)    SCRIPT="sync_localdata_clinics.py --apply" ;;
+    localdata-hospitals) SCRIPT="sync_localdata_clinics.py --apply --category hospitals" ;;
     hospitals)    SCRIPT="sync_hira_hospital_info.py --apply" ;;
     odcloud)      SCRIPT="import_odcloud_equipment_years.py --apply --years 2023,2024,2025" ;;
     backfill)     SCRIPT="backfill_hira2025_license.py --apply" ;;

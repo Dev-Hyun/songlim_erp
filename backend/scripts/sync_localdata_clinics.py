@@ -5,8 +5,12 @@
 
 API: https://apis.data.go.kr/1741000/clinics/info  (의원·한의원·치과의원, 약 125,723건)
   - numOfRows는 요청값과 무관하게 **100으로 고정**된다 → 약 1,258페이지
-  - 병원(/hospitals/info)은 서비스는 있으나 활용신청 전이라 401.
-    신청되면 --category hospitals 로 코드 수정 없이 수집된다.
+  - 병원(/hospitals/info)은 서비스는 있으나 활용신청 전이라 403
+    (SERVICE_KEY_IS_NOT_REGISTERED_ERROR, 2026-09-21 실측). data.go.kr 에서 이 오퍼레이션을
+    활용신청하면(같은 서비스키 그대로 씀 — 새 키 발급 불필요) 신청되는 즉시 아래로 수집된다.
+    신청되면 --category hospitals 로 코드 수정 없이 수집된다(OPENING_CATEGORIES 의
+    '신규 병원' 탭은 이 category 로 행이 하나라도 생기면 자동으로 활성화된다 —
+    med_stats._has_tab_rows 가 그때그때 확인하므로 프런트/백엔드 추가 배포가 필요 없다).
 
 사용법:
   python backend/scripts/sync_localdata_clinics.py                    # 미리보기(1페이지)
