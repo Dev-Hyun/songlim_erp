@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { createDelivery } from "./api";
+import { createDelivery, fetchStaff, StaffItem } from "./api";
 import { SiteType } from "./types";
 
 interface ItemRow {
@@ -12,13 +12,20 @@ interface ItemRow {
   sys_id: string;
 }
 
-export default function DeliveryCreateClient() {
+// fixedSiteType이 주어지면(예: DEMO 관리 화면) 탭 전환 없이 해당 site_type으로 고정된다.
+export default function DeliveryCreateClient({ fixedSiteType }: { fixedSiteType?: SiteType } = {}) {
   const router = useRouter();
-  const [siteType, setSiteType] = useState<SiteType>("delivery");
+  const [siteType, setSiteType] = useState<SiteType>(fixedSiteType ?? "delivery");
   const [form, setForm] = useState<Record<string, string>>({ hospital_type: "의원" });
   const [items, setItems] = useState<ItemRow[]>([{ description: "", serial_no: "", price: "", sys_id: "" }]);
   const [saving, setSaving] = useState(false);
+  const [staff, setStaff] = useState<StaffItem[]>([]);
   const isDemo = siteType === "demo";
+
+  // DEMO 등록 폼의 담당자는 자유 텍스트 대신 송림 멤버 드롭다운으로 선택한다.
+  useEffect(() => {
+    if (isDemo) fetchStaff().then(setStaff);
+  }, [isDemo]);
 
   const set = (key: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     setForm({ ...form, [key]: e.target.value });
@@ -28,7 +35,13 @@ export default function DeliveryCreateClient() {
   const field = (key: string, label: string, type = "text") => (
     <div>
       <label className="label-eyebrow mb-1 block">{label}</label>
-      <input type={type} value={form[key] || ""} onChange={set(key)} className={inputClass} />
+      <input
+        type={type}
+        value={form[key] || ""}
+        onChange={set(key)}
+        // DEMO 날짜 필드는 캘린더 아이콘을 클릭해서도 고를 수 있어야 한다(전역 스타일이 기본 아이콘을 숨기므로 복원).
+        className={type === "date" && isDemo ? `${inputClass} date-picker-visible` : inputClass}
+      />
     </div>
   );
 
@@ -74,20 +87,22 @@ export default function DeliveryCreateClient() {
           <h2 className="card-title">
             {isDemo ? "🧪 새 DEMO 등록" : "🚚 새 납품 등록"}
           </h2>
-          <div className="seg">
-            <button
-              onClick={() => setSiteType("delivery")}
-              className={`rounded-full px-3 py-1.5 text-xs font-medium ${!isDemo ? "bg-brand-500 text-white" : "text-gray-500"}`}
-            >
-              납품 &amp; 관리
-            </button>
-            <button
-              onClick={() => setSiteType("demo")}
-              className={`rounded-full px-3 py-1.5 text-xs font-medium ${isDemo ? "bg-brand-500 text-white" : "text-gray-500"}`}
-            >
-              DEMO
-            </button>
-          </div>
+          {!fixedSiteType && (
+            <div className="seg">
+              <button
+                onClick={() => setSiteType("delivery")}
+                className={`rounded-full px-3 py-1.5 text-xs font-medium ${!isDemo ? "bg-brand-500 text-white" : "text-gray-500"}`}
+              >
+                납품 &amp; 관리
+              </button>
+              <button
+                onClick={() => setSiteType("demo")}
+                className={`rounded-full px-3 py-1.5 text-xs font-medium ${isDemo ? "bg-brand-500 text-white" : "text-gray-500"}`}
+              >
+                DEMO
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="grid grid-cols-2 gap-3">
@@ -104,7 +119,19 @@ export default function DeliveryCreateClient() {
           {field("installation_location", "설치장소")}
           {field("rep_doctor", "대표 원장")}
           {field("address", "주소")}
-          {field("person_in_charge", "담당자")}
+          {isDemo ? (
+            <div>
+              <label className="label-eyebrow mb-1 block">담당자</label>
+              <select value={form.person_in_charge || ""} onChange={set("person_in_charge")} className={inputClass}>
+                <option value="">선택 안 함</option>
+                {staff.map((s) => (
+                  <option key={s.id} value={s.display_name}>{s.display_name}</option>
+                ))}
+              </select>
+            </div>
+          ) : (
+            field("person_in_charge", "담당자")
+          )}
           {isDemo ? (
             field("warranty_end", "DEMO 종료일자", "date")
           ) : (
@@ -168,7 +195,7 @@ export default function DeliveryCreateClient() {
         </button>
 
         <div className="mt-6 flex justify-end gap-2">
-          <button onClick={() => router.push("/deliveries")} className="rounded-full border border-gray-300 px-4 py-2 text-xs font-semibold dark:border-gray-700">취소</button>
+          <button onClick={() => router.push(fixedSiteType === "demo" ? "/deliveries/demo" : "/deliveries")} className="rounded-full border border-gray-300 px-4 py-2 text-xs font-semibold dark:border-gray-700">취소</button>
           <button onClick={submit} disabled={saving} className="rounded-full bg-brand-500 px-4 py-2 text-xs font-medium text-white disabled:opacity-50">
             {saving ? "등록 중..." : "등록"}
           </button>

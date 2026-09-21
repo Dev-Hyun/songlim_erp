@@ -937,6 +937,15 @@ span.flatpickr-weekday,
   -webkit-appearance: none;
 }
 
+/* DEMO 등록 폼 날짜 필드용 — 위 utilities 레이어에서 숨긴 기본 캘린더 아이콘을 되살려
+   클릭으로도 날짜를 고를 수 있게 한다(직접 타이핑은 그대로 가능). */
+.date-picker-visible::-webkit-calendar-picker-indicator {
+  display: block;
+  opacity: 1;
+  -webkit-appearance: auto;
+  cursor: pointer;
+}
+
 .stocks-slider-outer .swiper-button-next:after,
 .stocks-slider-outer .swiper-button-prev:after {
   @apply hidden;

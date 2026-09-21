@@ -75,9 +75,10 @@ function StatusPicker({
   );
 }
 
-export default function DeliveriesListClient() {
+// fixedSiteType이 주어지면(예: DEMO 관리 화면) 탭 전환 없이 해당 site_type만 보여준다.
+export default function DeliveriesListClient({ fixedSiteType }: { fixedSiteType?: "demo" } = {}) {
   const [deliveries, setDeliveries] = useState<DeliveryListItem[]>([]);
-  const [siteType, setSiteType] = useState<"delivery" | "demo">("delivery");
+  const [siteType, setSiteType] = useState<"delivery" | "demo">(fixedSiteType ?? "delivery");
   const [view, setView] = useState<"list" | "kanban">("list");
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [query, setQuery] = useState("");
@@ -108,7 +109,7 @@ export default function DeliveriesListClient() {
   );
 
   function handleCreate() {
-    router.push("/deliveries/new");
+    router.push(fixedSiteType === "demo" ? "/deliveries/demo/new" : "/deliveries/new");
   }
 
   function selectSiteType(t: "delivery" | "demo") {
@@ -133,20 +134,22 @@ export default function DeliveriesListClient() {
   return (
     <div className="space-y-3">
       <div className="surface-card flex flex-wrap items-center gap-2 px-3 py-2.5">
-        <div className="seg">
-          {[
-            { v: "delivery", l: "납품 & 관리" },
-            { v: "demo", l: "DEMO" },
-          ].map((t) => (
-            <button
-              key={t.v}
-              onClick={() => selectSiteType(t.v as "delivery" | "demo")}
-              className={`seg-item ${siteType === t.v ? "seg-item-on" : ""}`}
-            >
-              {t.l}
-            </button>
-          ))}
-        </div>
+        {!fixedSiteType && (
+          <div className="seg">
+            {[
+              { v: "delivery", l: "납품 & 관리" },
+              { v: "demo", l: "DEMO" },
+            ].map((t) => (
+              <button
+                key={t.v}
+                onClick={() => selectSiteType(t.v as "delivery" | "demo")}
+                className={`seg-item ${siteType === t.v ? "seg-item-on" : ""}`}
+              >
+                {t.l}
+              </button>
+            ))}
+          </div>
+        )}
         <div className="seg">
           <button
             onClick={() => setView("list")}
@@ -179,7 +182,7 @@ export default function DeliveriesListClient() {
         />
         <span className="fg-subtle ml-auto hidden text-ui-sm sm:block">{filtered.length}건</span>
         <button onClick={handleCreate} className="btn btn-primary ml-auto sm:ml-0">
-          새 납품 등록
+          {fixedSiteType === "demo" ? "새 DEMO 등록" : "새 납품 등록"}
         </button>
       </div>
 

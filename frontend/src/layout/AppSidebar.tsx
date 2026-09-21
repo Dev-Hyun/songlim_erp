@@ -42,6 +42,7 @@ const navItems: NavItem[] = [
     subItems: [
       { name: "계약 진행 현황", path: "/contracts", pro: false },
       { name: "초음파 & 유지보수 현황", path: "/deliveries", pro: false },
+      { name: "DEMO 관리", path: "/deliveries/demo", pro: false },
       { name: "초음파 재고 관리", path: "/inventory/ultrasound", pro: false },
       { name: "장비 재고 관리", path: "/inventory/equipment", pro: false },
     ],

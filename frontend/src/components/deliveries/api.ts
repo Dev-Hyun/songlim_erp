@@ -92,4 +92,17 @@ export function photoUrl(deliveryId: number, photoId: number) {
   return `${API}/api/deliveries/${deliveryId}/photos/${photoId}/image`;
 }
 
+export interface StaffItem {
+  id: number;
+  display_name: string;
+  department: string | null;
+}
+
+// DEMO 등록 폼의 담당자 선택용 — 캘린더 공유일정 담당자 선택과 동일한 엔드포인트를 재사용한다.
+export async function fetchStaff(): Promise<StaffItem[]> {
+  const res = await fetch(`${API}/api/calendar-events/staff`, { credentials: "include" });
+  if (!res.ok) return [];
+  return res.json();
+}
+
 export type { DeliveryItemRow };
