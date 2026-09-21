@@ -446,7 +446,7 @@ export default function OpeningsClient() {
             )}
           </Panel>
 
-          <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+          <div className={`grid grid-cols-1 gap-6 ${category === "hospitals" ? "" : "xl:grid-cols-2"}`}>
             <Panel title="수도권 vs 비수도권" desc="최근 30일 개설">
               {summary.recent30.count ? (
                 <>
@@ -491,6 +491,7 @@ export default function OpeningsClient() {
               )}
             </Panel>
 
+            {category !== "hospitals" && (
             <Panel
               title="권역 간 진료과 구성비 차이 Top"
               desc={`막대가 오른쪽이면 수도권이, 왼쪽이면 비수도권이 높습니다 (${periodLabel})`}
@@ -549,8 +550,10 @@ export default function OpeningsClient() {
                 <EmptyState message="해당 기간 비교할 의원급 개설이 없습니다." />
               )}
             </Panel>
+            )}
           </div>
 
+          {category !== "hospitals" && (
           <Panel title="지역 × 진료과 개설 분포" desc={`${periodLabel} 의원`}>
             {heat && heat.sidos.length && heat.depts.length ? (
               <>
@@ -599,6 +602,7 @@ export default function OpeningsClient() {
               <EmptyState message="해당 기간 의원급 개설이 없습니다." />
             )}
           </Panel>
+          )}
         </>
       )}
 
@@ -644,7 +648,7 @@ export default function OpeningsClient() {
                         <td className="td-dense max-w-[240px]">
                           <div className="fg-strong truncate font-medium">{h.name}</div>
                           <div className="fg-subtle truncate text-ui-xs">
-                            {[h.biz_type, h.dept].filter(Boolean).join(" · ") || "—"}
+                            {[h.biz_type, category === "hospitals" ? null : h.dept].filter(Boolean).join(" · ") || "—"}
                           </div>
                         </td>
                         <td className="td-dense max-w-[360px]">
@@ -708,8 +712,8 @@ export default function OpeningsClient() {
         ]}
         faqs={[
           {
-            q: "'신규 병원' 탭이 비어 있는 이유는 무엇인가요?",
-            a: "병원급 인허가 데이터셋은 활용신청 절차가 끝나지 않아 아직 적재되지 않았습니다. 고장이 아니라 '준비 중' 상태이며, 의원급(신규 의원) 탭은 정상 동작합니다.",
+            q: "'신규 병원' 탭에는 왜 진료과 관련 항목이 없나요?",
+            a: "진료과는 기관명(간판)에서 파생한 값이라 '의원' 표기가 있는 의원급에만 신뢰할 수 있게 적용됩니다. 병원급은 종합병원·요양병원처럼 표기가 달라 같은 방식으로 분류하면 부정확해지므로, 병원 탭에서는 진료과 관련 차트·표기를 제공하지 않습니다.",
           },
           {
             q: "이번 달 수치가 지난달보다 작게 보이는 이유는 무엇인가요?",
@@ -726,7 +730,7 @@ export default function OpeningsClient() {
         ]}
       />
 
-      {picked && <OpeningDetail item={picked} onClose={() => setPicked(null)} />}
+      {picked && <OpeningDetail item={picked} category={category} onClose={() => setPicked(null)} />}
 
       <p className="fg-subtle text-ui-xs leading-relaxed">
         출처: {meta?.source ?? "행정안전부 지방행정 인허가(개설·등록) 데이터"}
@@ -743,7 +747,15 @@ export default function OpeningsClient() {
  * 페이지 이동이 아니라 그 자리에서 열린다. 지도 미리보기는 좌표가 없어 넣지 않고,
  * 주소로 네이버 지도를 새 탭에 여는 링크와 주소 복사만 둔다.
  */
-function OpeningDetail({ item, onClose }: { item: OpeningItem; onClose: () => void }) {
+function OpeningDetail({
+  item,
+  category,
+  onClose,
+}: {
+  item: OpeningItem;
+  category: string;
+  onClose: () => void;
+}) {
   const [copied, setCopied] = useState("");
 
   useEffect(() => {
@@ -784,7 +796,7 @@ function OpeningDetail({ item, onClose }: { item: OpeningItem; onClose: () => vo
           <div className="min-w-0 flex-1">
             <h3 className="card-title truncate">{item.name}</h3>
             <p className="fg-muted mt-0.5 text-ui-sm">
-              {[item.biz_type, item.dept].filter(Boolean).join(" · ") || "분류 정보가 없습니다."}
+              {[item.biz_type, category === "hospitals" ? null : item.dept].filter(Boolean).join(" · ") || "분류 정보가 없습니다."}
             </p>
           </div>
           <button type="button" className="btn btn-default shrink-0" onClick={onClose}>
