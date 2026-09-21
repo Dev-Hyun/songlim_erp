@@ -35,6 +35,7 @@ export default function DeliveryDetailClient({ id }: { id: number }) {
           warranty_end: d.delivery.warranty_end || "",
           maintenance: d.delivery.maintenance || "",
           demo_result: d.delivery.demo_result || "",
+          equipment_kind: d.delivery.equipment_kind || "",
         });
         setItems(d.items);
       })
@@ -78,6 +79,7 @@ export default function DeliveryDetailClient({ id }: { id: number }) {
         warranty_end: form.warranty_end,
         maintenance: isDemo ? undefined : form.maintenance,
         demo_result: isDemo ? form.demo_result : undefined,
+        equipment_kind: isDemo ? form.equipment_kind : undefined,
         items: items.map((it) => ({
           description: it.description || undefined,
           serial_no: it.serial_no || undefined,
@@ -194,19 +196,34 @@ export default function DeliveryDetailClient({ id }: { id: number }) {
           </div>
 
           {isDemo ? (
-            <div className="mt-3">
-              <label className="label-eyebrow mb-1 block">DEMO 결과</label>
-              {editing ? (
-                <select value={form.demo_result || ""} onChange={(e) => setForm({ ...form, demo_result: e.target.value })} className={inputClass}>
-                  <option value="">선택 안 함</option>
-                  <option value="예정">예정</option>
-                  <option value="진행중">진행중</option>
-                  <option value="성공">성공</option>
-                  <option value="실패">실패</option>
-                </select>
-              ) : (
-                <div className="text-ui text-gray-700 dark:text-gray-300">{d.demo_result || "-"}</div>
-              )}
+            <div className="mt-3 grid grid-cols-2 gap-3">
+              <div>
+                <label className="label-eyebrow mb-1 block">장비 종류</label>
+                {editing ? (
+                  <select value={form.equipment_kind || ""} onChange={(e) => setForm({ ...form, equipment_kind: e.target.value })} className={inputClass}>
+                    <option value="">선택 안 함</option>
+                    <option value="초음파">초음파</option>
+                    <option value="X-ray">X-ray</option>
+                    <option value="기타">기타</option>
+                  </select>
+                ) : (
+                  <div className="text-ui text-gray-700 dark:text-gray-300">{d.equipment_kind || "-"}</div>
+                )}
+              </div>
+              <div>
+                <label className="label-eyebrow mb-1 block">DEMO 결과</label>
+                {editing ? (
+                  <select value={form.demo_result || ""} onChange={(e) => setForm({ ...form, demo_result: e.target.value })} className={inputClass}>
+                    <option value="">선택 안 함</option>
+                    <option value="예정">예정</option>
+                    <option value="진행중">진행중</option>
+                    <option value="성공">성공</option>
+                    <option value="실패">실패</option>
+                  </select>
+                ) : (
+                  <div className="text-ui text-gray-700 dark:text-gray-300">{d.demo_result || "-"}</div>
+                )}
+              </div>
             </div>
           ) : (
             <div className="mt-3">
