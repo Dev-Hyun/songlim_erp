@@ -256,7 +256,7 @@ function StorageItem({
       onClick={onSelect}
       onDoubleClick={onOpen}
       {...fileDropProps}
-      className={`group grid cursor-pointer grid-cols-[1fr_150px_96px_auto] items-center gap-3 rounded-control border-[1.5px] px-3 py-2.5 transition ${
+      className={`group grid cursor-pointer grid-cols-[1fr_auto] items-center gap-x-3 gap-y-0.5 rounded-control border-[1.5px] px-3 py-2.5 transition sm:grid-cols-[1fr_150px_96px_auto] sm:gap-3 ${
         selected ? "border-brand-300 bg-brand-50 dark:border-brand-500/40 dark:bg-brand-500/10" : "border-transparent hover:bg-gray-50 dark:hover:bg-white/[0.03]"
       } ${highlight ? "border-brand-300 bg-brand-50 dark:bg-brand-500/10" : ""} ${isDragging ? "opacity-40" : ""}`}
     >
@@ -265,9 +265,16 @@ function StorageItem({
         <span className="min-w-0 flex-1 text-ui font-medium text-gray-800 dark:text-white/90">{nameNode}</span>
         <span className="shrink-0" onClick={(e) => e.stopPropagation()}><StarButton on={node.is_favorite} onClick={onToggleFavorite} /></span>
       </div>
-      <span className="fg-subtle text-ui-sm">{shortDate(node.updated_at || node.created_at)}</span>
-      <span className="text-right fg-subtle text-ui-sm">{node.kind === "folder" ? (node.itemCount != null ? `${node.itemCount}개` : "폴더") : formatSize(node.size)}</span>
-      <span className="w-8 text-center opacity-0 group-hover:opacity-100">{menu}</span>
+      <span className="fg-subtle hidden text-ui-sm sm:block">{shortDate(node.updated_at || node.created_at)}</span>
+      <span className="text-right fg-subtle hidden text-ui-sm sm:block">{node.kind === "folder" ? (node.itemCount != null ? `${node.itemCount}개` : "폴더") : formatSize(node.size)}</span>
+      {/* 터치 기기엔 hover가 없어 group-hover로는 메뉴에 영영 닿을 수 없다 → 폰에서는 항상 노출 */}
+      <span className="w-8 text-center opacity-100 sm:opacity-0 sm:group-hover:opacity-100">{menu}</span>
+      {/* 폰 전용 둘째 줄 — 수정일·크기를 숨기지 않고 여기 모아 둔다 */}
+      <span className="fg-subtle col-span-2 flex flex-wrap items-center gap-x-2 text-ui-sm sm:hidden">
+        <span>{shortDate(node.updated_at || node.created_at)}</span>
+        <span aria-hidden>·</span>
+        <span>{node.kind === "folder" ? (node.itemCount != null ? `${node.itemCount}개` : "폴더") : formatSize(node.size)}</span>
+      </span>
     </div>
   );
 }
@@ -728,7 +735,7 @@ function Workspace({ root, showSpaces }: { root: string; showSpaces?: boolean })
                 </div>
               ) : (
                 <div className="space-y-0.5">
-                  <div className="grid grid-cols-[1fr_150px_96px_auto] gap-3 border-b border-gray-100 px-3 pb-1.5 text-ui-xs font-medium text-gray-400 dark:border-gray-800">
+                  <div className="hidden grid-cols-[1fr_150px_96px_auto] gap-3 border-b border-gray-100 px-3 pb-1.5 text-ui-xs font-medium text-gray-400 dark:border-gray-800 sm:grid">
                     <span>이름</span><span>올린 날짜</span><span className="text-right">크기</span><span className="w-8" />
                   </div>
                   {sorted.map((n) => (
@@ -753,11 +760,19 @@ function Workspace({ root, showSpaces }: { root: string; showSpaces?: boolean })
               )}
             </div>
 
+            {/* 폰에서는 lg:block 때문에 상세 정보에 아예 닿을 수 없었다(파일 위치·올린 날짜 확인 불가).
+                넓은 화면은 기존 사이드바 그대로 두고, 좁은 화면에서는 하단 시트로 띄운다. */}
             {infoOpen && (
-              <aside className="hidden w-72 shrink-0 border-l border-gray-100 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-950/40 lg:block">
+              <aside className="fixed inset-x-0 bottom-0 z-40 max-h-[70vh] overflow-y-auto rounded-t-card border-t border-gray-200 bg-white p-4 shadow-pop dark:border-gray-800 dark:bg-gray-900 lg:static lg:z-auto lg:max-h-none lg:w-72 lg:shrink-0 lg:rounded-none lg:border-l lg:border-t-0 lg:bg-gray-50 lg:shadow-none lg:dark:bg-gray-950/40">
                 <div className="mb-2 flex items-center justify-between">
                   <h3 className="text-ui font-semibold text-gray-800 dark:text-white/90">상세 정보</h3>
-                  <button onClick={() => setInfoOpen(false)} className="text-gray-400 hover:text-gray-600">✕</button>
+                  <button
+                    onClick={() => setInfoOpen(false)}
+                    aria-label="상세 정보 닫기"
+                    className="inline-flex h-11 w-11 items-center justify-center text-gray-400 hover:text-gray-600 lg:h-auto lg:w-auto"
+                  >
+                    ✕
+                  </button>
                 </div>
                 {!detailNode ? (
                   <div className="py-12 text-center fg-subtle text-ui-sm">항목을 선택하면<br />상세 정보가 표시됩니다.</div>

@@ -52,7 +52,7 @@ export default function ContractsListClient() {
     router.push("/contracts/new");
   }
 
-  const cols = "grid-cols-[1fr_88px] sm:grid-cols-[1fr_150px_84px_52px_88px]";
+  const cols = "grid-cols-[1fr_auto] sm:grid-cols-[1fr_150px_84px_52px_88px]";
 
   return (
     <div className="space-y-3">
@@ -112,7 +112,7 @@ export default function ContractsListClient() {
             <button
               key={c.id}
               onClick={() => router.push(`/contracts/${c.id}`)}
-              className={`grid w-full items-center gap-3 border-b border-gray-100 px-3 py-2 text-left transition-colors last:border-0 hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-white/[0.03] ${cols}`}
+              className={`grid w-full items-center gap-x-3 gap-y-1 border-b border-gray-100 px-3 py-3 text-left transition-colors last:border-0 hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-white/[0.03] sm:py-2 ${cols}`}
             >
               <span className="fg-strong min-w-0 truncate text-ui font-medium">
                 {c.title}
@@ -128,6 +128,18 @@ export default function ContractsListClient() {
               </span>
               <span className="flex justify-end">
                 <StatusBadge tone={STATUS_TONE[c.status]}>{c.status}</StatusBadge>
+              </span>
+              {/* 폰 전용 둘째 줄 — 데스크톱에서 별도 칸으로 보이는 값들을 숨기지 않고 여기 모아 둔다 */}
+              <span className="fg-subtle col-span-2 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 text-ui-sm sm:hidden">
+                <span className="min-w-0 truncate">{c.buyer_hospital || "병원 미지정"}</span>
+                <span aria-hidden>·</span>
+                <span className="tabular-nums">{c.updated_at?.slice(0, 10)}</span>
+                {c.comment_count > 0 && (
+                  <>
+                    <span aria-hidden>·</span>
+                    <span className="tabular-nums">댓글 {c.comment_count}</span>
+                  </>
+                )}
               </span>
             </button>
           ))}

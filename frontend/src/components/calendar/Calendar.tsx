@@ -1,8 +1,9 @@
 "use client";
-import React, { useState, useRef, useEffect, useMemo } from "react";
+import React, { useState, useRef, useEffect, useMemo, useSyncExternalStore } from "react";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import interactionPlugin from "@fullcalendar/interaction";
+import listPlugin from "@fullcalendar/list";
 import koLocale from "@fullcalendar/core/locales/ko";
 import {
   EventInput,
@@ -85,6 +86,27 @@ const Calendar: React.FC = () => {
   const [staff, setStaff] = useState<StaffItem[]>([]);
   const [tab, setTab] = useState<Tab>("all");
   const calendarRef = useRef<FullCalendar>(null);
+  // "월"(dayGridMonth) | "목록"(listMonth).
+  // 폰의 월 그리드는 칸 하나가 50px 남짓이라 일정 제목이 한두 글자만 보인다. 그래서 폰에서는
+  // 목록 보기를 기본으로 쓴다 — 제목·기간이 온전히 보이고 스크롤만 하면 된다.
+  // 화면 폭은 서버에서 알 수 없으므로 useSyncExternalStore로 구독한다(서버 스냅샷은 false라
+  // 하이드레이션 불일치가 없고, effect에서 setState를 하지 않는다).
+  const isNarrow = useSyncExternalStore(
+    (cb) => {
+      const mq = window.matchMedia("(max-width: 640px)");
+      mq.addEventListener("change", cb);
+      return () => mq.removeEventListener("change", cb);
+    },
+    () => window.matchMedia("(max-width: 640px)").matches,
+    () => false,
+  );
+  // 사용자가 직접 고르면 그 선택이 화면 폭보다 우선한다.
+  const [viewOverride, setViewOverride] = useState<"dayGridMonth" | "listMonth" | null>(null);
+  const calView = viewOverride ?? (isNarrow ? "listMonth" : "dayGridMonth");
+
+  useEffect(() => {
+    calendarRef.current?.getApi().changeView(calView);
+  }, [calView]);
   const { isOpen, openModal, closeModal } = useModal();
   const { user } = useAuth();
 
@@ -221,9 +243,24 @@ const Calendar: React.FC = () => {
             <button
               key={t.v}
               onClick={() => setTab(t.v)}
-              className={`rounded-full px-3 py-1.5 text-xs font-medium ${tab === t.v ? "bg-brand-500 text-white" : "text-gray-500"}`}
+              className={`rounded-full px-3 py-2 text-xs font-medium sm:py-1.5 ${tab === t.v ? "bg-brand-500 text-white" : "text-gray-500"}`}
             >
               {t.l}
+            </button>
+          ))}
+        </div>
+        {/* 월 그리드 ↔ 목록. 폰은 목록으로 시작하지만 어느 쪽이든 직접 고를 수 있다. */}
+        <div className="seg ml-auto">
+          {([
+            { v: "dayGridMonth", l: "월" },
+            { v: "listMonth", l: "목록" },
+          ] as const).map((v) => (
+            <button
+              key={v.v}
+              onClick={() => setViewOverride(v.v)}
+              className={`rounded-full px-3 py-2 text-xs font-medium sm:py-1.5 ${calView === v.v ? "bg-brand-500 text-white" : "text-gray-500"}`}
+            >
+              {v.l}
             </button>
           ))}
         </div>
@@ -231,11 +268,14 @@ const Calendar: React.FC = () => {
       <div className="custom-calendar">
         <FullCalendar
           ref={calendarRef}
-          plugins={[dayGridPlugin, interactionPlugin]}
+          plugins={[dayGridPlugin, listPlugin, interactionPlugin]}
           initialView="dayGridMonth"
           locale={koLocale}
           titleFormat={{ month: "long" }}
           showNonCurrentDates={false}
+          noEventsText="이 달에는 일정이 없습니다"
+          listDayFormat={{ month: "long", day: "numeric", weekday: "short" }}
+          listDaySideFormat={false}
           headerToolbar={{
             left: "prev,next addEventButton",
             center: "title",

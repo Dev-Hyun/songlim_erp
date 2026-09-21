@@ -180,13 +180,13 @@ export default function DeliveryDetailClient({ id }: { id: number }) {
                 <div className="text-ui text-gray-700 dark:text-gray-300">{d.hospital_type || "-"}</div>
               )}
             </div>
-            {field("installation_date", isDemo ? "DEMO 시작일자" : "설치일자", "date")}
+            {field("installation_date", isDemo ? "DEMO 예정일" : "설치일자", "date")}
             {field("installation_location", "설치장소")}
             {field("rep_doctor", "대표 원장")}
             {field("address", "주소")}
             {field("person_in_charge", "담당자")}
             {isDemo ? (
-              field("warranty_end", "DEMO 종료일자", "date")
+              field("warranty_end", "DEMO 종료일", "date")
             ) : (
               <>
                 {field("warranty_start", "Warranty 시작", "date")}
@@ -242,7 +242,7 @@ export default function DeliveryDetailClient({ id }: { id: number }) {
 
           <div className="mb-2 mt-5 text-xs font-medium uppercase text-gray-400">장비 품목</div>
           <div className="overflow-x-auto">
-          <table className="w-full min-w-[560px] text-ui">
+          <table className="table-cards w-full min-w-[560px] text-ui">
             <thead>
               <tr className="border-b border-gray-200 text-left fg-subtle text-ui-sm dark:border-gray-800">
                 <th className="py-1.5">Description</th>
@@ -257,18 +257,18 @@ export default function DeliveryDetailClient({ id }: { id: number }) {
                 <tr key={i} className="border-b border-gray-100 dark:border-gray-800">
                   {editing ? (
                     <>
-                      <td><input value={it.description || ""} onChange={(e) => setItems(items.map((x, j) => (j === i ? { ...x, description: e.target.value } : x)))} className="field-auto w-full px-1.5 py-0.5 text-ui-sm" /></td>
-                      <td><input value={it.serial_no || ""} onChange={(e) => setItems(items.map((x, j) => (j === i ? { ...x, serial_no: e.target.value } : x)))} className="field-auto w-full px-1.5 py-0.5 text-ui-sm" /></td>
-                      <td><input type="number" value={it.price ?? ""} onChange={(e) => setItems(items.map((x, j) => (j === i ? { ...x, price: e.target.value ? Number(e.target.value) : null } : x)))} className="field-auto w-full px-1.5 py-0.5 text-ui-sm" /></td>
-                      <td><input value={it.sys_id || ""} onChange={(e) => setItems(items.map((x, j) => (j === i ? { ...x, sys_id: e.target.value } : x)))} className="field-auto w-full px-1.5 py-0.5 text-ui-sm" /></td>
+                      <td data-label="Description"><input value={it.description || ""} onChange={(e) => setItems(items.map((x, j) => (j === i ? { ...x, description: e.target.value } : x)))} className="field-auto w-full px-1.5 py-0.5 text-ui-sm" /></td>
+                      <td data-label="S/N"><input value={it.serial_no || ""} onChange={(e) => setItems(items.map((x, j) => (j === i ? { ...x, serial_no: e.target.value } : x)))} className="field-auto w-full px-1.5 py-0.5 text-ui-sm" /></td>
+                      <td data-label="개별단가"><input type="number" value={it.price ?? ""} onChange={(e) => setItems(items.map((x, j) => (j === i ? { ...x, price: e.target.value ? Number(e.target.value) : null } : x)))} className="field-auto w-full px-1.5 py-0.5 text-ui-sm" /></td>
+                      <td data-label="SYSTEM ID"><input value={it.sys_id || ""} onChange={(e) => setItems(items.map((x, j) => (j === i ? { ...x, sys_id: e.target.value } : x)))} className="field-auto w-full px-1.5 py-0.5 text-ui-sm" /></td>
                       <td><button onClick={() => setItems(items.filter((_, j) => j !== i))} className="text-error-500">×</button></td>
                     </>
                   ) : (
                     <>
-                      <td className="py-1.5">{it.description}</td>
-                      <td className="py-1.5 text-gray-400">{it.serial_no}</td>
-                      <td className="py-1.5 text-gray-400">{it.price != null ? it.price.toLocaleString() : "-"}</td>
-                      <td className="py-1.5 text-gray-400">{it.sys_id}</td>
+                      <td data-label="Description" className="py-1.5">{it.description}</td>
+                      <td data-label="S/N" className="py-1.5 text-gray-400">{it.serial_no}</td>
+                      <td data-label="개별단가" className="py-1.5 text-gray-400">{it.price != null ? it.price.toLocaleString() : "-"}</td>
+                      <td data-label="SYSTEM ID" className="py-1.5 text-gray-400">{it.sys_id}</td>
                     </>
                   )}
                 </tr>

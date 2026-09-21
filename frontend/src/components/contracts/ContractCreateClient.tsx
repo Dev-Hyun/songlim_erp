@@ -133,7 +133,7 @@ export default function ContractCreateClient() {
 
         <div className="mb-2 mt-5 text-xs font-medium uppercase text-gray-400">📦 계약 상품</div>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[420px] text-ui">
+          <table className="table-cards w-full min-w-[420px] text-ui">
             <thead>
               <tr className="border-b border-gray-200 text-left fg-subtle text-ui-sm dark:border-gray-800">
                 <th className="py-1.5">상품명</th>
@@ -145,9 +145,9 @@ export default function ContractCreateClient() {
             <tbody>
               {items.map((it, i) => (
                 <tr key={i} className="border-b border-gray-100 dark:border-gray-800">
-                  <td><input value={it.name} placeholder="상품명" onChange={(e) => setItems(items.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)))} className="field-auto w-full px-1.5 py-0.5 text-ui-sm" /></td>
-                  <td><input value={it.qty} placeholder="예: 1 Set" onChange={(e) => setItems(items.map((x, j) => (j === i ? { ...x, qty: e.target.value } : x)))} className="field-auto w-full px-1.5 py-0.5 text-ui-sm" /></td>
-                  <td><input value={it.note} placeholder="비고" onChange={(e) => setItems(items.map((x, j) => (j === i ? { ...x, note: e.target.value } : x)))} className="field-auto w-full px-1.5 py-0.5 text-ui-sm" /></td>
+                  <td data-label="상품명"><input value={it.name} placeholder="상품명" onChange={(e) => setItems(items.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)))} className="field-auto w-full px-1.5 py-0.5 text-ui-sm" /></td>
+                  <td data-label="수량"><input value={it.qty} placeholder="예: 1 Set" onChange={(e) => setItems(items.map((x, j) => (j === i ? { ...x, qty: e.target.value } : x)))} className="field-auto w-full px-1.5 py-0.5 text-ui-sm" /></td>
+                  <td data-label="비고"><input value={it.note} placeholder="비고" onChange={(e) => setItems(items.map((x, j) => (j === i ? { ...x, note: e.target.value } : x)))} className="field-auto w-full px-1.5 py-0.5 text-ui-sm" /></td>
                   <td><button onClick={() => setItems(items.filter((_, j) => j !== i))} className="text-error-500">×</button></td>
                 </tr>
               ))}

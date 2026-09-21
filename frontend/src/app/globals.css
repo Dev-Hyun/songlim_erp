@@ -1071,3 +1071,138 @@ span.flatpickr-weekday,
 .dark .prose [style*="color:black"] {
   color: #e5e7eb !important;
 }
+
+/* FullCalendar 목록(아젠다) 보기 — 폰 기본 보기.
+   월 그리드는 칸이 좁아 일정 제목이 잘리지만 목록은 제목·기간이 온전히 보인다. */
+.fc .fc-list {
+  @apply border-0;
+}
+.fc .fc-list-day-cushion {
+  @apply bg-gray-50 px-4 py-2 text-ui-sm font-semibold text-gray-600 dark:bg-gray-900 dark:text-gray-300;
+}
+.fc .fc-list-event {
+  @apply cursor-pointer;
+}
+.fc .fc-list-event:hover td {
+  @apply bg-gray-50 dark:bg-white/[0.04];
+}
+.fc .fc-list-event td {
+  @apply border-gray-100 px-4 py-3 text-ui text-gray-700 dark:border-gray-800 dark:text-gray-200;
+}
+.fc .fc-list-event-title {
+  @apply font-medium;
+}
+.fc .fc-list-event-time {
+  @apply whitespace-nowrap text-ui-sm text-gray-500 dark:text-gray-400;
+}
+.fc .fc-list-event-dot {
+  @apply border-[5px];
+}
+.fc .fc-list-empty {
+  @apply bg-transparent px-4 py-10 text-ui text-gray-400 dark:text-gray-500;
+}
+.fc-theme-standard .fc-list-day-cushion {
+  @apply dark:bg-gray-900;
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   모바일 스케일 (≤640px)
+
+   이 ERP의 토큰은 PC에서 표를 빽빽하게 보려고 11~13px / 높이 32px 기준으로 잡혀 있다.
+   그런데 실제 사용자는 영업사원이고 폰에서 쓰는 일이 더 많다 — 그 밀도는 폰에서 그냥
+   안 읽히고 손가락으로 누르기도 어렵다(권장 터치 목표 44px, 현재 32px).
+
+   화면마다 클래스를 고치는 대신 토큰 자체를 모바일 폭에서 키운다. 47개 페이지가
+   전부 이 토큰을 쓰므로 한 번에 올라간다.
+
+   특이도 주의: Tailwind/Turbopack이 빌드 시 @media 블록을 소스 순서와 무관하게
+   재배치할 수 있다(위 .fc 모바일 블록 주석 참고). 그래서 :root:root / .btn.btn 처럼
+   선택자를 겹쳐 써서 순서와 무관하게 이기도록 한다.
+   ════════════════════════════════════════════════════════════════════════════ */
+@media (max-width: 640px) {
+  :root:root {
+    /* 작은 쪽만 키운다. lg/xl/2xl(15/18/22)은 폰에서도 충분해 그대로 둔다. */
+    --text-ui-xs: 13px;
+    --text-ui-xs--line-height: 18px;
+    --text-ui-sm: 14px;
+    --text-ui-sm--line-height: 20px;
+    --text-ui: 15px;
+    --text-ui--line-height: 22px;
+    --text-ui-md: 15px;
+    --text-ui-md--line-height: 22px;
+    --text-ui-lg: 16px;
+    --text-ui-lg--line-height: 24px;
+  }
+
+  /* 터치 목표 44px 확보 */
+  .btn.btn,
+  .field.field,
+  .field-lg.field-lg {
+    @apply h-11 px-3.5;
+  }
+  .icon-btn.icon-btn {
+    @apply h-11 w-11;
+  }
+  .field-auto.field-auto {
+    @apply px-3 py-2.5;
+  }
+  .seg-item.seg-item {
+    @apply h-10 px-3;
+  }
+  /* 표 행 — 손가락으로 누를 수 있는 높이로 */
+  .td-dense.td-dense,
+  .th-dense.th-dense {
+    @apply px-2.5 py-3;
+  }
+  .list-row.list-row {
+    @apply py-3;
+  }
+  .chip.chip,
+  .chip-quiet.chip-quiet {
+    @apply px-2 py-1;
+  }
+
+  /* ── 표 → 카드 전환 ──────────────────────────────────────────────────────
+     표에 .table-cards 를 주고 각 <td>에 data-label 을 달면, 폰에서 행 하나가
+     카드 하나로 바뀌고 각 칸 앞에 라벨이 붙는다. 마크업을 두 벌 만들지 않고도
+     "가로 스크롤 + 잘림"을 없앨 수 있다.
+     (min-w-[...]가 걸려 있어도 이깁니다 — 아래 !min-w-0) */
+  .table-cards.table-cards {
+    @apply !min-w-0 !w-full;
+  }
+  .table-cards.table-cards thead {
+    @apply hidden;
+  }
+  .table-cards.table-cards tbody tr {
+    @apply mb-2 block rounded-card border border-gray-200 p-2 last:mb-0 dark:border-gray-800;
+  }
+  .table-cards.table-cards tbody td {
+    @apply grid grid-cols-[88px_1fr] items-center gap-2 border-0 px-0 py-1;
+  }
+  .table-cards.table-cards tbody td:before {
+    content: attr(data-label);
+    @apply text-ui-sm font-medium text-gray-500 dark:text-gray-400;
+  }
+  /* 라벨이 필요 없는 칸(삭제 버튼 등)은 data-label 없이 두면 한 칸을 통째로 쓴다 */
+  .table-cards.table-cards tbody td:not([data-label]) {
+    @apply flex justify-end;
+  }
+  .table-cards.table-cards tbody td:not([data-label]):before {
+    content: none;
+  }
+  .table-cards.table-cards tbody tr:has(td[colspan]) {
+    @apply border-0 p-0;
+  }
+  .table-cards.table-cards tbody td[colspan] {
+    @apply block;
+  }
+  .table-cards.table-cards tbody td[colspan]:before {
+    content: none;
+  }
+
+  /* 폰에서 가로 스크롤이 생기면 잘린 것처럼 보이므로, 스크롤 되는 영역임을
+     스크롤바로 알려 준다(기본은 숨겨져 있어 스크롤 가능한지조차 안 보인다). */
+  .custom-scrollbar.custom-scrollbar::-webkit-scrollbar {
+    @apply h-1.5 w-1.5;
+  }
+}

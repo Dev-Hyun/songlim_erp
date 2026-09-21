@@ -179,7 +179,7 @@ export default function DeliveryCreateClient({ fixedSiteType }: { fixedSiteType?
 
         <div className="mb-2 mt-5 text-xs font-medium uppercase text-gray-400">품목 목록</div>
         <div className="overflow-x-auto">
-        <table className="w-full min-w-[560px] text-ui">
+        <table className="table-cards w-full min-w-[560px] text-ui">
           <thead>
             <tr className="border-b border-gray-200 text-left fg-subtle text-ui-sm dark:border-gray-800">
               <th className="py-1.5">Description</th>
@@ -192,10 +192,10 @@ export default function DeliveryCreateClient({ fixedSiteType }: { fixedSiteType?
           <tbody>
             {items.map((it, i) => (
               <tr key={i} className="border-b border-gray-100 dark:border-gray-800">
-                <td><input value={it.description} onChange={(e) => setItems(items.map((x, j) => (j === i ? { ...x, description: e.target.value } : x)))} className="field-auto w-full px-1.5 py-0.5 text-ui-sm" /></td>
-                <td><input value={it.serial_no} onChange={(e) => setItems(items.map((x, j) => (j === i ? { ...x, serial_no: e.target.value } : x)))} className="field-auto w-full px-1.5 py-0.5 text-ui-sm" /></td>
-                <td><input type="number" value={it.price} onChange={(e) => setItems(items.map((x, j) => (j === i ? { ...x, price: e.target.value } : x)))} className="field-auto w-full px-1.5 py-0.5 text-ui-sm" /></td>
-                <td><input value={it.sys_id} onChange={(e) => setItems(items.map((x, j) => (j === i ? { ...x, sys_id: e.target.value } : x)))} className="field-auto w-full px-1.5 py-0.5 text-ui-sm" /></td>
+                <td data-label="Description"><input value={it.description} onChange={(e) => setItems(items.map((x, j) => (j === i ? { ...x, description: e.target.value } : x)))} className="field-auto w-full px-1.5 py-0.5 text-ui-sm" /></td>
+                <td data-label="S/N"><input value={it.serial_no} onChange={(e) => setItems(items.map((x, j) => (j === i ? { ...x, serial_no: e.target.value } : x)))} className="field-auto w-full px-1.5 py-0.5 text-ui-sm" /></td>
+                <td data-label="개별단가"><input type="number" value={it.price} onChange={(e) => setItems(items.map((x, j) => (j === i ? { ...x, price: e.target.value } : x)))} className="field-auto w-full px-1.5 py-0.5 text-ui-sm" /></td>
+                <td data-label="SYSTEM ID"><input value={it.sys_id} onChange={(e) => setItems(items.map((x, j) => (j === i ? { ...x, sys_id: e.target.value } : x)))} className="field-auto w-full px-1.5 py-0.5 text-ui-sm" /></td>
                 <td><button onClick={() => setItems(items.filter((_, j) => j !== i))} className="text-error-500">×</button></td>
               </tr>
             ))}

@@ -280,7 +280,7 @@ export default function DeliveriesListClient({ fixedSiteType }: { fixedSiteType?
                 tabIndex={0}
                 onClick={() => router.push(`/deliveries/${d.id}`)}
                 onKeyDown={(e) => { if (e.key === "Enter") router.push(`/deliveries/${d.id}`); }}
-                className="grid w-full cursor-pointer grid-cols-[auto_1fr] items-center gap-3 border-b border-gray-100 px-3 py-2 text-left transition-colors last:border-0 hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-white/[0.03] sm:grid-cols-[150px_84px_1fr_80px_104px_104px]"
+                className="grid w-full cursor-pointer grid-cols-[auto_1fr] items-center gap-x-3 gap-y-1.5 border-b border-gray-100 px-3 py-3 text-left transition-colors last:border-0 hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-white/[0.03] sm:grid-cols-[150px_84px_1fr_80px_104px_104px] sm:py-2"
               >
                 <span className="flex" onClick={(e) => e.stopPropagation()}>
                   <StatusPicker d={d} onSetDemoResult={quickSetDemoResult} onSetMaintenance={quickSetMaintenance} />
@@ -299,6 +299,24 @@ export default function DeliveriesListClient({ fixedSiteType }: { fixedSiteType?
                 <span className="fg-subtle hidden truncate text-ui-sm sm:block">{d.hospital_type || "-"}</span>
                 <span className="fg-subtle hidden text-ui-sm tabular-nums sm:block">{d.installation_date || "-"}</span>
                 <span className="fg-subtle hidden text-ui-sm tabular-nums sm:block">{d.warranty_end || "-"}</span>
+                {/* 폰 전용 둘째 줄 — 데스크톱의 장비종류·구분·예정일·종료일을 여기 모아 전부 보여준다 */}
+                <span className="col-span-2 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 sm:hidden">
+                  <span
+                    className={`inline-block rounded-full px-2 py-0.5 text-ui-sm font-medium ${
+                      EQUIPMENT_KIND_CHIP[d.equipment_kind || ""] ||
+                      "bg-gray-200/70 text-gray-600 dark:bg-gray-700/60 dark:text-gray-300"
+                    }`}
+                  >
+                    {d.equipment_kind || "미지정"}
+                  </span>
+                  <span className="fg-subtle text-ui-sm">{d.hospital_type || "구분 미지정"}</span>
+                  <span className="fg-subtle text-ui-sm tabular-nums">
+                    예정 {d.installation_date || "-"}
+                  </span>
+                  <span className="fg-subtle text-ui-sm tabular-nums">
+                    종료 {d.warranty_end || "-"}
+                  </span>
+                </span>
               </div>
             ) : (
               <div
@@ -307,7 +325,7 @@ export default function DeliveriesListClient({ fixedSiteType }: { fixedSiteType?
                 tabIndex={0}
                 onClick={() => router.push(`/deliveries/${d.id}`)}
                 onKeyDown={(e) => { if (e.key === "Enter") router.push(`/deliveries/${d.id}`); }}
-                className="grid w-full cursor-pointer grid-cols-[1fr_auto] items-center gap-3 border-b border-gray-100 px-3 py-2 text-left transition-colors last:border-0 hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-white/[0.03] sm:grid-cols-[1fr_96px_88px_150px]"
+                className="grid w-full cursor-pointer grid-cols-[1fr_auto] items-center gap-x-3 gap-y-1.5 border-b border-gray-100 px-3 py-3 text-left transition-colors last:border-0 hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-white/[0.03] sm:grid-cols-[1fr_96px_88px_150px] sm:py-2"
               >
                 <span className="fg-strong min-w-0 truncate text-ui font-medium">{d.hospital_name}</span>
                 <span className="hidden sm:block">
@@ -316,6 +334,11 @@ export default function DeliveriesListClient({ fixedSiteType }: { fixedSiteType?
                 <span className="fg-subtle hidden text-ui-sm tabular-nums sm:block">{d.installation_date || "-"}</span>
                 <span className="flex justify-end" onClick={(e) => e.stopPropagation()}>
                   <StatusPicker d={d} onSetDemoResult={quickSetDemoResult} onSetMaintenance={quickSetMaintenance} />
+                </span>
+                {/* 폰 전용 둘째 줄 — 구분·설치일을 숨기지 않고 여기에 */}
+                <span className="fg-subtle col-span-2 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 text-ui-sm sm:hidden">
+                  <span className="chip-quiet">{d.site_type === "demo" ? "DEMO" : "납품·관리"}</span>
+                  <span className="tabular-nums">설치 {d.installation_date || "-"}</span>
                 </span>
               </div>
             )

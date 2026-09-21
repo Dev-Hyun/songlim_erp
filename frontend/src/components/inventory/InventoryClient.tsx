@@ -112,6 +112,9 @@ export default function InventoryClient({ category }: { category: "지멘스" | 
   const [historyKey, setHistoryKey] = useState(0);
   const [focusRowId, setFocusRowId] = useState<number | null>(null);
   const [undoDepth, setUndoDepth] = useState(0);
+  // 칸별 필터 행. 폰에서는 칸 하나가 50px 남짓이라 필터 입력칸을 쓸 수 없다.
+  // 그래서 기본으로 접어 두고 버튼으로 편다(데스크톱은 넓어서 항상 펼쳐 둔다).
+  const [filterRowOpen, setFilterRowOpen] = useState(false);
 
   const gridRef = useRef<HTMLDivElement>(null);
   const sinceRef = useRef<string | null>(null);
@@ -619,7 +622,7 @@ export default function InventoryClient({ category }: { category: "지멘스" | 
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="전체 검색..."
-          className="field w-48"
+          className="field w-full sm:w-48"
         />
 
         <span className="chip-quiet">
@@ -628,6 +631,12 @@ export default function InventoryClient({ category }: { category: "지멘스" | 
         </span>
 
         <div className="ml-auto flex flex-wrap items-center gap-2">
+          <button
+            onClick={() => setFilterRowOpen((v) => !v)}
+            className={`btn sm:hidden ${filterRowOpen ? "btn-primary" : "btn-default"}`}
+          >
+            칸별 필터
+          </button>
           <button
             onClick={undo}
             disabled={undoDepth === 0}
@@ -658,9 +667,13 @@ export default function InventoryClient({ category }: { category: "지멘스" | 
           </button>
         </div>
 
-        <p className="fg-subtle w-full text-ui-xs">
+        <p className="fg-subtle hidden w-full text-ui-xs sm:block">
           Tab/Enter/화살표로 칸 이동 · Shift+화살표로 범위 선택 · Ctrl+C/X/V 복사·잘라내기·붙여넣기(엑셀·구글시트와 호환) ·
           Delete로 범위 비우기 · Ctrl+Z 실행취소 · 수정 즉시 자동 저장되고 {POLL_MS / 1000}초마다 다른 사람 변경이 반영됩니다
+        </p>
+        <p className="fg-subtle w-full text-ui-xs sm:hidden">
+          왼쪽 이름 칸은 고정됩니다 · 표를 옆으로 밀어 나머지 칸을 보세요 · 칸을 누르면 바로 수정되고
+          자동 저장되며 {POLL_MS / 1000}초마다 다른 사람 변경이 반영됩니다
         </p>
       </div>
 
@@ -701,7 +714,7 @@ export default function InventoryClient({ category }: { category: "지멘스" | 
             onCopy={onCopy}
             onCut={onCut}
             onPaste={onPaste}
-            className={`max-h-[calc(100vh-330px)] min-h-[300px] overflow-auto rounded-card border border-gray-200 bg-white shadow-card dark:border-gray-800 dark:bg-gray-900 ${ac.bar}`}
+            className={`max-h-[70vh] min-h-[300px] overflow-auto rounded-card border border-gray-200 bg-white shadow-card dark:border-gray-800 dark:bg-gray-900 sm:max-h-[calc(100vh-330px)] ${ac.bar}`}
           >
             {loading ? (
               <div className="empty-state">불러오는 중...</div>
@@ -709,8 +722,9 @@ export default function InventoryClient({ category }: { category: "지멘스" | 
               <table className="table-dense">
                 <thead className="sticky top-0 z-20">
                   <tr>
-                    <th className="sticky left-0 z-30 w-10 whitespace-nowrap border-b border-gray-200 bg-gray-50 px-1 py-2 text-center text-ui-xs font-medium tracking-[0.04em] text-gray-500 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-400">
-                      #
+                    <th className="sticky left-0 z-30 w-[116px] whitespace-nowrap border-b border-r border-gray-200 bg-gray-50 px-1 py-2 text-left text-ui-xs font-medium tracking-[0.04em] text-gray-500 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-400 sm:w-10 sm:border-r-0 sm:text-center">
+                      <span className="sm:hidden">이름</span>
+                      <span className="hidden sm:inline">#</span>
                     </th>
                     {cols.map((c) => (
                       <th
@@ -727,8 +741,8 @@ export default function InventoryClient({ category }: { category: "지멘스" | 
                     ))}
                     <th className="th-dense w-10" />
                   </tr>
-                  <tr className="bg-white dark:bg-gray-900">
-                    <th className="hairline sticky left-0 z-30 border-b bg-white px-1 py-1 dark:bg-gray-900" />
+                  <tr className={`bg-white dark:bg-gray-900 ${filterRowOpen ? "" : "hidden sm:table-row"}`}>
+                    <th className="hairline sticky left-0 z-30 border-b border-r bg-white px-1 py-1 dark:bg-gray-900 sm:border-r-0" />
                     {cols.map((c) => (
                       <th key={c.key} className="hairline border-b px-1 py-1">
                         <input
@@ -746,7 +760,7 @@ export default function InventoryClient({ category }: { category: "지멘스" | 
                   {view.map((row, r) => (
                     <tr key={row.id} data-rowid={row.id} className={r % 2 === 1 ? "bg-gray-50/60 dark:bg-white/[0.02]" : ""}>
                       <td
-                        className={`hairline-soft sticky left-0 z-10 border-b px-1 py-1 text-center text-ui-xs ${
+                        className={`hairline-soft sticky left-0 z-10 border-b border-r px-1 py-1 text-center text-ui-xs sm:border-r-0 ${
                           r % 2 === 1 ? "bg-gray-50 dark:bg-gray-900" : "bg-white dark:bg-gray-900"
                         }`}
                       >
@@ -761,9 +775,13 @@ export default function InventoryClient({ category }: { category: "지멘스" | 
                               ? `마지막 수정: ${row.updated_by_name} — 클릭하면 이 행의 변경 내역`
                               : "이 행의 변경 내역 보기"
                           }
-                          className="fg-subtle w-full transition-colors hover:text-gray-800 dark:hover:text-gray-100"
+                          className="fg-subtle flex w-full min-w-0 items-center gap-1.5 px-1 text-left transition-colors hover:text-gray-800 dark:hover:text-gray-100 sm:block sm:px-0 sm:text-center"
                         >
-                          {r + 1}
+                          <span className="shrink-0 tabular-nums">{r + 1}</span>
+                          {/* 폰에서는 가로로 밀어도 어느 행인지 알 수 있게 이름을 행 머리글에 고정해 둔다 */}
+                          <span className="fg-base min-w-0 flex-1 truncate font-medium sm:hidden">
+                            {row.name || `#${row.id}`}
+                          </span>
                         </button>
                       </td>
 
@@ -794,7 +812,7 @@ export default function InventoryClient({ category }: { category: "지멘스" | 
                                 onClick={() =>
                                   runEdits([{ row_id: row.id, field: "is_opened", old_value: row.is_opened, new_value: !row.is_opened }])
                                 }
-                                className={`w-full rounded-control px-2 py-1.5 text-ui-xs font-medium focus:outline-none ${
+                                className={`w-full rounded-control px-2 py-2.5 text-ui-xs font-medium focus:outline-none sm:py-1.5 ${
                                   row.is_opened
                                     ? "bg-warning-50 text-warning-700 dark:bg-warning-500/15 dark:text-warning-400"
                                     : "bg-success-50 text-success-600 dark:bg-success-500/15 dark:text-success-400"
@@ -819,13 +837,13 @@ export default function InventoryClient({ category }: { category: "지멘스" | 
                                 onKeyDown={(e) => onCellKeyDown(e, r, c, row, col)}
                                 className={
                                   col.type === "grade"
-                                    ? `w-full rounded-control px-1 py-1.5 text-center text-xs font-medium focus:outline-none ${
+                                    ? `w-full rounded-control px-1 py-3 text-center text-ui-sm font-medium focus:outline-none sm:py-1.5 sm:text-xs ${
                                         row.grade && GRADE_COLOR[row.grade]
                                           ? GRADE_COLOR[row.grade]
                                           : "surface-inset fg-muted"
                                       }`
-                                    : `fg-base w-full bg-transparent px-1.5 py-1.5 text-ui focus:outline-none ${
-                                        col.mono ? "font-mono text-xs" : ""
+                                    : `fg-base w-full bg-transparent px-1.5 py-3 text-ui focus:outline-none sm:py-1.5 ${
+                                        col.mono ? "font-mono text-ui-sm sm:text-xs" : ""
                                       }`
                                 }
                               />
@@ -835,7 +853,12 @@ export default function InventoryClient({ category }: { category: "지멘스" | 
                       })}
 
                       <td className="hairline-soft border-b px-1 py-0.5 text-center">
-                        <button onClick={() => removeRows([row.id])} title="행 삭제" className="text-error-500 transition-colors hover:text-error-600">
+                        <button
+                          onClick={() => removeRows([row.id])}
+                          title="행 삭제"
+                          aria-label="행 삭제"
+                          className="inline-flex h-11 w-11 items-center justify-center text-error-500 transition-colors hover:text-error-600 sm:h-auto sm:w-auto"
+                        >
                           ×
                         </button>
                       </td>
