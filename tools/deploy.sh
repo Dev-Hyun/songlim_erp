@@ -21,6 +21,8 @@ APPLY=0
 ONLY=""
 SYNC_ENV=""
 DB_REPORT=0
+DISK=0
+CLEAN_BACKUPS=0
 RUN_IMPORT=""
 IMPORT_LOG=""
 for a in "$@"; do
@@ -32,6 +34,8 @@ for a in "$@"; do
     --only=*)     ONLY="$ONLY --only ${a#--only=}" ;;
     --sync-env=*) SYNC_ENV="$SYNC_ENV ${a#--sync-env=}" ;;
     --db-report)  DB_REPORT=1 ;;
+    --disk)       DISK=1 ;;
+    --clean-old-backups) CLEAN_BACKUPS=1 ;;
     --run-import=*) RUN_IMPORT="${a#--run-import=}" ;;
     --import-log=*) IMPORT_LOG="${a#--import-log=}" ;;
     *) echo "모르는 옵션: $a" >&2; exit 2 ;;
@@ -101,13 +105,29 @@ PY"
   exit 0
 fi
 
+# --disk : 서버 디스크와 백업 파일 현황(읽기 전용). 임포트마다 1GB 백업이 쌓여 금방 찬다.
+if [ "$DISK" = 1 ]; then
+  ssh_run "df -h / | tail -2; echo; echo '--- data.db 백업 (오래된 순) ---';     ls -la --time-style=+%m-%d_%H:%M $APP_DIR/backend/data.db* 2>/dev/null | sort -k6; echo;     echo '--- 백업 총 용량 ---'; du -ch $APP_DIR/backend/data.db.bak_* 2>/dev/null | tail -1;     echo '--- 도커 사용량 ---'; docker system df 2>/dev/null | head -6"
+  exit 0
+fi
+
+# --clean-old-backups : data.db.bak_* 를 정리한다(현재 data.db 는 안 건드림).
+#   서버 디스크가 20GB 라 임포트마다 만드는 1GB 백업이 금방 찬다. 날짜 계산 대신
+#   **남길 것을 이름으로 명시**한다 — 자정을 넘기면 "오늘" 필터가 어제 만든 백업을
+#   놓쳐서 하나도 안 지워지는 사고가 났었다(이 스크립트가 그 사고의 결과다).
+#   KEEP: 이번 작업 세션 시작 전 앵커 + 가장 최근 것 하나. 나머지 전부 삭제.
+if [ "$CLEAN_BACKUPS" = 1 ]; then
+  ssh_run "cd $APP_DIR/backend &&     KEEP=data.db.bak_before_brand_20260921_091459;     for f in data.db.bak_* data.db.bak.*; do [ -e \"\$f\" ] || continue;       [ \"\$f\" = \"\$KEEP\" ] && continue;       rm -fv -- \"\$f\";     done;     echo '--- 남은 것 ---'; ls -la data.db.bak_* 2>/dev/null;     echo '--- 도커 빌드캐시 정리 ---'; docker builder prune -af 2>&1 | tail -3;     df -h / | tail -1"
+  exit 0
+fi
+
 # --run-import=NAME : 공공데이터 임포트를 서버에서 **분리 실행**한다.
 #   수십만~백만 행을 API 로 받느라 SSH 세션보다 오래 살아야 해서 nohup 으로 띄우고 로그만 본다.
 #   임의 스크립트 실행 통로가 되지 않게 이름을 아래 5종으로 한정한다.
 # --import-log=NAME : 그 로그 확인.
 case "$RUN_IMPORT" in
-  ""|mfds|localdata|hospitals|odcloud|backfill|manufacturer) ;;
-  *) echo "모르는 임포트: $RUN_IMPORT (mfds|localdata|hospitals|odcloud|backfill|manufacturer)" >&2; exit 2 ;;
+  ""|mfds|localdata|hospitals|odcloud|backfill|manufacturer|brand) ;;
+  *) echo "모르는 임포트: $RUN_IMPORT (mfds|localdata|hospitals|odcloud|backfill|manufacturer|brand)" >&2; exit 2 ;;
 esac
 
 if [ -n "$IMPORT_LOG" ]; then
@@ -123,6 +143,7 @@ if [ -n "$RUN_IMPORT" ]; then
     odcloud)      SCRIPT="import_odcloud_equipment_years.py --apply --years 2023,2024,2025" ;;
     backfill)     SCRIPT="backfill_hira2025_license.py --apply" ;;
     manufacturer) SCRIPT="assign_equipment_manufacturer.py --apply" ;;
+    brand)        SCRIPT="apply_brand.py --apply" ;;
   esac
   echo "== 서버 DB 백업 =="
   ssh_run "cd $APP_DIR && cp backend/data.db backend/data.db.bak_before_${RUN_IMPORT}_\$(date +%Y%m%d_%H%M%S) && ls -la backend/data.db.bak_before_${RUN_IMPORT}_* | tail -1"
