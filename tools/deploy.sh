@@ -68,8 +68,10 @@ if [ -n "$SYNC_ENV" ]; then
       echo "로컬 .env 에 $k 값이 없습니다 — 건너뜀" >&2
       continue
     fi
+    # $k를 정규식 메타문자로 오해하지 않도록(예: 키 이름에 . 등이 섞인 경우) 이스케이프한 뒤 원격 grep 패턴에 넣는다.
+    k_esc="$(printf '%s' "$k" | sed 's/[][\.^$*]/\\&/g')"
     printf '%s
-' "$line" | ssh_run "cd $APP_DIR && f=backend/.env && touch \$f &&       grep -v '^$k=' \$f > \$f.tmp; cat >> \$f.tmp && mv \$f.tmp \$f && chmod 600 \$f"
+' "$line" | ssh_run "cd $APP_DIR && f=backend/.env && touch \$f &&       grep -v '^$k_esc=' \$f > \$f.tmp; cat >> \$f.tmp && mv \$f.tmp \$f && chmod 600 \$f"
     echo "서버 .env 에 $k 등록 완료"
   done
   echo "== 백엔드 재기동 (.env 반영) =="

@@ -147,15 +147,12 @@ def restore(conn, db_path):
         saved = json.load(f)
     n = 0
     for row in saved:
+        # hospitals_rtree는 trg_hospitals_rtree_au 트리거가 UPDATE OF lat, lng 시 자동으로
+        # 재동기화한다(실측: 수동 INSERT OR REPLACE는 결과가 항상 동일한 no-op이었다).
         n += conn.execute(
             "UPDATE hospitals SET lat = ?, lng = ? WHERE id = ? AND lat IS NULL",
             (row["lat"], row["lng"], row["id"]),
         ).rowcount
-        conn.execute(
-            "INSERT OR REPLACE INTO hospitals_rtree(id, min_lat, max_lat, min_lng, max_lng) "
-            "VALUES (?, ?, ?, ?, ?)",
-            (row["id"], row["lat"], row["lat"], row["lng"], row["lng"]),
-        )
     conn.commit()
     print(f"복원 완료: {n}행")
 
@@ -224,11 +221,13 @@ def main():
 
     ids = [b["id"] for b in bad]
     changed = 0
+    # hospitals_rtree는 trg_hospitals_rtree_au 트리거가 UPDATE OF lat, lng 시 자동으로
+    # 재동기화한다(lat/lng를 NULL로 바꾸면 트리거가 알아서 지운다) — 실측: 수동 DELETE는
+    # 항상 rowcount 0인 no-op이었다.
     for hid in ids:
         changed += conn.execute(
             "UPDATE hospitals SET lat = NULL, lng = NULL WHERE id = ?", (hid,)
         ).rowcount
-        conn.execute("DELETE FROM hospitals_rtree WHERE id = ?", (hid,))
     conn.commit()
     print(f"반영 완료: {changed}행 좌표 제거 (지도 마커에서 제외, 목록 검색에는 그대로 노출)")
     print(f"재실행 검증(멱등): 남은 대상 {len(find_outliers(conn)[0])}행")

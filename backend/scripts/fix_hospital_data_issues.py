@@ -98,7 +98,9 @@ def main() -> int:
         kn = conn.execute("SELECT name FROM hospitals WHERE id=?", (keep,)).fetchone()[0]
         dn = conn.execute("SELECT name FROM hospitals WHERE id=?", (drop,)).fetchone()[0]
         ne = conn.execute("SELECT COUNT(*) FROM equipment WHERE hospital_id=?", (drop,)).fetchone()[0]
-        print(f"    남김 [{keep}] {kn}  <-  버림 [{drop}] {dn} (장비 {ne}건 이전)")
+        ns = conn.execute("SELECT COUNT(*) FROM sales_notes WHERE hospital_id=?", (drop,)).fetchone()[0]
+        nc = conn.execute("SELECT COUNT(*) FROM contracts WHERE hospital_id=?", (drop,)).fetchone()[0]
+        print(f"    남김 [{keep}] {kn}  <-  버림 [{drop}] {dn} (장비 {ne}건, 영업노트 {ns}건, 계약 {nc}건 이전)")
     print(f"[2] 인천 신설구 접두어: {sum(len(v[1]) for v in incheon.values())}행")
     for sgg, (canon, ids) in incheon.items():
         print(f"    {sgg} -> {canon}: {len(ids)}행")
@@ -120,7 +122,7 @@ def main() -> int:
     print(f"백업 생성: {backup}")
 
     undo = {"dupes": [], "incheon": [], "sejong": [(r, s) for r, s in sejong]}
-    moved = dropped = 0
+    moved = dropped = notes_moved = contracts_moved = 0
     for keep, drop in dupes:
         have = {tuple(r) for r in conn.execute(
             "SELECT category, year, model, manufacturer FROM equipment WHERE hospital_id=?", (keep,))}
@@ -133,6 +135,12 @@ def main() -> int:
                 conn.execute("UPDATE equipment SET hospital_id=? WHERE id=?", (keep, eid))
                 have.add((cat, yr, mdl, mfr))
                 moved += 1
+        # sales_notes/contracts는 방문기록·계약문서라 장비와 달리 중복집계 위험이 없다 —
+        # 그냥 hospital_id만 남는 쪽으로 옮긴다.
+        notes_moved += conn.execute(
+            "UPDATE sales_notes SET hospital_id=? WHERE hospital_id=?", (keep, drop)).rowcount
+        contracts_moved += conn.execute(
+            "UPDATE contracts SET hospital_id=? WHERE hospital_id=?", (keep, drop)).rowcount
         row = conn.execute("SELECT name, sido, sigungu, ykiho FROM hospitals WHERE id=?", (drop,)).fetchone()
         undo["dupes"].append({"keep": keep, "dropped_id": drop, "row": row})
         conn.execute("DELETE FROM hospitals WHERE id=?", (drop,))
@@ -149,7 +157,8 @@ def main() -> int:
     conn.commit()
 
     print(f"되돌리기용: {UNDO_PATH}")
-    print(f"완료 — 병합 {len(dupes)}쌍 (장비 {moved}건 이전, 중복 {dropped}건 제거), "
+    print(f"완료 — 병합 {len(dupes)}쌍 (장비 {moved}건 이전, 중복 {dropped}건 제거, "
+          f"영업노트 {notes_moved}건 이전, 계약 {contracts_moved}건 이전), "
           f"인천 {sum(len(v[1]) for v in incheon.values())}행, 세종 {len(sejong)}행")
     print(f"총 병원: {conn.execute('SELECT COUNT(*) FROM hospitals').fetchone()[0]:,}")
     return 0

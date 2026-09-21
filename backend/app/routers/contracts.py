@@ -6,7 +6,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -89,11 +89,18 @@ def _serialize(c: Contract) -> dict:
 @router.get("")
 async def list_contracts(db: AsyncSession = Depends(get_db), user: User = Depends(require_staff)):
     rows = (await db.execute(select(Contract).order_by(Contract.updated_at.desc()))).scalars().all()
-    result = []
-    for c in rows:
-        comment_count = len((await db.execute(select(ContractComment).where(ContractComment.contract_id == c.id))).scalars().all())
-        result.append({**_serialize(c), "comment_count": comment_count})
-    return result
+    contract_ids = [c.id for c in rows]
+    comment_counts: dict[int, int] = {}
+    if contract_ids:
+        count_rows = (
+            await db.execute(
+                select(ContractComment.contract_id, func.count(ContractComment.id))
+                .where(ContractComment.contract_id.in_(contract_ids))
+                .group_by(ContractComment.contract_id)
+            )
+        ).all()
+        comment_counts = {cid: cnt for cid, cnt in count_rows}
+    return [{**_serialize(c), "comment_count": comment_counts.get(c.id, 0)} for c in rows]
 
 
 @router.post("")

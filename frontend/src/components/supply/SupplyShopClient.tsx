@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
 import {
   CatalogItem,
   CategoryCount,
@@ -31,12 +32,14 @@ const ICONS: Record<string, string> = {
 
 export default function SupplyShopClient() {
   const router = useRouter();
+  const { user, loading: authLoading } = useAuth();
   const [categories, setCategories] = useState<CategoryCount[]>([]);
   const [category, setCategory] = useState<string | null>(null);
   const [subCategory, setSubCategory] = useState<string | null>(null);
   const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [items, setItems] = useState<CatalogItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [search, setSearch] = useState("");
   const [cart, setCart] = useState<Record<number, CartLine>>({});
   const [detail, setDetail] = useState<CatalogItem | null>(null);
@@ -50,16 +53,20 @@ export default function SupplyShopClient() {
   const [selectedGiftId, setSelectedGiftId] = useState<number | null>(null);
 
   useEffect(() => {
-    fetchGiftTiers().then((r) => { setGiftEligible(r.eligible); setGiftTiers(r.tiers); });
+    fetchGiftTiers()
+      .then((r) => { setGiftEligible(r.eligible); setGiftTiers(r.tiers); })
+      .catch(() => {});
   }, []);
 
   function load() {
     setLoading(true);
+    setLoadError(false);
     Promise.all([fetchCategories(), fetchCatalog(category || undefined)])
       .then(([cats, cat]) => {
         setCategories(cats);
         setItems(cat);
       })
+      .catch(() => setLoadError(true))
       .finally(() => setLoading(false));
   }
 
@@ -199,6 +206,11 @@ export default function SupplyShopClient() {
     }
   }
 
+  if (authLoading) return null;
+  if (user?.role !== "hospital") {
+    return <div className="surface-card empty-state">병원 계정만 이용할 수 있습니다</div>;
+  }
+
   return (
     <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
       <aside className="shrink-0 surface-card p-3 lg:w-48">
@@ -279,7 +291,9 @@ export default function SupplyShopClient() {
           </button>
         </div>
 
-        {loading ? (
+        {loadError ? (
+          <div className="empty-state">품목 목록을 불러오지 못했습니다</div>
+        ) : loading ? (
           <div className="empty-state">불러오는 중...</div>
         ) : filtered.length === 0 ? (
           <div className="empty-state">해당 조건의 품목이 없습니다</div>

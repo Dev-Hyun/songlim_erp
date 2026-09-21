@@ -11,7 +11,7 @@ import feedparser
 import requests
 from bs4 import BeautifulSoup
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import AsyncSessionLocal, get_db
@@ -369,9 +369,10 @@ async def get_bids(
         q = q.where(Bid.source == source.upper())
     if search:
         q = q.where((Bid.title.ilike(f"%{search}%")) | (Bid.agency.ilike(f"%{search}%")))
-    rows = (await db.execute(q.order_by(Bid.created_at.desc()))).scalars().all()
-    total = len(rows)
-    page_rows = rows[(page - 1) * size: (page - 1) * size + size]
+    total = (await db.execute(select(func.count()).select_from(q.subquery()))).scalar_one()
+    page_rows = (
+        await db.execute(q.order_by(Bid.created_at.desc()).offset((page - 1) * size).limit(size))
+    ).scalars().all()
     today = datetime.now().date()
     items = []
     for b in page_rows:
@@ -433,9 +434,12 @@ async def get_news(db: AsyncSession = Depends(get_db), source: str = "", page: i
     q = select(NewsArticle)
     if source:
         q = q.where(NewsArticle.source == source)
-    rows = (await db.execute(q.order_by(NewsArticle.created_at.desc(), NewsArticle.rank.asc()))).scalars().all()
-    total = len(rows)
-    page_rows = rows[(page - 1) * size: (page - 1) * size + size]
+    total = (await db.execute(select(func.count()).select_from(q.subquery()))).scalar_one()
+    page_rows = (
+        await db.execute(
+            q.order_by(NewsArticle.created_at.desc(), NewsArticle.rank.asc()).offset((page - 1) * size).limit(size)
+        )
+    ).scalars().all()
     items = [{
         "id": n.id, "title": n.title, "link": n.link, "source": n.source,
         "thumbnail": n.thumbnail, "rank": n.rank, "created_at": n.created_at,

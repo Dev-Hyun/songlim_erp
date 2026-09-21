@@ -86,6 +86,8 @@ export default function ContractCreateClient() {
         items: items.filter((it) => it.name.trim()).map((it) => ({ name: it.name, qty: it.qty || undefined, note: it.note || undefined })),
       });
       router.push(`/contracts/${id}`);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "계약 등록에 실패했습니다");
     } finally {
       setSaving(false);
     }

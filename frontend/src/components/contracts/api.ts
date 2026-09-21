@@ -55,7 +55,7 @@ export async function ocrContract(file: File): Promise<ContractOcrResult> {
 
 export async function fetchContractDetail(id: number): Promise<ContractDetail> {
   const res = await fetch(`${API}/api/contracts/${id}`, { credentials: "include" });
-  return res.json();
+  return res.ok ? res.json() : Promise.reject();
 }
 
 export async function updateContract(
@@ -91,7 +91,8 @@ export async function updateContract(
 }
 
 export async function deleteContract(id: number) {
-  await fetch(`${API}/api/contracts/${id}`, { method: "DELETE", credentials: "include" });
+  const res = await fetch(`${API}/api/contracts/${id}`, { method: "DELETE", credentials: "include" });
+  if (!res.ok) throw new Error("계약 삭제 실패");
 }
 
 export async function addComment(id: number, body: string) {
@@ -101,17 +102,20 @@ export async function addComment(id: number, body: string) {
     credentials: "include",
     body: JSON.stringify({ body }),
   });
+  if (!res.ok) throw new Error("댓글 등록 실패");
   return res.json();
 }
 
 export async function deleteComment(id: number, commentId: number) {
-  await fetch(`${API}/api/contracts/${id}/comments/${commentId}`, { method: "DELETE", credentials: "include" });
+  const res = await fetch(`${API}/api/contracts/${id}/comments/${commentId}`, { method: "DELETE", credentials: "include" });
+  if (!res.ok) throw new Error("댓글 삭제 실패");
 }
 
 export async function uploadPhoto(id: number, file: File) {
   const form = new FormData();
   form.append("file", file);
   const res = await fetch(`${API}/api/contracts/${id}/photos`, { method: "POST", credentials: "include", body: form });
+  if (!res.ok) throw new Error("사진 업로드 실패");
   return res.json();
 }
 
@@ -120,7 +124,8 @@ export function photoUrl(contractId: number, photoId: number) {
 }
 
 export async function deletePhoto(id: number, photoId: number) {
-  await fetch(`${API}/api/contracts/${id}/photos/${photoId}`, { method: "DELETE", credentials: "include" });
+  const res = await fetch(`${API}/api/contracts/${id}/photos/${photoId}`, { method: "DELETE", credentials: "include" });
+  if (!res.ok) throw new Error("사진 삭제 실패");
 }
 
 export type { ContractItemRow };

@@ -61,8 +61,9 @@ def upload_to_object_storage(local_path: str):
     import boto3
     client = boto3.client("s3", endpoint_url=endpoint, aws_access_key_id=access_key, aws_secret_access_key=secret_key)
     key = f"backups/{os.path.basename(local_path)}"
+    # data.db가 1GB를 넘어가므로 f.read()로 전체를 메모리에 올리지 않고 스트리밍으로 업로드한다.
     with open(local_path, "rb") as f:
-        client.put_object(Bucket=bucket, Key=key, Body=f.read())
+        client.upload_fileobj(f, bucket, key)
     print(f"업로드 완료: s3://{bucket}/{key}")
 
 

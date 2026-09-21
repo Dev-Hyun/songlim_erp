@@ -25,6 +25,7 @@ const STATUS_COLOR: Record<ContractStatus, string> = {
 
 export default function ContractDetailClient({ id }: { id: number }) {
   const [detail, setDetail] = useState<ContractDetail | null>(null);
+  const [notFound, setNotFound] = useState(false);
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<Record<string, string | number | null>>({});
   const [items, setItems] = useState<ContractItemRow[]>([]);
@@ -34,11 +35,13 @@ export default function ContractDetailClient({ id }: { id: number }) {
   const router = useRouter();
 
   function load() {
-    fetchContractDetail(id).then((d) => {
-      setDetail(d);
-      setForm({ ...d.contract });
-      setItems(d.items);
-    });
+    fetchContractDetail(id)
+      .then((d) => {
+        setDetail(d);
+        setForm({ ...d.contract });
+        setItems(d.items);
+      })
+      .catch(() => setNotFound(true));
   }
 
   useEffect(() => {
@@ -46,57 +49,78 @@ export default function ContractDetailClient({ id }: { id: number }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
+  if (notFound) return <div className="empty-state">삭제되었거나 존재하지 않는 계약 건입니다</div>;
   if (!detail) return <div className="empty-state">불러오는 중...</div>;
 
   const c = detail.contract;
   const canEdit = !!user;
 
   async function setStatus(status: ContractStatus) {
-    await updateContract(id, { status });
-    load();
+    try {
+      await updateContract(id, { status });
+      load();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "상태 변경에 실패했습니다");
+    }
   }
 
   async function saveEdits() {
-    await updateContract(id, {
-      buyer_hospital: String(form.buyer_hospital || ""),
-      buyer_biz_no: String(form.buyer_biz_no || ""),
-      buyer_rep: String(form.buyer_rep || ""),
-      contract_date: String(form.contract_date || ""),
-      buyer_address: String(form.buyer_address || ""),
-      buyer_phone: String(form.buyer_phone || ""),
-      buyer_mobile: String(form.buyer_mobile || ""),
-      buyer_fax: String(form.buyer_fax || ""),
-      install_date: String(form.install_date || ""),
-      sale_amount: Number(form.sale_amount || 0),
-      sale_amount_note: String(form.sale_amount_note || ""),
-      etc_note: String(form.etc_note || ""),
-      customer_request: String(form.customer_request || ""),
-      payment_account: String(form.payment_account || ""),
-      account_holder: String(form.account_holder || ""),
-      items: items.map((it) => ({ name: it.name, qty: it.qty || undefined, note: it.note || undefined })),
-    });
-    setEditing(false);
-    load();
+    try {
+      await updateContract(id, {
+        buyer_hospital: String(form.buyer_hospital || ""),
+        buyer_biz_no: String(form.buyer_biz_no || ""),
+        buyer_rep: String(form.buyer_rep || ""),
+        contract_date: String(form.contract_date || ""),
+        buyer_address: String(form.buyer_address || ""),
+        buyer_phone: String(form.buyer_phone || ""),
+        buyer_mobile: String(form.buyer_mobile || ""),
+        buyer_fax: String(form.buyer_fax || ""),
+        install_date: String(form.install_date || ""),
+        sale_amount: Number(form.sale_amount || 0),
+        sale_amount_note: String(form.sale_amount_note || ""),
+        etc_note: String(form.etc_note || ""),
+        customer_request: String(form.customer_request || ""),
+        payment_account: String(form.payment_account || ""),
+        account_holder: String(form.account_holder || ""),
+        items: items.map((it) => ({ name: it.name, qty: it.qty || undefined, note: it.note || undefined })),
+      });
+      setEditing(false);
+      load();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "계약 수정에 실패했습니다");
+    }
   }
 
   async function handleDelete() {
     if (!confirm("이 계약 건을 삭제하시겠습니까?")) return;
-    await deleteContract(id);
-    router.push("/contracts");
+    try {
+      await deleteContract(id);
+      router.push("/contracts");
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "계약 삭제에 실패했습니다");
+    }
   }
 
   async function submitComment() {
     if (!commentText.trim()) return;
-    await addComment(id, commentText);
-    setCommentText("");
-    load();
+    try {
+      await addComment(id, commentText);
+      setCommentText("");
+      load();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "댓글 등록에 실패했습니다");
+    }
   }
 
   async function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    await uploadPhoto(id, file);
-    load();
+    try {
+      await uploadPhoto(id, file);
+      load();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "사진 업로드에 실패했습니다");
+    }
   }
 
   const field = (key: string, label: string, type = "text") => (
@@ -237,7 +261,14 @@ export default function ContractDetailClient({ id }: { id: number }) {
                   className="h-24 w-full cursor-zoom-in rounded-control object-cover"
                 />
                 <button
-                  onClick={async () => { await deletePhoto(id, p.id); load(); }}
+                  onClick={async () => {
+                    try {
+                      await deletePhoto(id, p.id);
+                      load();
+                    } catch (err) {
+                      alert(err instanceof Error ? err.message : "사진 삭제에 실패했습니다");
+                    }
+                  }}
                   className="absolute right-1 top-1 hidden rounded-full bg-black/60 px-1.5 text-xs text-white group-hover:block"
                 >
                   ×
@@ -264,7 +295,19 @@ export default function ContractDetailClient({ id }: { id: number }) {
                 <div className="mb-1 flex justify-between text-[10px] text-gray-400">
                   <span>{cm.created_at?.slice(0, 16)}</span>
                   {user && (user.id === cm.user_id || user.is_admin) && (
-                    <button onClick={async () => { await deleteComment(id, cm.id); load(); }} className="text-error-500">삭제</button>
+                    <button
+                      onClick={async () => {
+                        try {
+                          await deleteComment(id, cm.id);
+                          load();
+                        } catch (err) {
+                          alert(err instanceof Error ? err.message : "댓글 삭제에 실패했습니다");
+                        }
+                      }}
+                      className="text-error-500"
+                    >
+                      삭제
+                    </button>
                   )}
                 </div>
                 <div className="text-gray-700 dark:text-gray-300">{cm.body}</div>

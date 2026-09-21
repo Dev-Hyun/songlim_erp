@@ -29,6 +29,7 @@ interface Comment {
 
 export default function CsDetailClient({ id }: { id: number }) {
   const [ticket, setTicket] = useState<Ticket | null>(null);
+  const [notFound, setNotFound] = useState(false);
   const [comments, setComments] = useState<Comment[]>([]);
   const [commentText, setCommentText] = useState("");
   const [commentEditorKey, setCommentEditorKey] = useState(0);
@@ -38,11 +39,12 @@ export default function CsDetailClient({ id }: { id: number }) {
 
   function load() {
     fetch(`${API}/api/cs/${id}`, { credentials: "include" })
-      .then((r) => r.json())
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
       .then((d) => {
         setTicket(d.ticket);
         setComments(d.comments);
-      });
+      })
+      .catch(() => setNotFound(true));
   }
 
   useEffect(load, [id]);
@@ -78,6 +80,7 @@ export default function CsDetailClient({ id }: { id: number }) {
     router.push("/cs");
   }
 
+  if (notFound) return <div className="empty-state">삭제되었거나 존재하지 않는 CS 문의입니다</div>;
   if (!ticket) return <div className="empty-state">불러오는 중...</div>;
 
   return (
