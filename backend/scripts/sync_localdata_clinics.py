@@ -180,6 +180,7 @@ def main() -> int:
     ap.add_argument("--apply", action="store_true", help="실제 수집 (기본은 1페이지 미리보기)")
     ap.add_argument("--category", default="clinics", help="clinics | hospitals")
     ap.add_argument("--resume", action="store_true", help="이미 받은 만큼 건너뛰고 이어받기")
+    ap.add_argument("--no-backup", action="store_true", help="--no-backup: 실행 전 data.db 전체 복사(약 1.2GB)를 건너뛴다. 정기 동기화용 — 매일 1.2GB씩 쌓여 디스크가 차는 걸 막는다. 이 스크립트는 멱등(UPSERT)이고 일일 backup_db.py 스냅샷이 S3에 올라가므로 자동 실행에서는 필요 없다. 손으로 돌릴 때는 기본값(백업 함)을 쓰는 게 안전하다.")
     args = ap.parse_args()
 
     key = load_key()
@@ -213,9 +214,12 @@ def main() -> int:
         print("실제 수집하려면 --apply 를 붙이세요.")
         return 0
 
-    backup = args.db + ".bak_localdata_" + str(int(time.time()))
-    shutil.copy2(args.db, backup)
-    print("백업 생성: " + backup)
+    if args.no_backup:
+        print("백업 건너뜀(--no-backup) — 일일 backup_db.py 스냅샷이 S3에 있고 이 수집은 멱등이다")
+    else:
+        backup = args.db + ".bak_localdata_" + str(int(time.time()))
+        shutil.copy2(args.db, backup)
+        print("백업 생성: " + backup)
 
     start_page = (have // PAGE_SIZE) + 1 if (args.resume and have) else 1
     if start_page > 1:

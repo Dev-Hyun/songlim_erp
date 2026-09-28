@@ -10,6 +10,10 @@
 - 2026-09-24에 디스크가 꽉 차 서버의 모든 쓰기가 멈춘 적이 있다. 그래서 동기화 전에
   여유 공간을 확인하고, 모자라면 **받지 않고 건너뛴다** — 꽉 찬 디스크에 더 쓰는 게
   제일 나쁘다.
+- 수집 스크립트는 기본적으로 실행 전에 data.db 전체(1.2GB)를 복사해 둔다. 손으로 돌릴 때는
+  안전장치지만 매일 돌리면 하루 1.2GB씩 쌓여 디스크를 채운다. 그래서 자동 실행에서는
+  `--no-backup`을 준다 — 일일 backup_db.py 스냅샷이 S3에 올라가고, 이 수집들은 전부
+  멱등(UPSERT)이라 중간에 실패해도 다음 실행이 메운다.
 - 어떤 실패도 스케줄러를 죽이지 않는다. 다음 주기에 다시 시도하면 되고, 수집 스크립트는
   전부 멱등(UPSERT)이라 중복 적재가 되지 않는다.
 """
@@ -80,7 +84,7 @@ async def sync_openings_job():
     멱등하고, 페이지 단위로 커밋해 중간에 끊겨도 다음 실행에서 채워진다.
     """
     for category in ("clinics", "hospitals"):
-        await _run_script("sync_localdata_clinics.py", "--apply", "--category", category)
+        await _run_script("sync_localdata_clinics.py", "--apply", "--no-backup", "--category", category)
 
 
 async def sync_hira_hospitals_job():
@@ -89,4 +93,4 @@ async def sync_hira_hospitals_job():
     개설현황과 달리 기관 원장 정보라 하루 단위로 바뀌지 않는다. 89,000여 건을 매일 훑을
     이유가 없어 주간으로 둔다.
     """
-    await _run_script("sync_hira_hospital_info.py", "--apply")
+    await _run_script("sync_hira_hospital_info.py", "--apply", "--no-backup")

@@ -186,6 +186,7 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--db", default=DEFAULT_DB)
     ap.add_argument("--apply", action="store_true", help="실제 반영 (기본은 dry-run)")
+    ap.add_argument("--no-backup", action="store_true", help="--no-backup: 실행 전 data.db 전체 복사(약 1.2GB)를 건너뛴다. 정기 동기화용 — 매일 1.2GB씩 쌓여 디스크가 차는 걸 막는다. 이 스크립트는 멱등(UPSERT)이고 일일 backup_db.py 스냅샷이 S3에 올라가므로 자동 실행에서는 필요 없다. 손으로 돌릴 때는 기본값(백업 함)을 쓰는 게 안전하다.")
     ap.add_argument("--pages", type=int, default=0, help="가져올 페이지 수 제한 (0=전체)")
     ap.add_argument("--overwrite-coords", action="store_true",
                     help="기존 좌표도 API 값으로 덮어쓴다 (좌표 오류 정정용)")
@@ -236,9 +237,12 @@ def main() -> int:
         print(f"요양기호 재발급으로 보이는 1:1 매칭: {len(rekey):,}건 (신규 삽입 대신 기존 행 갱신)")
 
     if args.apply:
-        backup = f"{args.db}.bak_hira_sync_{int(time.time())}"
-        shutil.copy2(args.db, backup)
-        print(f"백업 생성: {backup}")
+        if args.no_backup:
+            print("백업 건너뜀(--no-backup) — 일일 backup_db.py 스냅샷이 S3에 있고 이 수집은 멱등이다")
+        else:
+            backup = f"{args.db}.bak_hira_sync_{int(time.time())}"
+            shutil.copy2(args.db, backup)
+            print(f"백업 생성: {backup}")
 
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     n_estb = n_addr = n_coord = n_new = n_rekey = n_region = n_type = 0
