@@ -20,8 +20,7 @@ from .supply import (
 )
 from .sales_map import Hospital, Equipment, SalesNote, PersonalMemo
 from .contracts import Contract, ContractItem, ContractPhoto, ContractComment
-from .deliveries import Delivery, DeliveryItem, DeliveryPhoto, DeliveryComment
-from .inventory import InvChangeLog, InvEquipment, InvSupply
+from .inventory import InvChangeLog, InvEquipment, InvSupply, InvCountStock, InvCountLog
 from .board import Notice, CsTicket, CsComment, TechPost, TechComment
 from .misc import MileageLog, Bid, NewsArticle, StorageFile, StorageFolder, StorageFavorite, StorageAccess
 from .calendar import CalendarEvent, CalendarEventAssignee, CalendarEventTeam
@@ -60,13 +59,11 @@ __all__ = [
     "ContractItem",
     "ContractPhoto",
     "ContractComment",
-    "Delivery",
-    "DeliveryItem",
-    "DeliveryPhoto",
-    "DeliveryComment",
     "InvEquipment",
     "InvSupply",
     "InvChangeLog",
+    "InvCountStock",
+    "InvCountLog",
     "Notice",
     "CsTicket",
     "CsComment",

@@ -17,7 +17,6 @@ from app.routers import (
     board,
     calendar,
     contracts,
-    deliveries,
     inventory,
     med_stats,
     misc,
@@ -55,7 +54,6 @@ app.include_router(sales_map.router)
 app.include_router(stats.router)
 app.include_router(med_stats.router)
 app.include_router(contracts.router)
-app.include_router(deliveries.router)
 app.include_router(inventory.router)
 app.include_router(board.router)
 app.include_router(misc.router)

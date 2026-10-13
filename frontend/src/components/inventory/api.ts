@@ -4,7 +4,6 @@ export interface InvEquipmentRow {
   id: number;
   category: string;
   item_type: string;
-  grade: string | null;
   name: string;
   serial_no: string | null;
   location: string | null;
@@ -128,4 +127,106 @@ export async function fetchHistory(params: { category?: string; rowId?: number; 
   const res = await fetch(`${API}/api/inventory/history?${qs.toString()}`, { credentials: "include" });
   if (!res.ok) throw new Error("이력 조회 실패");
   return res.json();
+}
+
+// ---------------------------------------------------------------- 개수 관리 (LUMOS · 쉬스)
+
+export type CountItem = "LUMOS" | "쉬스";
+export const COUNT_ITEMS: CountItem[] = ["LUMOS", "쉬스"];
+export type CountOffice = "대전" | "대구" | "서울";
+export const COUNT_OFFICES: CountOffice[] = ["대전", "대구", "서울"];
+
+export interface CountStock {
+  office: CountOffice;
+  on_hand: number;
+  used: number;
+}
+
+export interface CountLog {
+  id: number;
+  item: CountItem;
+  kind: "use" | "undone" | "adjust";
+  office: CountOffice;
+  used_on: string | null;
+  site: string | null;
+  professor: string | null;
+  procedure: string | null;
+  staff_name: string | null;
+  note: string | null;
+  /** adjust 전용 — "보유 40 → 45 · 사용 11 → 11" */
+  detail: string | null;
+  on_hand_after: number;
+  used_after: number;
+  actor_user_id: number | null;
+  actor_name: string | null;
+  created_at: string;
+}
+
+export interface CountUsePayload {
+  office: CountOffice;
+  used_on: string;
+  site: string;
+  professor: string;
+  procedure: string;
+  staff_name: string;
+}
+
+async function okJson<T>(res: Response, fallback: string): Promise<T> {
+  if (!res.ok) {
+    let msg = fallback;
+    try {
+      const body = await res.json();
+      if (typeof body?.detail === "string") msg = body.detail;
+    } catch {
+      /* 본문이 JSON이 아니면 기본 메시지 */
+    }
+    throw new Error(msg);
+  }
+  return res.json();
+}
+
+const countBase = (item: CountItem) => `${API}/api/inventory/counts/${encodeURIComponent(item)}`;
+
+export async function fetchCounts(item: CountItem): Promise<{ stocks: CountStock[]; logs: CountLog[] }> {
+  const res = await fetch(countBase(item), { credentials: "include" });
+  return okJson(res, `${item} 현황 조회 실패`);
+}
+
+export async function fetchCountLogs(
+  item: CountItem,
+  params: { office?: string; month?: string; limit?: number },
+): Promise<CountLog[]> {
+  const qs = new URLSearchParams();
+  if (params.office) qs.set("office", params.office);
+  if (params.month) qs.set("month", params.month);
+  qs.set("limit", String(params.limit ?? 200));
+  const res = await fetch(`${countBase(item)}/logs?${qs.toString()}`, { credentials: "include" });
+  return okJson(res, "기록 조회 실패");
+}
+
+/** '사용하기' — 보유 -1, 사용 +1, 기록 1줄 */
+export async function recordCountUse(item: CountItem, payload: CountUsePayload): Promise<{ stock: CountStock; log: CountLog }> {
+  const res = await fetch(`${countBase(item)}/use`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify(payload),
+  });
+  return okJson(res, "사용 처리 실패");
+}
+
+export async function undoCountUse(item: CountItem, logId: number): Promise<{ stock: CountStock; log: CountLog }> {
+  const res = await fetch(`${countBase(item)}/logs/${logId}`, { method: "DELETE", credentials: "include" });
+  return okJson(res, "되돌리기 실패");
+}
+
+/** ADMIN 전용 — 사무실별 보유/사용 초기값 저장 */
+export async function setCountStock(item: CountItem, items: CountStock[], reason: string): Promise<{ stocks: CountStock[] }> {
+  const res = await fetch(`${countBase(item)}/stock`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ items, reason }),
+  });
+  return okJson(res, "저장 실패");
 }

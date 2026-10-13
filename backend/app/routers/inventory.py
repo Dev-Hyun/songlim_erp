@@ -7,14 +7,15 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.models import InvChangeLog, InvEquipment, InvSupply, User
+from app.models import InvChangeLog, InvEquipment, InvSupply, InvCountStock, InvCountLog, User
+from app.routers.admin import require_admin
 from app.routers.auth import require_staff
 
 router = APIRouter(prefix="/api/inventory", tags=["inventory"])
 
 # 셀 편집이 허용되는 컬럼. 여기 없는 컬럼(id/updated_at 등)은 클라이언트가 지정해도 무시된다.
 EQ_EDITABLE = [
-    "grade", "name", "serial_no", "location", "notes", "manufacture_date",
+    "name", "serial_no", "location", "notes", "manufacture_date",
     "manufacturer", "purchase_price", "purchase_from", "is_opened", "item_type", "category",
 ]
 
@@ -74,7 +75,6 @@ def _log(
 class InvEquipmentIn(BaseModel):
     category: str  # 지멘스 | 타사
     item_type: str
-    grade: Optional[str] = None
     name: str
     serial_no: Optional[str] = None
     location: Optional[str] = None
@@ -111,7 +111,7 @@ class CellEditsIn(BaseModel):
 
 def _eq_dict(e: InvEquipment, names: Optional[dict] = None) -> dict:
     return {
-        "id": e.id, "category": e.category, "item_type": e.item_type, "grade": e.grade,
+        "id": e.id, "category": e.category, "item_type": e.item_type,
         "name": e.name, "serial_no": e.serial_no, "location": e.location, "notes": e.notes,
         "manufacture_date": e.manufacture_date, "manufacturer": e.manufacturer,
         "purchase_price": e.purchase_price, "purchase_from": e.purchase_from,
@@ -392,3 +392,175 @@ async def list_history(
         "field": r.field, "old_value": r.old_value, "new_value": r.new_value,
         "actor_name": r.actor_name, "created_at": r.created_at,
     } for r in rows]
+
+
+# ---------------------------------------------------------------- 개수 관리 (LUMOS · 쉬스)
+
+COUNT_ITEMS = ("LUMOS", "쉬스")
+COUNT_OFFICES = ("대전", "대구", "서울")
+
+
+class CountUseIn(BaseModel):
+    office: str
+    used_on: Optional[str] = None     # YYYY-MM-DD
+    site: Optional[str] = None        # 사용처(병원)
+    professor: Optional[str] = None
+    procedure: Optional[str] = None
+    staff_name: Optional[str] = None
+
+
+class CountStockItem(BaseModel):
+    office: str
+    on_hand: int
+    used: int
+
+
+class CountStockIn(BaseModel):
+    items: List[CountStockItem]
+    reason: Optional[str] = None
+
+
+def _check_item(item: str) -> str:
+    if item not in COUNT_ITEMS:
+        raise HTTPException(status_code=404, detail="없는 품목입니다")
+    return item
+
+
+def _stock_dict(s: InvCountStock) -> dict:
+    return {"office": s.office, "on_hand": s.on_hand, "used": s.used}
+
+
+def _count_log_dict(l: InvCountLog) -> dict:
+    return {
+        "id": l.id, "item": l.item, "kind": l.kind, "office": l.office, "used_on": l.used_on, "site": l.site,
+        "professor": l.professor, "procedure": l.procedure, "staff_name": l.staff_name,
+        "note": l.note, "detail": l.site if l.kind == "adjust" else None,
+        "on_hand_after": l.on_hand_after, "used_after": l.used_after,
+        "actor_user_id": l.actor_user_id, "actor_name": l.actor_name, "created_at": l.created_at,
+    }
+
+
+async def _get_stock(db: AsyncSession, item: str, office: str) -> InvCountStock:
+    if office not in COUNT_OFFICES:
+        raise HTTPException(status_code=400, detail="사무실은 대전/대구/서울 중 하나여야 합니다")
+    row = (await db.execute(
+        select(InvCountStock).where(InvCountStock.item == item, InvCountStock.office == office)
+    )).scalar_one_or_none()
+    if row is None:
+        # 마이그레이션이 품목×사무실 행을 심지만, 혹시 없으면 0/0으로 만들어 둔다
+        row = InvCountStock(item=item, office=office, on_hand=0, used=0)
+        db.add(row)
+        await db.flush()
+    return row
+
+
+async def _all_stocks(db: AsyncSession, item: str) -> list:
+    rows = {s.office: s for s in (await db.execute(select(InvCountStock).where(InvCountStock.item == item))).scalars().all()}
+    return [_stock_dict(rows[o]) if o in rows else {"office": o, "on_hand": 0, "used": 0} for o in COUNT_OFFICES]
+
+
+@router.get("/counts/{item}")
+async def count_overview(item: str, db: AsyncSession = Depends(get_db), user: User = Depends(require_staff)):
+    _check_item(item)
+    logs = (await db.execute(
+        select(InvCountLog).where(InvCountLog.item == item).order_by(InvCountLog.id.desc()).limit(20)
+    )).scalars().all()
+    return {"item": item, "stocks": await _all_stocks(db, item), "logs": [_count_log_dict(l) for l in logs]}
+
+
+@router.get("/counts/{item}/logs")
+async def count_logs(
+    item: str,
+    db: AsyncSession = Depends(get_db),
+    office: Optional[str] = None,
+    month: Optional[str] = None,   # YYYY-MM — used_on 기준(adjust 행은 created_at 기준)
+    limit: int = 200,
+    user: User = Depends(require_staff),
+):
+    _check_item(item)
+    q = select(InvCountLog).where(InvCountLog.item == item)
+    if office:
+        q = q.where(InvCountLog.office == office)
+    if month:
+        q = q.where(
+            (InvCountLog.used_on.like(f"{month}%"))
+            | ((InvCountLog.used_on.is_(None)) & (InvCountLog.created_at.like(f"{month}%")))
+        )
+    q = q.order_by(InvCountLog.id.desc()).limit(min(max(limit, 1), 1000))
+    return [_count_log_dict(l) for l in (await db.execute(q)).scalars().all()]
+
+
+@router.post("/counts/{item}/use")
+async def count_use(item: str, payload: CountUseIn, db: AsyncSession = Depends(get_db), user: User = Depends(require_staff)):
+    """'사용하기' — 해당 사무실 보유 -1, 사용 +1, 기록 1줄."""
+    _check_item(item)
+    stock = await _get_stock(db, item, payload.office)
+    if stock.on_hand <= 0:
+        raise HTTPException(status_code=400, detail=f"{stock.office} {item} 보유 수량이 0개라 사용 처리할 수 없습니다")
+    stock.on_hand -= 1
+    stock.used += 1
+    stock.updated_at = _now()
+    stock.updated_by = user.id
+    log = InvCountLog(
+        item=item, kind="use", office=stock.office, used_on=payload.used_on, site=payload.site,
+        professor=payload.professor, procedure=payload.procedure,
+        staff_name=payload.staff_name or _actor_name(user),
+        on_hand_after=stock.on_hand, used_after=stock.used,
+        actor_user_id=user.id, actor_name=_actor_name(user), created_at=_now(),
+    )
+    db.add(log)
+    await db.commit()
+    await db.refresh(log)
+    return {"stock": _stock_dict(stock), "log": _count_log_dict(log)}
+
+
+@router.delete("/counts/{item}/logs/{log_id}")
+async def count_undo(item: str, log_id: int, db: AsyncSession = Depends(get_db), user: User = Depends(require_staff)):
+    """잘못 누른 '사용하기'를 되돌린다 — 보유 +1, 사용 -1. 행은 지우지 않고 kind='undone'으로 남긴다.
+    본인 기록이거나 ADMIN만 가능."""
+    _check_item(item)
+    log = (await db.execute(
+        select(InvCountLog).where(InvCountLog.id == log_id, InvCountLog.item == item)
+    )).scalar_one_or_none()
+    if log is None:
+        raise HTTPException(status_code=404, detail="기록이 없습니다")
+    if log.kind != "use":
+        raise HTTPException(status_code=400, detail="사용 기록만 되돌릴 수 있습니다")
+    if log.actor_user_id != user.id and not user.is_admin:
+        raise HTTPException(status_code=403, detail="본인 기록이거나 관리자만 되돌릴 수 있습니다")
+    stock = await _get_stock(db, item, log.office)
+    stock.on_hand += 1
+    stock.used = max(0, stock.used - 1)
+    stock.updated_at = _now()
+    stock.updated_by = user.id
+    log.kind = "undone"
+    log.note = f"{_actor_name(user)} 되돌림"
+    await db.commit()
+    return {"stock": _stock_dict(stock), "log": _count_log_dict(log)}
+
+
+@router.put("/counts/{item}/stock")
+async def count_set_stock(item: str, payload: CountStockIn, db: AsyncSession = Depends(get_db), user: User = Depends(require_admin)):
+    """ADMIN 전용 — 사무실별 보유/사용 초기값을 직접 바꾼다. 바뀐 사무실마다 adjust 기록 1줄."""
+    _check_item(item)
+    for it in payload.items:
+        if it.on_hand < 0 or it.used < 0:
+            raise HTTPException(status_code=400, detail="수량은 0 이상이어야 합니다")
+    for it in payload.items:
+        stock = await _get_stock(db, item, it.office)
+        if stock.on_hand == it.on_hand and stock.used == it.used:
+            continue
+        detail = f"보유 {stock.on_hand} → {it.on_hand} · 사용 {stock.used} → {it.used}"
+        stock.on_hand = it.on_hand
+        stock.used = it.used
+        stock.updated_at = _now()
+        stock.updated_by = user.id
+        db.add(InvCountLog(
+            item=item, kind="adjust", office=stock.office,
+            note=(payload.reason or "").strip() or None,
+            site=detail,  # 목록에서 한 줄로 보이게 "보유 40 → 45 · 사용 11 → 11"을 사용처 자리에 둔다
+            on_hand_after=stock.on_hand, used_after=stock.used,
+            actor_user_id=user.id, actor_name=_actor_name(user), created_at=_now(),
+        ))
+    await db.commit()
+    return {"stocks": await _all_stocks(db, item)}

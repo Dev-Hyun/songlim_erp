@@ -11,8 +11,7 @@ class InvEquipment(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     category: Mapped[str] = mapped_column(default="지멘스")  # 지멘스 | 타사
-    item_type: Mapped[str] = mapped_column(default="장비")  # 지멘스: 장비|EKG|프로브, 타사: 신품|중고|데모
-    grade: Mapped[Optional[str]] = mapped_column(default=None)
+    item_type: Mapped[str] = mapped_column(default="장비")  # 지멘스: 장비|프로브|ECG CABLE, 타사: 신품|중고|데모
     name: Mapped[str] = mapped_column()
     serial_no: Mapped[Optional[str]] = mapped_column(default=None)
     location: Mapped[Optional[str]] = mapped_column(default=None)
@@ -55,6 +54,42 @@ class InvChangeLog(Base):
     field: Mapped[Optional[str]] = mapped_column(default=None)
     old_value: Mapped[Optional[str]] = mapped_column(default=None)
     new_value: Mapped[Optional[str]] = mapped_column(default=None)
+    actor_user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), default=None)
+    actor_name: Mapped[Optional[str]] = mapped_column(default=None)
+    created_at: Mapped[str] = mapped_column(index=True)
+
+
+class InvCountStock(Base):
+    """개수로 관리하는 소모품(LUMOS, 쉬스)의 사무실별 개수. 행은 품목×사무실(대전/대구/서울)로 고정
+    (마이그레이션이 0/0으로 심는다). 초기값은 ADMIN만 고치고, 일반 직원은 '사용하기'로만
+    움직인다(보유 -1, 사용 +1)."""
+    __tablename__ = "inv_count_stock"
+
+    item: Mapped[str] = mapped_column(primary_key=True)   # LUMOS | 쉬스
+    office: Mapped[str] = mapped_column(primary_key=True)
+    on_hand: Mapped[int] = mapped_column(default=0)
+    used: Mapped[int] = mapped_column(default=0)
+    updated_at: Mapped[Optional[str]] = mapped_column(default=None)
+    updated_by: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), default=None)
+
+
+class InvCountLog(Base):
+    """개수 관리 기록. kind: use(사용하기) | undone(사용을 되돌림, 행은 남긴다) | adjust(ADMIN 초기 수량 변경).
+    on_hand_after/used_after는 그 시점의 사무실 잔여 — 나중에 숫자가 어떻게 흘렀는지 볼 수 있게."""
+    __tablename__ = "inv_count_logs"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    item: Mapped[str] = mapped_column(index=True)
+    kind: Mapped[str] = mapped_column(default="use")
+    office: Mapped[str] = mapped_column(index=True)
+    used_on: Mapped[Optional[str]] = mapped_column(default=None)
+    site: Mapped[Optional[str]] = mapped_column(default=None)
+    professor: Mapped[Optional[str]] = mapped_column(default=None)
+    procedure: Mapped[Optional[str]] = mapped_column(default=None)
+    staff_name: Mapped[Optional[str]] = mapped_column(default=None)
+    note: Mapped[Optional[str]] = mapped_column(default=None)
+    on_hand_after: Mapped[int] = mapped_column()
+    used_after: Mapped[int] = mapped_column()
     actor_user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), default=None)
     actor_name: Mapped[Optional[str]] = mapped_column(default=None)
     created_at: Mapped[str] = mapped_column(index=True)

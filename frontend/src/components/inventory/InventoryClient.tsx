@@ -15,35 +15,36 @@ import {
   syncEquipment,
 } from "./api";
 
-const SUBTYPES: Record<"지멘스" | "타사", string[]> = {
-  지멘스: ["장비", "EKG", "프로브"],
+export const SUBTYPES: Record<"지멘스" | "타사", string[]> = {
+  지멘스: ["장비", "프로브", "ECG CABLE"],
   타사: ["신품", "중고", "데모"],
 };
 
 const POLL_MS = 3000;
 
 type ColKey =
-  | "grade" | "name" | "serial_no" | "notes" | "location"
+  | "name" | "serial_no" | "notes" | "location"
   | "manufacture_date" | "manufacturer" | "purchase_price" | "purchase_from" | "is_opened";
 
 interface Col {
   key: ColKey;
   label: string;
-  type: "text" | "grade" | "bool";
+  type: "text" | "bool";
   width: string;
   mono?: boolean;
 }
 
-// 컬럼 구성은 기존 화면과 동일(지멘스=등급·개봉 포함, 타사=제조사·매입정보 포함).
+// 지멘스(초음파)는 사용자가 정한 7칸: 제조사/이름/S/N/비고/위치/제조년월/개봉여부 (등급은 2026-10 삭제).
+// 타사(장비)는 기존 그대로.
 const COLUMNS: Record<"지멘스" | "타사", Col[]> = {
   지멘스: [
-    { key: "grade", label: "등급", type: "grade", width: "w-[70px]" },
+    { key: "manufacturer", label: "제조사", type: "text", width: "w-[110px]" },
     { key: "name", label: "이름", type: "text", width: "w-[160px]" },
     { key: "serial_no", label: "S/N", type: "text", width: "w-[140px]", mono: true },
     { key: "notes", label: "비고", type: "text", width: "w-[220px]" },
     { key: "location", label: "위치", type: "text", width: "w-[170px]" },
     { key: "manufacture_date", label: "제조년월", type: "text", width: "w-[130px]" },
-    { key: "is_opened", label: "개봉", type: "bool", width: "w-[80px]" },
+    { key: "is_opened", label: "개봉여부", type: "bool", width: "w-[90px]" },
   ],
   타사: [
     { key: "name", label: "이름", type: "text", width: "w-[160px]" },
@@ -70,11 +71,6 @@ function useIsNarrow(): boolean {
   );
 }
 
-const GRADE_COLOR: Record<string, string> = {
-  L: "bg-blue-50 text-blue-600 dark:bg-blue-500/15 dark:text-blue-400",
-  H: "bg-orange-50 text-orange-600 dark:bg-orange-500/15 dark:text-orange-400",
-};
-
 function cellText(row: InvEquipmentRow, col: Col): string {
   if (col.type === "bool") return row.is_opened ? "개봉" : "미개봉";
   const v = row[col.key];
@@ -91,7 +87,7 @@ function withField(row: InvEquipmentRow, field: string, value: CellValue): InvEq
 
 function blankPayload(category: string, itemType: string) {
   return {
-    category, item_type: itemType, grade: null, name: "", serial_no: null, location: null,
+    category, item_type: itemType, name: "", serial_no: null, location: null,
     notes: null, manufacture_date: null, manufacturer: null, purchase_price: null,
     purchase_from: null, is_opened: false,
   };
@@ -105,12 +101,29 @@ function sortedRows(map: Map<number, InvEquipmentRow>): InvEquipmentRow[] {
   return [...map.values()].sort((a, b) => a.id - b.id);
 }
 
-export default function InventoryClient({ category }: { category: "지멘스" | "타사" }) {
+/** 폰 카드 한 장에 보여 줄 값. 이름·제조사·개봉은 머리에, 나머지는 라벨 붙은 2열 격자에. */
+type SheetDraft = Record<ColKey, string | boolean>;
+
+function draftOf(row: InvEquipmentRow, cols: Col[]): SheetDraft {
+  const d = {} as SheetDraft;
+  for (const c of cols) d[c.key] = c.type === "bool" ? row.is_opened : cellText(row, c);
+  return d;
+}
+
+export default function InventoryClient({
+  category,
+  itemType: controlledItemType,
+}: {
+  category: "지멘스" | "타사";
+  /** 바깥에서 구분 탭을 그릴 때(초음파 페이지의 장비/프로브/ECG CABLE/LUMOS) 넘긴다. 주면 안쪽 탭은 숨긴다. */
+  itemType?: string;
+}) {
   const { user } = useAuth();
   const cols = COLUMNS[category];
 
   const [rows, setRows] = useState<InvEquipmentRow[]>([]);
-  const [itemType, setItemType] = useState(SUBTYPES[category][0]);
+  const [ownItemType, setItemType] = useState(SUBTYPES[category][0]);
+  const itemType = controlledItemType ?? ownItemType;
   const [query, setQuery] = useState("");
   const [filters, setFilters] = useState<Partial<Record<ColKey, string>>>({});
   const [sort, setSort] = useState<{ key: ColKey; dir: "asc" | "desc" } | null>(null);
@@ -125,16 +138,12 @@ export default function InventoryClient({ category }: { category: "지멘스" | 
   const [historyKey, setHistoryKey] = useState(0);
   const [focusRowId, setFocusRowId] = useState<number | null>(null);
   const [undoDepth, setUndoDepth] = useState(0);
-  // 칸별 필터 행. 폰에서는 칸 하나가 50px 남짓이라 필터 입력칸을 쓸 수 없다.
-  // 그래서 기본으로 접어 두고 버튼으로 편다(데스크톱은 넓어서 항상 펼쳐 둔다).
-  const [filterRowOpen, setFilterRowOpen] = useState(false);
   const isNarrow = useIsNarrow();
-  // 폰 전용 칸 편집기. 재고 표는 칸 하나가 50px 남짓이라 비고·위치처럼 긴 값은
-  // 칸 안에서 읽지도 고치지도 못한다. 구글 시트 모바일처럼 칸은 "선택"만 하고
-  // (키보드를 띄우지 않는다) 실제 입력은 하단의 큰 입력창에서 한다.
-  const [editor, setEditor] = useState<
-    { rowId: number; colIndex: number; before: string; draft: string } | null
-  >(null);
+  // 폰에서는 표를 그리지 않는다. 칸 하나가 50px 남짓이라 비고·위치처럼 긴 값이 잘려서
+  // 읽을 수 없었기 때문. 대신 행 하나를 카드 하나로 펼쳐 모든 칸을 보여 주고,
+  // 카드를 누르면 하단 시트에서 행 전체를 큰 입력칸으로 고친다.
+  // 저장 전까지 rows는 건드리지 않고 draft만 들고 있어 폴링이 입력 중인 글자를 덮지 않는다.
+  const [sheet, setSheet] = useState<{ rowId: number; draft: SheetDraft; isNew: boolean } | null>(null);
 
   const gridRef = useRef<HTMLDivElement>(null);
   const sinceRef = useRef<string | null>(null);
@@ -355,54 +364,43 @@ export default function InventoryClient({ category }: { category: "지멘스" | 
     [runEdits]
   );
 
-  // ---------------------------------------------- 폰 전용 칸 편집기(하단 큰 입력창)
+  // ---------------------------------------------- 폰 전용 행 편집 시트
 
-  /** 칸을 눌렀을 때 하단 편집기를 연다. 저장 전까지 rows는 건드리지 않고 draft만 들고 있어서
-   *  다른 사람 변경이 폴링으로 들어와도 입력 중인 글자가 덮이지 않는다. */
-  const openEditor = useCallback(
-    (row: InvEquipmentRow, colIndex: number) => {
-      const col = cols[colIndex];
-      if (!col || col.type === "bool") return; // 개봉 여부는 칸에서 바로 토글하는 게 빠르다
-      const text = cellText(row, col);
-      setEditor({ rowId: row.id, colIndex, before: text, draft: text });
-    },
+  const openSheet = useCallback(
+    (row: InvEquipmentRow, isNew = false) => setSheet({ rowId: row.id, draft: draftOf(row, cols), isNew }),
     [cols]
   );
 
-  const closeEditor = useCallback(() => setEditor(null), []);
-
-  /** 하단 편집기의 값을 저장한다. 인라인 편집과 같은 runEdits 경로를 쓰므로
-   *  충돌 감지·실행취소가 그대로 동작한다. */
-  const saveEditor = useCallback(() => {
-    if (!editor) return;
-    const col = cols[editor.colIndex];
-    if (col && editor.draft !== editor.before) {
-      runEdits([{ row_id: editor.rowId, field: col.key, old_value: editor.before, new_value: editor.draft }]);
-    }
-    setEditor(null);
-  }, [editor, cols, runEdits]);
-
-  /** 편집기를 연 채로 같은 행의 이웃 칸으로 이동. 저장하고 넘어간다.
-   *  폰에서는 이름 칸이 표에서 숨겨져 있어(왼쪽 고정 머리글이 대신 보여준다) 눌러서 열 수가
-   *  없는데, 이 이동으로는 닿을 수 있다 — 폰에서 이름을 고치는 유일한 경로다. */
-  const stepEditor = useCallback(
-    (delta: number) => {
-      if (!editor) return;
-      const col = cols[editor.colIndex];
-      if (col && editor.draft !== editor.before) {
-        runEdits([{ row_id: editor.rowId, field: col.key, old_value: editor.before, new_value: editor.draft }]);
+  /** 시트의 값을 저장한다. 바뀐 칸만 골라 인라인 편집과 같은 runEdits 경로로 보내므로
+   *  충돌 감지·실행취소·변경 이력이 그대로 동작한다. */
+  const saveSheet = useCallback(() => {
+    if (!sheet) return;
+    const row = rowsRef.current.find((r) => r.id === sheet.rowId);
+    if (row) {
+      const edits: CellEdit[] = [];
+      for (const c of cols) {
+        const before: CellValue = c.type === "bool" ? row.is_opened : cellText(row, c);
+        const after = sheet.draft[c.key];
+        if (before !== after) edits.push({ row_id: row.id, field: c.key, old_value: before, new_value: after });
       }
-      const row = rowsRef.current.find((r) => r.id === editor.rowId);
-      if (!row) return setEditor(null);
-      // 개봉 여부(bool)는 편집기로 다루지 않으므로 건너뛴다
-      let next = editor.colIndex + delta;
-      while (next >= 0 && next < cols.length && cols[next].type === "bool") next += delta;
-      if (next < 0 || next >= cols.length) return setEditor(null);
-      const text = cellText(row, cols[next]);
-      setEditor({ rowId: row.id, colIndex: next, before: text, draft: text });
-    },
-    [editor, cols, runEdits]
-  );
+      runEdits(edits);
+    }
+    setSheet(null);
+  }, [sheet, cols, runEdits]);
+
+  /** 취소. 방금 '추가'로 만든 빈 행을 아무것도 안 적고 닫으면 빈 행이 남지 않게 지운다. */
+  const cancelSheet = useCallback(async () => {
+    if (!sheet) return;
+    setSheet(null);
+    if (!sheet.isNew) return;
+    const row = rowsRef.current.find((r) => r.id === sheet.rowId);
+    const empty = row && cols.every((c) => (c.type === "bool" ? !row.is_opened : cellText(row, c) === ""));
+    if (empty) {
+      await deleteEquipment(row.id);
+      setRows((prev) => prev.filter((r) => r.id !== row.id));
+      setHistoryKey((k) => k + 1);
+    }
+  }, [sheet, cols]);
 
   const focusCell = useCallback(
     (r: number, c: number) => {
@@ -615,7 +613,8 @@ export default function InventoryClient({ category }: { category: "지멘스" | 
     try {
       const created = await createEquipment(blankPayload(category, itemType));
       setRows((prev) => sortedRows(byId([...prev, created])));
-      setFocusRowId(created.id);
+      if (isNarrow) openSheet(created, true);
+      else setFocusRowId(created.id);
       setHistoryKey((k) => k + 1);
     } catch {
       setStatus("error");
@@ -628,6 +627,7 @@ export default function InventoryClient({ category }: { category: "지멘스" | 
     for (const id of ids) await deleteEquipment(id);
     setRows((prev) => prev.filter((r) => !ids.includes(r.id)));
     setSel(null);
+    setSheet((s) => (s && ids.includes(s.rowId) ? null : s));
     setHistoryKey((k) => k + 1);
   }
 
@@ -673,20 +673,22 @@ export default function InventoryClient({ category }: { category: "지멘스" | 
   return (
     <div className="space-y-4">
       <div className="surface-card flex flex-wrap items-center gap-1.5 px-2 py-2 sm:gap-2 sm:px-3 sm:py-2.5">
-        <div className="seg">
-          {SUBTYPES[category].map((t) => (
-            <button
-              key={t}
-              onClick={() => {
-                setItemType(t);
-                setSel(null);
-              }}
-              className={`seg-item ${itemType === t ? "seg-item-on" : ""}`}
-            >
-              {t}
-            </button>
-          ))}
-        </div>
+        {controlledItemType === undefined && (
+          <div className="seg">
+            {SUBTYPES[category].map((t) => (
+              <button
+                key={t}
+                onClick={() => {
+                  setItemType(t);
+                  setSel(null);
+                }}
+                className={`seg-item ${itemType === t ? "seg-item-on" : ""}`}
+              >
+                {t}
+              </button>
+            ))}
+          </div>
+        )}
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
@@ -700,12 +702,6 @@ export default function InventoryClient({ category }: { category: "지멘스" | 
         </span>
 
         <div className="ml-auto flex flex-wrap items-center gap-2">
-          <button
-            onClick={() => setFilterRowOpen((v) => !v)}
-            className={`btn !px-2.5 sm:hidden ${filterRowOpen ? "btn-primary" : "btn-default"}`}
-          >
-            필터
-          </button>
           <button
             onClick={undo}
             disabled={undoDepth === 0}
@@ -741,7 +737,7 @@ export default function InventoryClient({ category }: { category: "지멘스" | 
           Delete로 범위 비우기 · Ctrl+Z 실행취소 · 수정 즉시 자동 저장되고 {POLL_MS / 1000}초마다 다른 사람 변경이 반영됩니다
         </p>
         <p className="fg-subtle w-full text-ui-xs sm:hidden">
-          이름 칸 고정 · 옆으로 밀어 나머지 칸 보기 · 누르면 바로 수정·자동저장
+          카드 하나가 재고 하나 · 카드를 누르면 전체 칸을 고칠 수 있습니다
         </p>
       </div>
 
@@ -777,6 +773,69 @@ export default function InventoryClient({ category }: { category: "지멘스" | 
             </div>
           )}
 
+          {isNarrow ? (
+            /* 폰: 카드 목록. 표의 가로 스크롤·잘림 대신 모든 칸을 한 카드에 펼친다. */
+            <div className="space-y-2.5">
+              {loading ? (
+                <div className="empty-state">불러오는 중...</div>
+              ) : view.length === 0 ? (
+                <div className="surface-card empty-state">항목이 없습니다</div>
+              ) : (
+                view.map((row) => {
+                  const head = new Set<ColKey>(["name", "manufacturer", "is_opened"]);
+                  const body = cols.filter((c) => !head.has(c.key));
+                  const flashed = cols.some((c) => flash[`${row.id}:${c.key}`]);
+                  return (
+                    <button
+                      key={row.id}
+                      onClick={() => openSheet(row)}
+                      className={`surface-card block w-full text-left px-4 py-3.5 transition-colors active:bg-gray-50 dark:active:bg-white/[0.04] ${
+                        flashed ? "ring-2 ring-warning-300 dark:ring-warning-500/40" : ""
+                      }`}
+                    >
+                      <div className="mb-2 flex items-center gap-2">
+                        {cols.some((c) => c.key === "manufacturer") && row.manufacturer && (
+                          <span className="chip-quiet">{row.manufacturer}</span>
+                        )}
+                        <span className="fg-strong min-w-0 flex-1 truncate text-ui-xl font-semibold">
+                          {row.name || <span className="fg-subtle font-normal">이름 없음</span>}
+                        </span>
+                        {cols.some((c) => c.key === "is_opened") && (
+                          <span
+                            className={`shrink-0 rounded-control px-2 py-0.5 text-ui-xs font-medium ${
+                              row.is_opened
+                                ? "bg-warning-50 text-warning-700 dark:bg-warning-500/15 dark:text-warning-400"
+                                : "bg-success-50 text-success-600 dark:bg-success-500/15 dark:text-success-400"
+                            }`}
+                          >
+                            {row.is_opened ? "개봉" : "미개봉"}
+                          </span>
+                        )}
+                      </div>
+                      <dl className="grid grid-cols-2 gap-x-3 gap-y-2">
+                        {body.map((c) => {
+                          const v = cellText(row, c);
+                          const wide = c.key === "notes" || c.key === "location";
+                          return (
+                            <div key={c.key} className={wide ? "col-span-2" : ""}>
+                              <dt className="fg-muted text-ui-xs">{c.label}</dt>
+                              <dd
+                                className={`fg-base whitespace-pre-wrap break-words text-ui-md leading-snug ${
+                                  c.mono ? "font-mono" : ""
+                                } ${c.key === "location" ? "font-medium" : ""} ${v ? "" : "fg-subtle"}`}
+                              >
+                                {v || "—"}
+                              </dd>
+                            </div>
+                          );
+                        })}
+                      </dl>
+                    </button>
+                  );
+                })
+              )}
+            </div>
+          ) : (
           <div
             ref={gridRef}
             onCopy={onCopy}
@@ -790,18 +849,14 @@ export default function InventoryClient({ category }: { category: "지멘스" | 
               <table className="table-dense">
                 <thead className="sticky top-0 z-20">
                   <tr>
-                    <th className="sticky left-0 z-30 w-[116px] whitespace-nowrap border-b border-r border-gray-200 bg-gray-50 px-1 py-2 text-left text-ui-xs font-medium tracking-[0.04em] text-gray-500 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-400 sm:w-10 sm:border-r-0 sm:text-center">
-                      <span className="sm:hidden">이름</span>
-                      <span className="hidden sm:inline">#</span>
+                    <th className="w-10 whitespace-nowrap border-b border-gray-200 bg-gray-50 px-1 py-2 text-center text-ui-xs font-medium tracking-[0.04em] text-gray-500 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-400">
+                      #
                     </th>
                     {cols.map((c) => (
                       <th
                         key={c.key}
                         onClick={() => toggleSort(c.key)}
-                        className={`${c.width} th-dense cursor-pointer select-none ${
-                          // 폰에서는 왼쪽 고정 머리글이 이름을 이미 보여주므로 중복을 없앤다
-                          c.key === "name" ? "hidden sm:table-cell" : ""
-                        }`}
+                        className={`${c.width} th-dense cursor-pointer select-none`}
                         title="클릭하여 정렬"
                       >
                         {c.label}
@@ -812,13 +867,10 @@ export default function InventoryClient({ category }: { category: "지멘스" | 
                     ))}
                     <th className="th-dense w-10" />
                   </tr>
-                  <tr className={`bg-white dark:bg-gray-900 ${filterRowOpen ? "" : "hidden sm:table-row"}`}>
-                    <th className="hairline sticky left-0 z-30 border-b border-r bg-white px-1 py-1 dark:bg-gray-900 sm:border-r-0" />
+                  <tr className="bg-white dark:bg-gray-900">
+                    <th className="hairline border-b bg-white px-1 py-1 dark:bg-gray-900" />
                     {cols.map((c) => (
-                      <th
-                        key={c.key}
-                        className={`hairline border-b px-1 py-1 ${c.key === "name" ? "hidden sm:table-cell" : ""}`}
-                      >
+                      <th key={c.key} className="hairline border-b px-1 py-1">
                         <input
                           value={filters[c.key] || ""}
                           onChange={(e) => setFilters((f) => ({ ...f, [c.key]: e.target.value }))}
@@ -833,11 +885,7 @@ export default function InventoryClient({ category }: { category: "지멘스" | 
                 <tbody>
                   {view.map((row, r) => (
                     <tr key={row.id} data-rowid={row.id} className={r % 2 === 1 ? "bg-gray-50/60 dark:bg-white/[0.02]" : ""}>
-                      <td
-                        className={`hairline-soft sticky left-0 z-10 border-b border-r px-1 py-1 text-center text-ui-xs sm:border-r-0 ${
-                          r % 2 === 1 ? "bg-gray-50 dark:bg-gray-900" : "bg-white dark:bg-gray-900"
-                        }`}
-                      >
+                      <td className="hairline-soft border-b px-1 py-1 text-center text-ui-xs">
                         <button
                           onClick={() => {
                             setHistoryRow({ id: row.id, label: row.name || `#${row.id}` });
@@ -849,13 +897,9 @@ export default function InventoryClient({ category }: { category: "지멘스" | 
                               ? `마지막 수정: ${row.updated_by_name} — 클릭하면 이 행의 변경 내역`
                               : "이 행의 변경 내역 보기"
                           }
-                          className="fg-subtle flex w-full min-w-0 items-center gap-1.5 px-1 text-left transition-colors hover:text-gray-800 dark:hover:text-gray-100 sm:block sm:px-0 sm:text-center"
+                          className="fg-subtle block w-full text-center tabular-nums transition-colors hover:text-gray-800 dark:hover:text-gray-100"
                         >
-                          <span className="shrink-0 tabular-nums">{r + 1}</span>
-                          {/* 폰에서는 가로로 밀어도 어느 행인지 알 수 있게 이름을 행 머리글에 고정해 둔다 */}
-                          <span className="fg-base min-w-0 flex-1 truncate font-medium sm:hidden">
-                            {row.name || `#${row.id}`}
-                          </span>
+                          {r + 1}
                         </button>
                       </td>
 
@@ -872,7 +916,7 @@ export default function InventoryClient({ category }: { category: "지멘스" | 
                         return (
                           <td
                             key={col.key}
-                            className={`${base} ${col.key === "name" ? "hidden sm:table-cell" : ""}`}
+                            className={base}
                             title={flashed ? `${flashed}님이 방금 수정` : undefined}
                           >
                             {col.type === "bool" ? (
@@ -890,7 +934,7 @@ export default function InventoryClient({ category }: { category: "지멘스" | 
                                 onClick={() =>
                                   runEdits([{ row_id: row.id, field: "is_opened", old_value: row.is_opened, new_value: !row.is_opened }])
                                 }
-                                className={`w-full whitespace-nowrap rounded-control px-2 py-2.5 text-ui-xs font-medium focus:outline-none sm:py-1.5 ${
+                                className={`w-full whitespace-nowrap rounded-control px-2 py-1.5 text-ui-xs font-medium focus:outline-none ${
                                   row.is_opened
                                     ? "bg-warning-50 text-warning-700 dark:bg-warning-500/15 dark:text-warning-400"
                                     : "bg-success-50 text-success-600 dark:bg-success-500/15 dark:text-success-400"
@@ -902,32 +946,20 @@ export default function InventoryClient({ category }: { category: "지멘스" | 
                               <input
                                 data-cell={`${r}-${c}`}
                                 value={cellText(row, col)}
-                                // 폰에서는 칸에서 직접 타이핑하지 않는다 — 누르면 선택만 되고
-                                // (readOnly라 키보드가 안 뜬다) 하단 큰 입력창이 열린다.
-                                readOnly={isNarrow}
                                 onChange={(e) => setLocal(row.id, col.key, e.target.value)}
                                 onFocus={() => {
                                   focusRef.current = { rowId: row.id, field: col.key };
                                   originalRef.current = cellText(row, col);
                                   setSel({ r, c, r2: r, c2: c });
-                                  if (isNarrow) openEditor(row, c);
                                 }}
                                 onBlur={() => {
                                   commit(row.id, col);
                                   focusRef.current = null;
                                 }}
                                 onKeyDown={(e) => onCellKeyDown(e, r, c, row, col)}
-                                className={
-                                  col.type === "grade"
-                                    ? `w-full rounded-control px-1 py-3 text-center text-ui-sm font-medium focus:outline-none sm:py-1.5 sm:text-xs ${
-                                        row.grade && GRADE_COLOR[row.grade]
-                                          ? GRADE_COLOR[row.grade]
-                                          : "surface-inset fg-muted"
-                                      }`
-                                    : `fg-base w-full bg-transparent px-1.5 py-3 text-ui focus:outline-none sm:py-1.5 ${
-                                        col.mono ? "font-mono text-ui-sm sm:text-xs" : ""
-                                      }`
-                                }
+                                className={`fg-base w-full bg-transparent px-1.5 py-1.5 text-ui focus:outline-none ${
+                                  col.mono ? "font-mono text-xs" : ""
+                                }`}
                               />
                             )}
                           </td>
@@ -939,7 +971,7 @@ export default function InventoryClient({ category }: { category: "지멘스" | 
                           onClick={() => removeRows([row.id])}
                           title="행 삭제"
                           aria-label="행 삭제"
-                          className="inline-flex h-11 w-11 items-center justify-center text-error-500 transition-colors hover:text-error-600 sm:h-auto sm:w-auto"
+                          className="inline-flex items-center justify-center text-error-500 transition-colors hover:text-error-600"
                         >
                           ×
                         </button>
@@ -957,6 +989,7 @@ export default function InventoryClient({ category }: { category: "지멘스" | 
               </table>
             )}
           </div>
+          )}
 
           <p className="fg-subtle text-ui-xs">
             {view.length}개 행 {rangeSize > 1 ? `· ${rangeSize}칸 선택됨` : ""}
@@ -977,74 +1010,109 @@ export default function InventoryClient({ category }: { category: "지멘스" | 
         )}
       </div>
 
-      {/* 폰 전용 칸 편집기. 칸이 50px라 비고·위치 같은 긴 값을 칸 안에서 읽지도 고치지도
-          못하던 문제를 푼다. 저장은 인라인 편집과 같은 runEdits 경로라 충돌 감지·실행취소가
-          그대로 동작한다. */}
-      {isNarrow && editor && (() => {
-        const col = cols[editor.colIndex];
-        // ref가 아니라 state로 찾는다 — 편집기가 열려 있는 동안 다른 사람이 이름을 바꾸면
-        // 머리글도 따라 갱신돼야 한다.
-        const row = rows.find((r) => r.id === editor.rowId);
-        if (!col || !row) return null;
-        const dirty = editor.draft !== editor.before;
+      {/* 폰 전용 행 편집 시트. 카드를 누르면 행 전체를 큰 입력칸으로 고친다.
+          저장은 인라인 편집과 같은 runEdits 경로라 충돌 감지·실행취소·변경 이력이 그대로 동작한다. */}
+      {isNarrow && sheet && (() => {
+        // ref가 아니라 state로 찾는다 — 시트가 열려 있는 동안 다른 사람이 이름을 바꾸면 머리글도 따라 갱신돼야 한다.
+        const row = rows.find((r) => r.id === sheet.rowId);
+        if (!row) return null;
+        const dirty = cols.some((c) => (c.type === "bool" ? row.is_opened : cellText(row, c)) !== sheet.draft[c.key]);
+        const setDraft = (key: ColKey, value: string | boolean) =>
+          setSheet((s) => (s ? { ...s, draft: { ...s.draft, [key]: value } } : s));
+        const title = String(sheet.draft.name || "") || row.name || (sheet.isNew ? "새 항목" : `#${row.id}`);
         return (
           <>
-            <div className="fixed inset-0 z-40 bg-gray-900/20 sm:hidden" onClick={saveEditor} />
-            <div className="surface-card fixed inset-x-0 bottom-0 z-50 rounded-b-none border-x-0 border-b-0 p-3 shadow-pop sm:hidden">
-              <div className="mb-2 flex items-center gap-2">
-                <span className="fg-strong min-w-0 flex-1 truncate text-ui font-medium">
-                  {row.name || `#${row.id}`}
-                </span>
-                <span className="chip-quiet shrink-0">{col.label}</span>
+            <div className="fixed inset-0 z-40 bg-gray-900/30 sm:hidden" onClick={cancelSheet} />
+            <div className="surface-card fixed inset-x-0 bottom-0 z-50 flex max-h-[92vh] flex-col rounded-b-none border-x-0 border-b-0 shadow-pop sm:hidden">
+              <div className="flex items-center gap-2 border-b border-gray-100 px-4 py-3 dark:border-gray-800">
+                <div className="min-w-0 flex-1">
+                  <div className="fg-strong truncate text-ui-lg font-semibold">{title}</div>
+                  <div className="fg-muted text-ui-xs">
+                    {itemType}
+                    {row.updated_by_name ? ` · 마지막 수정 ${row.updated_by_name}` : ""}
+                  </div>
+                </div>
+                <button onClick={cancelSheet} aria-label="닫기" className="icon-btn">
+                  ×
+                </button>
               </div>
 
-              {col.type === "grade" ? (
-                <div className="flex gap-2">
-                  {["", "L", "H"].map((g) => (
-                    <button
-                      key={g || "none"}
-                      onClick={() => setEditor({ ...editor, draft: g })}
-                      className={`h-11 flex-1 rounded-control text-ui font-medium ${
-                        editor.draft === g
-                          ? "bg-brand-500 text-white"
-                          : g && GRADE_COLOR[g]
-                            ? GRADE_COLOR[g]
-                            : "surface-inset fg-muted"
-                      }`}
-                    >
-                      {g || "없음"}
-                    </button>
-                  ))}
-                </div>
-              ) : (
-                <textarea
-                  autoFocus
-                  rows={3}
-                  value={editor.draft}
-                  onChange={(e) => setEditor({ ...editor, draft: e.target.value })}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey) {
-                      e.preventDefault();
-                      saveEditor();
-                    }
-                    if (e.key === "Escape") closeEditor();
-                  }}
-                  placeholder={`${col.label} 입력`}
-                  className={`field-auto w-full resize-none ${col.mono ? "font-mono" : ""}`}
-                />
-              )}
+              <div className="flex-1 space-y-3 overflow-y-auto px-4 py-3">
+                {cols.map((c) => {
+                  const v = sheet.draft[c.key];
+                  if (c.type === "bool") {
+                    return (
+                      <div key={c.key}>
+                        <div className="fg-muted mb-1 text-ui-xs font-medium">{c.label}</div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => setDraft(c.key, true)}
+                            className={`h-11 flex-1 rounded-control text-ui font-medium ${
+                              v === true
+                                ? "bg-warning-50 text-warning-700 ring-2 ring-warning-400 dark:bg-warning-500/15 dark:text-warning-400"
+                                : "surface-inset fg-muted"
+                            }`}
+                          >
+                            개봉
+                          </button>
+                          <button
+                            onClick={() => setDraft(c.key, false)}
+                            className={`h-11 flex-1 rounded-control text-ui font-medium ${
+                              v === false
+                                ? "bg-success-50 text-success-600 ring-2 ring-success-400 dark:bg-success-500/15 dark:text-success-400"
+                                : "surface-inset fg-muted"
+                            }`}
+                          >
+                            미개봉
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  }
+                  const text = typeof v === "string" ? v : "";
+                  return (
+                    <label key={c.key} className="block">
+                      <span className="fg-muted mb-1 block text-ui-xs font-medium">{c.label}</span>
+                      {c.key === "notes" ? (
+                        <textarea
+                          rows={3}
+                          value={text}
+                          onChange={(e) => setDraft(c.key, e.target.value)}
+                          placeholder={`${c.label} 입력`}
+                          className="field-auto w-full resize-none"
+                        />
+                      ) : (
+                        <input
+                          value={text}
+                          onChange={(e) => setDraft(c.key, e.target.value)}
+                          placeholder={`${c.label} 입력`}
+                          className={`field w-full ${c.mono ? "font-mono" : ""}`}
+                        />
+                      )}
+                    </label>
+                  );
+                })}
+              </div>
 
-              <div className="mt-2 flex items-center gap-2">
-                <button onClick={() => stepEditor(-1)} aria-label="이전 칸" className="btn btn-default !px-3">
-                  ‹
+              <div className="flex items-center gap-2 border-t border-gray-100 px-4 py-3 dark:border-gray-800">
+                <button onClick={() => removeRows([row.id])} className="btn btn-danger !px-3">
+                  삭제
                 </button>
-                <button onClick={() => stepEditor(1)} aria-label="다음 칸" className="btn btn-default !px-3">
-                  ›
+                <button
+                  onClick={() => {
+                    setSheet(null);
+                    setHistoryRow({ id: row.id, label: row.name || `#${row.id}` });
+                    setHistoryOpen(true);
+                    setHistoryKey((k) => k + 1);
+                  }}
+                  className="btn btn-ghost !px-3"
+                >
+                  변경 내역
                 </button>
-                <button onClick={closeEditor} className="btn btn-default ml-auto">
+                <button onClick={cancelSheet} className="btn btn-default ml-auto">
                   취소
                 </button>
-                <button onClick={saveEditor} className="btn btn-primary">
+                <button onClick={saveSheet} className="btn btn-primary !px-5">
                   {dirty ? "저장" : "닫기"}
                 </button>
               </div>
