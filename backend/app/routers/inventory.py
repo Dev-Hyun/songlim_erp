@@ -115,7 +115,8 @@ def _eq_dict(e: InvEquipment, names: Optional[dict] = None) -> dict:
         "name": e.name, "serial_no": e.serial_no, "location": e.location, "notes": e.notes,
         "manufacture_date": e.manufacture_date, "manufacturer": e.manufacturer,
         "purchase_price": e.purchase_price, "purchase_from": e.purchase_from,
-        "is_opened": e.is_opened, "updated_at": e.updated_at, "updated_by": e.updated_by,
+        "is_opened": e.is_opened, "sort_order": e.sort_order,
+        "updated_at": e.updated_at, "updated_by": e.updated_by,
         "updated_by_name": (names or {}).get(e.updated_by),
     }
 
@@ -145,7 +146,7 @@ async def list_equipment(db: AsyncSession = Depends(get_db), category: Optional[
     q = select(InvEquipment)
     if category:
         q = q.where(InvEquipment.category == category)
-    q = q.order_by(InvEquipment.category, InvEquipment.item_type, InvEquipment.id)
+    q = q.order_by(InvEquipment.category, InvEquipment.item_type, InvEquipment.sort_order, InvEquipment.id)
     rows = (await db.execute(q)).scalars().all()
     names = await _name_map(db, rows)
     return [_eq_dict(e, names) for e in rows]
@@ -167,7 +168,7 @@ async def sync_equipment(
         q = q.where(InvEquipment.category == category)
     if since:
         q = q.where(InvEquipment.updated_at.is_not(None), InvEquipment.updated_at >= since)
-    q = q.order_by(InvEquipment.category, InvEquipment.item_type, InvEquipment.id)
+    q = q.order_by(InvEquipment.category, InvEquipment.item_type, InvEquipment.sort_order, InvEquipment.id)
     rows = (await db.execute(q)).scalars().all()
     names = await _name_map(db, rows)
 
@@ -197,6 +198,7 @@ async def create_equipment(payload: InvEquipmentIn, db: AsyncSession = Depends(g
     db.add(e)
     await db.commit()
     await db.refresh(e)
+    e.sort_order = e.id  # 맨 아래
     _log(db, table="inv_equipment", row_id=e.id, category=e.category, label=e.name,
          action="create", field=None, old=None, new=None, user=user)
     await db.commit()
@@ -300,6 +302,49 @@ async def delete_equipment(eid: int, db: AsyncSession = Depends(get_db), user: U
     await db.delete(e)
     await db.commit()
     return {"ok": True}
+
+
+class MoveIn(BaseModel):
+    direction: str  # up | down
+
+
+@router.post("/equipment/{eid}/move")
+async def move_equipment(eid: int, payload: MoveIn, db: AsyncSession = Depends(get_db), user: User = Depends(require_staff)):
+    """행을 같은 분류·구분 안에서 한 칸 위/아래로. 이웃과 sort_order를 맞바꾼다.
+    맨 위에서 up / 맨 아래에서 down 이면 아무것도 안 바꾸고 updated=[]."""
+    if payload.direction not in ("up", "down"):
+        raise HTTPException(status_code=400, detail="direction은 up 또는 down")
+    e = (await db.execute(select(InvEquipment).where(InvEquipment.id == eid))).scalar_one_or_none()
+    if e is None:
+        raise HTTPException(status_code=404, detail="행이 없습니다")
+    siblings = (await db.execute(
+        select(InvEquipment)
+        .where(InvEquipment.category == e.category, InvEquipment.item_type == e.item_type)
+        .order_by(InvEquipment.sort_order, InvEquipment.id)
+    )).scalars().all()
+    # 과거 행에 sort_order가 비어 있으면(마이그레이션 전 생성) id로 채워 두고 시작한다
+    for s_ in siblings:
+        if s_.sort_order is None:
+            s_.sort_order = s_.id
+    idx = next(i for i, s_ in enumerate(siblings) if s_.id == e.id)
+    j = idx - 1 if payload.direction == "up" else idx + 1
+    if j < 0 or j >= len(siblings):
+        await db.commit()
+        return {"updated": [], "server_time": _now()}
+    other = siblings[j]
+    old_pos, new_pos = idx + 1, j + 1
+    e.sort_order, other.sort_order = other.sort_order, e.sort_order
+    now = _now()
+    for r in (e, other):
+        r.updated_at = now
+        r.updated_by = user.id
+    _log(db, table="inv_equipment", row_id=e.id, category=e.category, label=e.name,
+         action="update", field="sort_order", old=f"{old_pos}번째", new=f"{new_pos}번째", user=user)
+    await db.commit()
+    for r in (e, other):
+        await db.refresh(r)
+    names = {user.id: _actor_name(user)}
+    return {"updated": [_eq_dict(e, names), _eq_dict(other, names)], "server_time": now}
 
 
 # ---------------------------------------------------------------- 소모품 재고

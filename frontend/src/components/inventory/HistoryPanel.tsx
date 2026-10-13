@@ -15,6 +15,7 @@ const FIELD_LABEL: Record<string, string> = {
   purchase_from: "매입처",
   is_opened: "개봉",
   item_type: "구분",
+  sort_order: "순서",
   category: "분류",
 };
 

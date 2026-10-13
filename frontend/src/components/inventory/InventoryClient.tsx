@@ -11,6 +11,7 @@ import {
   SyncResult,
   createEquipment,
   deleteEquipment,
+  moveEquipment,
   saveCells,
   syncEquipment,
 } from "./api";
@@ -98,8 +99,36 @@ function byId(rows: InvEquipmentRow[]): Map<number, InvEquipmentRow> {
 }
 
 function sortedRows(map: Map<number, InvEquipmentRow>): InvEquipmentRow[] {
-  return [...map.values()].sort((a, b) => a.id - b.id);
+  // 서버의 표시 순서(sort_order)를 따른다. 없으면 id(옛 행) — 둘이 같은 값이면 id로 안정 정렬.
+  return [...map.values()].sort((a, b) => (a.sort_order ?? a.id) - (b.sort_order ?? b.id) || a.id - b.id);
 }
+
+// 이름·제조사는 몇 가지 값이 반복되므로 값마다 고정된 색을 준다(같은 이름 = 같은 색).
+// 문자열 해시 → 12색 팔레트. 데이터가 바뀌어도 같은 글자는 늘 같은 색이다.
+const TONES = [
+  "bg-blue-50 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300",
+  "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300",
+  "bg-amber-50 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300",
+  "bg-violet-50 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300",
+  "bg-rose-50 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300",
+  "bg-cyan-50 text-cyan-700 dark:bg-cyan-500/15 dark:text-cyan-300",
+  "bg-orange-50 text-orange-700 dark:bg-orange-500/15 dark:text-orange-300",
+  "bg-lime-50 text-lime-800 dark:bg-lime-500/15 dark:text-lime-300",
+  "bg-fuchsia-50 text-fuchsia-700 dark:bg-fuchsia-500/15 dark:text-fuchsia-300",
+  "bg-teal-50 text-teal-700 dark:bg-teal-500/15 dark:text-teal-300",
+  "bg-indigo-50 text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300",
+  "bg-pink-50 text-pink-700 dark:bg-pink-500/15 dark:text-pink-300",
+];
+
+function toneOf(value: string | null | undefined): string {
+  const v = (value || "").trim().toLowerCase();
+  if (!v) return "";
+  let h = 0;
+  for (let i = 0; i < v.length; i++) h = (h * 31 + v.charCodeAt(i)) >>> 0;
+  return TONES[h % TONES.length];
+}
+
+const TONED_COLS = new Set<ColKey>(["name", "manufacturer"]);
 
 /** 폰 카드 한 장에 보여 줄 값. 이름·제조사·개봉은 머리에, 나머지는 라벨 붙은 2열 격자에. */
 type SheetDraft = Record<ColKey, string | boolean>;
@@ -631,6 +660,22 @@ export default function InventoryClient({
     setHistoryKey((k) => k + 1);
   }
 
+  /** 행을 한 칸 위/아래로. 서버가 이웃과 순서를 맞바꿔 두 행을 돌려주면 그대로 반영한다. */
+  async function moveRow(id: number, direction: "up" | "down") {
+    try {
+      const res = await moveEquipment(id, direction);
+      if (!res.updated.length) return;
+      setRows((prev) => {
+        const map = byId(prev);
+        for (const u of res.updated) map.set(u.id, u);
+        return sortedRows(map);
+      });
+      setHistoryKey((k) => k + 1);
+    } catch {
+      setStatus("error");
+    }
+  }
+
   const selectedRowIds = useMemo(() => {
     if (!range) return [];
     const ids: number[] = [];
@@ -737,7 +782,7 @@ export default function InventoryClient({
           Delete로 범위 비우기 · Ctrl+Z 실행취소 · 수정 즉시 자동 저장되고 {POLL_MS / 1000}초마다 다른 사람 변경이 반영됩니다
         </p>
         <p className="fg-subtle w-full text-ui-xs sm:hidden">
-          카드 하나가 재고 하나 · 카드를 누르면 전체 칸을 고칠 수 있습니다
+          카드 하나가 재고 하나 · 누르면 전체 칸 수정, ▲▼로 순서 이동
         </p>
       </div>
 
@@ -795,10 +840,14 @@ export default function InventoryClient({
                     >
                       <div className="mb-2 flex items-center gap-2">
                         {cols.some((c) => c.key === "manufacturer") && row.manufacturer && (
-                          <span className="chip-quiet">{row.manufacturer}</span>
+                          <span className={`chip-quiet ${toneOf(row.manufacturer)}`}>{row.manufacturer}</span>
                         )}
-                        <span className="fg-strong min-w-0 flex-1 truncate text-ui-xl font-semibold">
-                          {row.name || <span className="fg-subtle font-normal">이름 없음</span>}
+                        <span className="min-w-0 flex-1 truncate">
+                          {row.name ? (
+                            <span className={`rounded-control px-2 py-0.5 text-ui-xl font-semibold ${toneOf(row.name)}`}>{row.name}</span>
+                          ) : (
+                            <span className="fg-subtle text-ui-xl">이름 없음</span>
+                          )}
                         </span>
                         {cols.some((c) => c.key === "is_opened") && (
                           <span
@@ -865,7 +914,7 @@ export default function InventoryClient({
                         </span>
                       </th>
                     ))}
-                    <th className="th-dense w-10" />
+                    <th className="th-dense w-[88px]" />
                   </tr>
                   <tr className="bg-white dark:bg-gray-900">
                     <th className="hairline border-b bg-white px-1 py-1 dark:bg-gray-900" />
@@ -957,8 +1006,12 @@ export default function InventoryClient({
                                   focusRef.current = null;
                                 }}
                                 onKeyDown={(e) => onCellKeyDown(e, r, c, row, col)}
-                                className={`fg-base w-full bg-transparent px-1.5 py-1.5 text-ui focus:outline-none ${
+                                className={`w-full px-1.5 py-1.5 text-ui focus:outline-none ${
                                   col.mono ? "font-mono text-xs" : ""
+                                } ${
+                                  TONED_COLS.has(col.key) && toneOf(cellText(row, col))
+                                    ? `rounded-control font-medium ${toneOf(cellText(row, col))}`
+                                    : "fg-base bg-transparent"
                                 }`}
                               />
                             )}
@@ -966,12 +1019,31 @@ export default function InventoryClient({
                         );
                       })}
 
-                      <td className="hairline-soft border-b px-1 py-0.5 text-center">
+                      <td className="hairline-soft whitespace-nowrap border-b px-1 py-0.5 text-center">
+                        {/* 열 정렬 중에는 보이는 순서와 저장 순서가 달라 이동을 막는다 */}
+                        <button
+                          onClick={() => moveRow(row.id, "up")}
+                          disabled={!!sort || r === 0}
+                          title={sort ? "정렬을 풀면 이동할 수 있습니다" : "위로"}
+                          aria-label="위로"
+                          className="fg-muted inline-flex h-6 w-6 items-center justify-center rounded-control text-xs transition-colors hover:bg-gray-100 hover:text-gray-800 disabled:opacity-30 dark:hover:bg-white/[0.06]"
+                        >
+                          ▲
+                        </button>
+                        <button
+                          onClick={() => moveRow(row.id, "down")}
+                          disabled={!!sort || r === view.length - 1}
+                          title={sort ? "정렬을 풀면 이동할 수 있습니다" : "아래로"}
+                          aria-label="아래로"
+                          className="fg-muted inline-flex h-6 w-6 items-center justify-center rounded-control text-xs transition-colors hover:bg-gray-100 hover:text-gray-800 disabled:opacity-30 dark:hover:bg-white/[0.06]"
+                        >
+                          ▼
+                        </button>
                         <button
                           onClick={() => removeRows([row.id])}
                           title="행 삭제"
                           aria-label="행 삭제"
-                          className="inline-flex items-center justify-center text-error-500 transition-colors hover:text-error-600"
+                          className="inline-flex h-6 w-6 items-center justify-center text-error-500 transition-colors hover:text-error-600"
                         >
                           ×
                         </button>
@@ -1097,6 +1169,24 @@ export default function InventoryClient({
               <div className="flex items-center gap-2 border-t border-gray-100 px-4 py-3 dark:border-gray-800">
                 <button onClick={() => removeRows([row.id])} className="btn btn-danger !px-3">
                   삭제
+                </button>
+                <button
+                  onClick={() => moveRow(row.id, "up")}
+                  disabled={!!sort || sheet.isNew}
+                  aria-label="위로"
+                  title="위로"
+                  className="btn btn-default !px-3"
+                >
+                  ▲
+                </button>
+                <button
+                  onClick={() => moveRow(row.id, "down")}
+                  disabled={!!sort || sheet.isNew}
+                  aria-label="아래로"
+                  title="아래로"
+                  className="btn btn-default !px-3"
+                >
+                  ▼
                 </button>
                 <button
                   onClick={() => {

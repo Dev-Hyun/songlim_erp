@@ -21,6 +21,8 @@ class InvEquipment(Base):
     purchase_price: Mapped[Optional[str]] = mapped_column(default=None)
     purchase_from: Mapped[Optional[str]] = mapped_column(default=None)
     is_opened: Mapped[bool] = mapped_column(default=False)
+    # 화면 표시 순서. 행을 위/아래로 옮기면 이웃과 값을 맞바꾼다. 새 행은 id를 받는다(맨 아래).
+    sort_order: Mapped[Optional[int]] = mapped_column(default=None)
     updated_at: Mapped[Optional[str]] = mapped_column(default=None)
     updated_by: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), default=None)
 

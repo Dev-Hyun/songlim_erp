@@ -13,12 +13,14 @@ export interface InvEquipmentRow {
   purchase_price: string | null;
   purchase_from: string | null;
   is_opened: boolean;
+  /** 화면 표시 순서(서버가 관리). 위/아래 이동으로 바뀐다. */
+  sort_order?: number | null;
   updated_at?: string | null;
   updated_by?: number | null;
   updated_by_name?: string | null;
 }
 
-export type InvEquipmentPayload = Omit<InvEquipmentRow, "id" | "updated_at" | "updated_by" | "updated_by_name">;
+export type InvEquipmentPayload = Omit<InvEquipmentRow, "id" | "sort_order" | "updated_at" | "updated_by" | "updated_by_name">;
 
 export type CellValue = string | boolean | null;
 
@@ -112,6 +114,18 @@ export async function saveCells(edits: CellEdit[]): Promise<CellSaveResult> {
     body: JSON.stringify({ edits }),
   });
   if (!res.ok) throw new Error("저장 실패");
+  return res.json();
+}
+
+/** 행을 같은 구분 안에서 한 칸 위/아래로. 바뀐 두 행을 돌려준다(끝이면 빈 배열). */
+export async function moveEquipment(id: number, direction: "up" | "down"): Promise<{ updated: InvEquipmentRow[] }> {
+  const res = await fetch(`${API}/api/inventory/equipment/${id}/move`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ direction }),
+  });
+  if (!res.ok) throw new Error("이동 실패");
   return res.json();
 }
 
