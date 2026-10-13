@@ -117,15 +117,15 @@ export async function saveCells(edits: CellEdit[]): Promise<CellSaveResult> {
   return res.json();
 }
 
-/** 행을 같은 구분 안에서 한 칸 위/아래로. 바뀐 두 행을 돌려준다(끝이면 빈 배열). */
-export async function moveEquipment(id: number, direction: "up" | "down"): Promise<{ updated: InvEquipmentRow[] }> {
-  const res = await fetch(`${API}/api/inventory/equipment/${id}/move`, {
+/** 드래그 정렬 — 같은 구분의 행 id를 보일 순서대로 보낸다. 서버가 sort_order를 1..n으로 다시 매긴다. */
+export async function reorderEquipment(ids: number[], movedId: number): Promise<{ updated: InvEquipmentRow[] }> {
+  const res = await fetch(`${API}/api/inventory/equipment/reorder`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     credentials: "include",
-    body: JSON.stringify({ direction }),
+    body: JSON.stringify({ ids, moved_id: movedId }),
   });
-  if (!res.ok) throw new Error("이동 실패");
+  if (!res.ok) throw new Error("순서 저장 실패");
   return res.json();
 }
 

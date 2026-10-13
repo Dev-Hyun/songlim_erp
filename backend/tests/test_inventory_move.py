@@ -1,4 +1,4 @@
-"""재고 행 위/아래 이동 — 같은 분류·구분 안에서 이웃과 순서를 맞바꾼다."""
+"""재고 행 드래그 정렬 — 받은 id 순서대로 sort_order를 다시 매긴다."""
 import pytest
 
 from app.models import User
@@ -19,7 +19,7 @@ async def _login(client, db_session, username: str):
     return {"session_token": res.cookies["session_token"]}
 
 
-async def _create(client, cookies, name: str, item_type: str = "프로브", category: str = "지멘스"):
+async def _create(client, cookies, name: str, item_type: str, category: str = "지멘스"):
     res = await client.post("/api/inventory/equipment", cookies=cookies, json={
         "category": category, "item_type": item_type, "name": name,
     })
@@ -32,56 +32,49 @@ async def _names(client, cookies, category: str, item_type: str):
     return [r["name"] for r in rows if r["item_type"] == item_type]
 
 
-async def test_move_up_and_down_swaps_neighbors(client, db_session):
-    cookies = await _login(client, db_session, "mover1")
-    a = await _create(client, cookies, "mv-A", item_type="이동테스트")
-    b = await _create(client, cookies, "mv-B", item_type="이동테스트")
-    c = await _create(client, cookies, "mv-C", item_type="이동테스트")
-    assert await _names(client, cookies, "지멘스", "이동테스트") == ["mv-A", "mv-B", "mv-C"]
-    assert a["sort_order"] < b["sort_order"] < c["sort_order"]
+async def test_reorder_applies_given_sequence_and_logs_moved_row(client, db_session):
+    cookies = await _login(client, db_session, "reorder1")
+    a = await _create(client, cookies, "ro-A", "정렬테스트")
+    b = await _create(client, cookies, "ro-B", "정렬테스트")
+    c = await _create(client, cookies, "ro-C", "정렬테스트")
+    assert await _names(client, cookies, "지멘스", "정렬테스트") == ["ro-A", "ro-B", "ro-C"]
 
-    res = await client.post(f"/api/inventory/equipment/{c['id']}/move", cookies=cookies, json={"direction": "up"})
+    # C를 맨 위로 드래그
+    res = await client.post("/api/inventory/equipment/reorder", cookies=cookies,
+                            json={"ids": [c["id"], a["id"], b["id"]], "moved_id": c["id"]})
     assert res.status_code == 200, res.text
-    assert {r["id"] for r in res.json()["updated"]} == {b["id"], c["id"]}
-    assert await _names(client, cookies, "지멘스", "이동테스트") == ["mv-A", "mv-C", "mv-B"]
+    assert {r["id"] for r in res.json()["updated"]} == {a["id"], b["id"], c["id"]}
+    assert await _names(client, cookies, "지멘스", "정렬테스트") == ["ro-C", "ro-A", "ro-B"]
 
-    res = await client.post(f"/api/inventory/equipment/{a['id']}/move", cookies=cookies, json={"direction": "down"})
-    assert res.status_code == 200
-    assert await _names(client, cookies, "지멘스", "이동테스트") == ["mv-C", "mv-A", "mv-B"]
-
-    # 변경 이력에 순서 이동이 남는다
-    hist = (await client.get(f"/api/inventory/history?row_id={a['id']}", cookies=cookies)).json()
+    hist = (await client.get(f"/api/inventory/history?row_id={c['id']}", cookies=cookies)).json()
     assert hist[0]["field"] == "sort_order"
+    assert hist[0]["old_value"] == "3번째" and hist[0]["new_value"] == "1번째"
+
+    # 새로고침(전체 조회)과 델타 동기화 모두 같은 순서
+    sync = (await client.get("/api/inventory/equipment/sync?category=지멘스", cookies=cookies)).json()
+    assert [r["name"] for r in sync["rows"] if r["item_type"] == "정렬테스트"] == ["ro-C", "ro-A", "ro-B"]
 
 
-async def test_move_at_edge_is_noop(client, db_session):
-    cookies = await _login(client, db_session, "mover2")
-    a = await _create(client, cookies, "edge-A", item_type="경계테스트")
-    await _create(client, cookies, "edge-B", item_type="경계테스트")
-
-    res = await client.post(f"/api/inventory/equipment/{a['id']}/move", cookies=cookies, json={"direction": "up"})
+async def test_reorder_same_order_changes_nothing(client, db_session):
+    cookies = await _login(client, db_session, "reorder2")
+    a = await _create(client, cookies, "same-A", "동일테스트")
+    b = await _create(client, cookies, "same-B", "동일테스트")
+    # 처음 sort_order는 id — 1..n으로 다시 매기면 값은 바뀌지만 순서는 그대로여야 한다
+    res = await client.post("/api/inventory/equipment/reorder", cookies=cookies,
+                            json={"ids": [a["id"], b["id"]], "moved_id": a["id"]})
     assert res.status_code == 200
-    assert res.json()["updated"] == []
-    assert await _names(client, cookies, "지멘스", "경계테스트") == ["edge-A", "edge-B"]
+    assert await _names(client, cookies, "지멘스", "동일테스트") == ["same-A", "same-B"]
+    hist = (await client.get(f"/api/inventory/history?row_id={a['id']}", cookies=cookies)).json()
+    assert all(h["field"] != "sort_order" for h in hist)  # 자리가 안 바뀌면 이력도 없다
 
 
-async def test_move_stays_within_item_type(client, db_session):
-    cookies = await _login(client, db_session, "mover3")
-    x = await _create(client, cookies, "x-장비", item_type="구분X")
-    y = await _create(client, cookies, "y-프로브", item_type="구분Y")
-
-    # 구분Y에는 y 하나뿐이라 위로 못 간다 — 다른 구분의 x와 바뀌면 안 된다
-    res = await client.post(f"/api/inventory/equipment/{y['id']}/move", cookies=cookies, json={"direction": "up"})
-    assert res.status_code == 200
-    assert res.json()["updated"] == []
-    rows = (await client.get("/api/inventory/equipment?category=지멘스", cookies=cookies)).json()
-    by_id = {r["id"]: r for r in rows}
-    assert by_id[x["id"]]["sort_order"] == x["sort_order"]
-    assert by_id[y["id"]]["sort_order"] == y["sort_order"]
-
-
-async def test_move_rejects_bad_direction_and_missing_row(client, db_session):
-    cookies = await _login(client, db_session, "mover4")
-    a = await _create(client, cookies, "bad-A", item_type="오류테스트")
-    assert (await client.post(f"/api/inventory/equipment/{a['id']}/move", cookies=cookies, json={"direction": "left"})).status_code == 400
-    assert (await client.post("/api/inventory/equipment/999999/move", cookies=cookies, json={"direction": "up"})).status_code == 404
+async def test_reorder_rejects_mixed_groups_and_unknown_ids(client, db_session):
+    cookies = await _login(client, db_session, "reorder3")
+    x = await _create(client, cookies, "mix-X", "구분X")
+    y = await _create(client, cookies, "mix-Y", "구분Y")
+    res = await client.post("/api/inventory/equipment/reorder", cookies=cookies, json={"ids": [y["id"], x["id"]]})
+    assert res.status_code == 400
+    res = await client.post("/api/inventory/equipment/reorder", cookies=cookies, json={"ids": [x["id"], 999999]})
+    assert res.status_code == 404
+    res = await client.post("/api/inventory/equipment/reorder", cookies=cookies, json={"ids": [x["id"], x["id"]]})
+    assert res.status_code == 400
