@@ -7,12 +7,14 @@
 3) 근전도 모델명 'Keypoint Focus Elite (Synergy)' → 'Keypoint Focus'(장비 = Keypoint Focus, SW = Elite).
    저장된 제안서 items와 마지막 금액 키도 같이 바꾼다.
 4) 받는 분(doctor_name)에 직함까지 직접 적게 바뀌어(원장님·실장님·대학교 등) PDF가 더는 '원장님'을 붙이지 않는다.
-   이미 저장된 제안서는 그대로 보이도록 이름 뒤에 ' 원장님'을 붙여 둔다.
+   이미 저장된 제안서 중 사람 이름만 적힌 것(한글 2~4자, '장'으로 끝나지 않음 — 예: 이태경)은 이전처럼 보이도록
+   ' 원장님'을 붙인다. 직함까지 적은 것(예: 방사선실장)은 그대로 둔다.
 
 Revision ID: c4e8a2f6b1d3
 Revises: a7c2e9f1b3d4
 """
 import json
+import re
 
 import sqlalchemy as sa
 from alembic import op
@@ -53,7 +55,10 @@ def upgrade():
 
     conn.execute(sa.text("UPDATE proposal_therapy_items SET model = 'OKB-01' WHERE model = 'OK-1'"))
 
-    conn.execute(sa.text("UPDATE proposals SET doctor_name = doctor_name || ' 원장님' WHERE doctor_name NOT LIKE '%님'"))
+    for pid, name in conn.execute(sa.text("SELECT id, doctor_name FROM proposals")).all():
+        n = (name or "").strip()
+        if re.fullmatch(r"[가-힣]{2,4}", n) and not n.endswith("장"):
+            conn.execute(sa.text("UPDATE proposals SET doctor_name = :d WHERE id = :id"), {"d": f"{n} 원장님", "id": pid})
 
     # 근전도 마지막 금액 키: 새 키가 없을 때만 옮긴다
     has_new = conn.execute(sa.text("SELECT 1 FROM proposal_last_prices WHERE key = :k"), {"k": f"emg:{NEW_EMG}"}).first()
