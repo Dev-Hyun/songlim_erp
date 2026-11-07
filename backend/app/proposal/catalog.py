@@ -229,7 +229,7 @@ ESWT_MODELS: dict[str, dict] = {
 }
 
 # 근전도 — 지금은 Natus 1종(하이메드 공급). 장비 = Keypoint Focus, 소프트웨어 = Elite.
-# 문구 출처: 하이메드 제품 페이지(https://www.himed.co.kr/page/product01), 사진: 하이메드 게시 Natus 브로슈어(2025).
+# 문구·사진 출처: 하이메드 제품 페이지(https://www.himed.co.kr/page/product01).
 EMG_MODELS: dict[str, dict] = {
     "Keypoint Focus": {"brand": "Natus (하이메드)", "sub": "EMG · NCS · EP", "img": "img/natus_keypoint.png",
         "desc": ["2025 최신 **Natus Elite** 소프트웨어 탑재", "EMG · NCS · EP 검사, **3 · 4 · 6 · 8채널** 선택",
