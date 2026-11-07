@@ -103,7 +103,8 @@ def build_pages(items: ProposalItems) -> list[dict]:
         rows.append({"no": i, "name": s.get("name", ""), "maker": s.get("maker") or "", "model": s.get("model") or "",
                      "note": s.get("note") or "", "warranty": s.get("warranty") or "", "image_key": s.get("image_key"),
                      "unit": t.unit_price, "qty": t.qty, "amount": t.unit_price * t.qty})
-    chunks = _even_split(rows, RX_PER_PAGE)  # 8줄까지, 장마다 고르게(17줄 → 6+6+5)
+    # 한 장에 8줄 고정(품목이 계속 늘어나므로) — 마지막 장만 남은 줄
+    chunks = [rows[i:i + RX_PER_PAGE] for i in range(0, len(rows), RX_PER_PAGE)]
     for n, chunk in enumerate(chunks, start=1):
         pages.append({"kind": "rx", "cat": "치료장비", "rows": chunk, "page_no": n, "page_cnt": len(chunks)})
 

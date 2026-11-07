@@ -188,20 +188,20 @@ US_BRANDS: dict[str, dict] = {
 # ---------- 기타장비: LIPUS(골융합치료기) · ESWT(체외충격파) · 근전도 ----------
 # 모델이 늘면 각 표에 항목과 사진만 추가하면 된다(표 순서 = 제안서 순서).
 LIPUS_MODELS: dict[str, dict] = {
-    # 제조사·공급사에 공개된 제품 정보가 아직 없어 기존 제안서(김형주 원장님) 사진과 구성만 옮겼다.
-    "CELLABONE": {"brand": "PROMEDI (스트라텍)", "sub": "골융합치료기 (LIPUS)", "img": "img/lipus_cellabone.jpg", "desc": [
-        "**저강도 펄스 초음파(LIPUS)** 골융합 치료기", "터치스크린으로 치료 모드 선택·조작",
-        "부위별 트랜스듀서 · 고정 밴드 구성", "PROMEDI 제조 · 스트라텍 공급"]},
+    # 출처: 메디시스 제품 페이지 https://medisys.life/product-cellabone (제조 (주)프로메디, 모델 CB-1000)
+    "CELLABONE": {"brand": "PROMEDI (프로메디)", "sub": "CB-1000 · 골유합 촉진기", "img": "img/lipus_cellabone.png", "desc": [
+        "**저강도 박동성 초음파(LIPUS)** 골유합 촉진", "**4채널** — 최대 4명 동시 치료",
+        "1.5MHz · 30 / 60 mW/cm², 5~30분", "비침습 · 무통, 비급여(조-88)"]},
 }
 
 # ESWT는 한 장에 4대까지 칸으로 나눠 싣는다. type = 칸의 TYPE 줄. Warranty 없음.
-# 문구 출처: 각 제조사 홈페이지(아이티시 itc21.co.kr, 스트라텍 stratek.kr, 웨버인스트루먼트, STORZ MEDICAL) ·
-# 공급사 대화메디케어(nemectron.co.kr, DUAL WAVE·IN-5200). 보장 타수는 기존 제안서(송림메디칼 조건) 문구.
-# 기존 제안서의 '스톨즈 Shockwave F1'은 제조사 제품군에서 확인되지 않아 정확한 모델명을 받을 때까지 넣지 않았다.
+# 문구 출처: ULFORCE는 아이티시 카탈로그, ULFORCE Radial은 itc21.co.kr, 스트라텍 stratek.kr, 웨버인스트루먼트,
+# 스톨즈 2종은 공식 수입사 더블유메딕스(wmedix.com), DUAL WAVE·IN-5200은 대화메디케어(nemectron.co.kr).
+# 보장 타수는 기존 제안서(송림메디칼 조건) 문구.
 ESWT_MODELS: dict[str, dict] = {
     "ULFORCE": {"brand": "아이티시 (ITC)", "type": "**Focus**", "img": "img/eswt_ulforce.png", "desc": [
-        "**피에조(압전) 집중형** 체외충격파", "강도 1~25단계 / 주파수 1~10Hz",
-        "에너지 0.003~1.0 mJ/mm²", "침투 깊이 10·20·30mm, **500만타 보장**"]},
+        "**초점형 피에조** 체외충격파 (ESWT Piezo)", "강도 1~25단계 / 주파수 1~5Hz",
+        "에너지 0.0006~0.4028 mJ/mm²", "침투 깊이 10·20·30mm, **500만타 보장**"]},
     "ULFORCE Radial": {"brand": "아이티시 (ITC)", "type": "**Radial**", "img": "img/eswt_ulforce_r.png", "desc": [
         "**공기압 방사형** 체외충격파", "충격 압력 1.0~5.0 bar",
         "주파수 **1~17Hz**", "트랜스미터 F15 · R15 · R20"]},
@@ -214,13 +214,16 @@ ESWT_MODELS: dict[str, dict] = {
     "ZEUS WAVE": {"brand": "웨버인스트루먼트", "type": "**Radial + Focus**", "img": "img/eswt_zeuswave.png", "desc": [
         "**Piezo 집중형 + 공기압 방사형** 통합", "고강도 레이저(HILT) **15W** 탑재",
         "집중형 최대 0.702mJ/mm², 깊이 40mm", "방사형 0.5~7.0 bar / 1~10Hz, 팁 8종"]},
+    "SHOCK WAVE F1": {"brand": "STORZ MEDICAL (스톨즈)", "type": "**Focus**", "img": "img/eswt_f1.png", "desc": [
+        "**컴팩트 집중형(Focus)** 충격파", "에너지 0.01~0.55 mJ/mm²",
+        "유효 침투 깊이 **50mm**", "인체공학 New 핸드피스, 저렴한 소모품"]},
     "SD1 BT F-SW": {"brand": "STORZ MEDICAL (스톨즈)", "type": "**Focus**", "img": "img/eswt_sd1.png", "desc": [
-        "**전자기식 집중형(F-SW)** 충격파", "조작부를 핸드피스에 통합",
-        "에너지 0.01~0.55mJ/mm²", "침투 깊이 최대 **125mm**"]},
+        "DUOLITH **집중형(Focus) 단독** 모델", "터치스크린 · 핸드피스에서 조절",
+        "에너지 0.01~0.55 mJ/mm² 단계 선택", "유효 침투 깊이 **50mm**"]},
     "IN-5200": {"brand": "영인바이오텍", "type": "**Radial + Focus**", "img": "img/eswt_in5200.png", "desc": [
         "**Array Piezo 집중형 + Radial** 듀얼", "에너지 0.07~0.82mJ/mm²",
         "Radial 최대 4.0 bar / 1~15Hz", "10.1인치 터치스크린"]},
-    "DUAL WAVE PLUS": {"brand": "메디젠", "type": "**Radial + Focus**", "img": "img/eswt_dualwave.png", "desc": [
+    "DUAL WAVE PLUS": {"brand": "대화메디케어", "type": "**Radial + Focus**", "img": "img/eswt_dualwave.png", "desc": [
         "**Radial + Focus** 충격파 한 대로", "방사형 · 집중형 손쉬운 전환",
         "Focus 프로브 3종 (초점 10/20/30mm)", "Radial 프로브 3종"]},
 }

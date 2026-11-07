@@ -49,8 +49,8 @@ def test_page_order_follows_category_order():
 
 def test_therapy_split_eight_per_page_without_total():
     rx = [p for p in build_pages(_items(**FULL)) if p["kind"] == "rx"]
-    assert [len(p["rows"]) for p in rx] == [6, 6, 5]  # 8줄까지, 장마다 고르게
-    assert [r["no"] for r in rx[1]["rows"]][0] == 7
+    assert [len(p["rows"]) for p in rx] == [8, 8, 1]  # 8줄 고정
+    assert [r["no"] for r in rx[1]["rows"]][0] == 9
     assert all("total" not in p for p in rx)
     first = rx[0]["rows"][0]
     assert first["amount"] == 2000 and first["qty"] == 2
@@ -191,9 +191,12 @@ def test_etc_equipment_order_eswt_split_and_no_warranty():
 
 def test_eight_eswt_make_two_pages_of_four():
     from app.proposal import catalog
-    es = [p for p in build_pages(_items(eswt=[{"model": m, "price": 1} for m in catalog.ESWT_MODELS]))
+    es = [p for p in build_pages(_items(eswt=[{"model": m, "price": 1} for m in list(catalog.ESWT_MODELS)[:8]]))
           if p.get("cat") == "기타장비 · ESWT"]
     assert [len(p["models"]) for p in es] == [4, 4]
+    es9 = [p for p in build_pages(_items(eswt=[{"model": m, "price": 1} for m in catalog.ESWT_MODELS]))
+           if p.get("cat") == "기타장비 · ESWT"]
+    assert len(catalog.ESWT_MODELS) == 9 and [len(p["models"]) for p in es9] == [3, 3, 3]
 
 
 def test_recipient_written_as_is_with_particle():
