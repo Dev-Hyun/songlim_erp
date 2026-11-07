@@ -36,6 +36,24 @@ async def _get_browser():
         return _browser
 
 
+# A4 가로 297×210mm (pt)
+A4_LANDSCAPE = (297 / 25.4 * 72, 210 / 25.4 * 72)
+
+
+def _fit_a4(pdf: bytes) -> bytes:
+    """크롬은 용지를 1/300인치 단위로 반올림해 297.35×210.23mm로 내보낸다(형식을 A4로 줘도 같다).
+    인쇄할 때 프린터가 'A4'로 알아보도록 각 장을 정확한 A4 가로 용지에 그대로(0.1% 축소) 옮겨 담는다."""
+    import pymupdf
+
+    rect = pymupdf.Rect(0, 0, *A4_LANDSCAPE)
+    src = pymupdf.open(stream=pdf, filetype="pdf")
+    out = pymupdf.open()
+    for i in range(src.page_count):
+        out.new_page(width=rect.width, height=rect.height).show_pdf_page(rect, src, i, keep_proportion=False)
+    out.set_metadata(src.metadata)  # 문서 제목(파일명과 같은 <title>) 유지
+    return out.tobytes(garbage=3, deflate=True)
+
+
 async def html_to_pdf(html: str) -> bytes:
     async with _sem:
         fd, path = tempfile.mkstemp(suffix=".html")
@@ -48,8 +66,9 @@ async def html_to_pdf(html: str) -> bytes:
             page = await ctx.new_page()
             await page.goto(Path(path).as_uri(), wait_until="load", timeout=TIMEOUT_MS)
             await page.wait_for_function("window.__proposalReady === true", timeout=TIMEOUT_MS)
-            # 한 장(1123×794px)과 같은 크기 = A4 가로(297×210mm, 소수점 차이만)
-            return await page.pdf(width="1123px", height="794px", print_background=True)
+            # 한 장(1123×794px)과 같은 크기로 뽑고, 용지만 정확한 A4 가로로 맞춘다
+            pdf = await page.pdf(width="1123px", height="794px", print_background=True)
+            return await asyncio.to_thread(_fit_a4, pdf)
         except Exception as e:  # noqa: BLE001 — 크롬 오류 종류와 상관없이 503으로 보낸다
             log.exception("제안서 PDF 생성 실패")
             raise PdfError(str(e)) from e
