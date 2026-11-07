@@ -143,6 +143,8 @@ export default function CategoryPanels({
   const patchX = (model: string, p: Partial<XrayLine>) =>
     setItems((it) => ({ ...it, xray: it.xray.map((x) => (x.model === model ? { ...x, ...p } : x)) }));
   const usCount = items.ultrasound.reduce((a, b) => a + b.models.length, 0);
+  // 이 제안서에 들어 있지만 지금은 '사용 안 함'인 품목(예: 기타장비로 옮긴 ESWT) — 목록에 안 보여도 뺄 수 있게 따로 보여 준다
+  const rxHidden = items.therapy.filter((l) => !catalog.therapy.some((t) => t.id === l.item_id));
   const rxShown = catalog.therapy.filter((t) =>
     `${t.name} ${t.maker || ""} ${t.model || ""}`.toLowerCase().includes(rxQuery.trim().toLowerCase()),
   );
@@ -456,6 +458,39 @@ export default function CategoryPanels({
             품목 관리
           </Link>
         </div>
+        {rxHidden.length > 0 && (
+          <div className="rounded-control border border-amber-300 bg-amber-50 p-3 dark:border-amber-500/40 dark:bg-amber-500/10">
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+              <span className="text-ui-sm font-medium text-amber-800 dark:text-amber-200">
+                사용 안 함 품목 {rxHidden.length}개가 이 제안서에 들어 있습니다
+              </span>
+              <button
+                type="button"
+                className="btn btn-default h-8 px-3 text-ui-xs"
+                onClick={() => setItems((it) => ({ ...it, therapy: it.therapy.filter((l) => catalog.therapy.some((t) => t.id === l.item_id)) }))}
+              >
+                모두 빼기
+              </button>
+            </div>
+            <ul className="space-y-1">
+              {rxHidden.map((l) => {
+                const s = (l.snapshot || {}) as { name?: string; maker?: string; model?: string };
+                return (
+                  <li key={l.item_id} className="flex items-center justify-between gap-2 text-ui-sm">
+                    <span className="fg-strong min-w-0 truncate">{[s.name, s.maker, s.model].filter(Boolean).join(" · ") || `품목 #${l.item_id}`}</span>
+                    <button
+                      type="button"
+                      className="btn btn-ghost h-7 shrink-0 px-2 text-ui-xs"
+                      onClick={() => setItems((it) => ({ ...it, therapy: it.therapy.filter((x) => x.item_id !== l.item_id) }))}
+                    >
+                      빼기
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        )}
         <ul className="divide-y divide-gray-100 dark:divide-gray-800">
           {rxShown.map((t) => {
             const line = items.therapy.find((l) => l.item_id === t.id);
