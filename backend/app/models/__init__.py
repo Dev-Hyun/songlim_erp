@@ -29,8 +29,11 @@ from .kakao import KakaoOutbox
 from .localdata import LocaldataClinic
 from .mfds import MfdsDeviceItem
 from .push import PushSubscription
+from .proposal import Proposal, ProposalTherapyItem
 
 __all__ = [
+    "Proposal",
+    "ProposalTherapyItem",
     "KakaoOutbox",
     "PushSubscription",
     "LocaldataClinic",
