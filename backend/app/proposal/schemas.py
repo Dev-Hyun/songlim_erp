@@ -37,6 +37,7 @@ class PriceOnly(BaseModel):
 class UsModel(BaseModel):
     model: str
     price: int = Price
+    probes: int = Field(2, ge=1, le=10)  # Include "Main Body + N Probe" (기존 제안서 2~3개)
 
 
 class UsBrand(BaseModel):
@@ -145,7 +146,7 @@ def price_memory(items: ProposalItems) -> dict[str, tuple[int, int | None]]:
         out["carm_reducer"] = (items.carm_reducer.price, None)
     for b in items.ultrasound:
         for m in b.models:
-            out[f"us:{b.brand}:{m.model}"] = (m.price, None)
+            out[f"us:{b.brand}:{m.model}"] = (m.price, m.probes)  # 수량 칸에 Probe 개수를 남긴다
     for t in items.therapy:
         out[f"therapy:{t.item_id}"] = (t.unit_price, t.qty)
     return out

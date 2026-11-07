@@ -38,7 +38,7 @@
       {% if e.size %}<div class="r"><div class="k">SIZE</div><div>{{ e.size }}</div></div>{% endif %}
       <div class="r"><div class="k">WARRANTY</div><div class="w hl">{{ e.warranty }}</div></div></div>
     {% if e.det %}{{ det_box(e.det) }}{% endif %}
-    {% if e.options %}<div class="opts"><h5>OPTIONS</h5><ul>{% for label, pr in e.options %}<li><span>{{ label }}</span><b>{{ pr|won }}</b></li>{% endfor %}</ul></div>{% endif %}
+    {% if e.options %}<div class="opts {{ 'opts-2col' if e.options|length > 5 }}"><h5>OPTIONS</h5><ul>{% for label, pr in e.options %}<li><span>{{ label }}</span><b>{{ pr|won }}</b></li>{% endfor %}</ul></div>{% endif %}
     {% if e.note %}<div class="note"><b>{{ e.note.title }}</b> · {{ e.note.text|hl }}</div>{% endif %}</div>
   <div class="rcol">{{ stage(e.img, e.model) }}{{ price_box(e) }}</div></div></div></div>{% endmacro %}
 
@@ -78,7 +78,7 @@
   <div class="us-h"><div><div class="ttl">ULTRASOUND</div><div class="h40">{{ e.brand }}</div></div>
     <div class="meta">WARRANTY <b>{{ e.warranty }}</b> · VAT 포함 금액</div></div>
   <div class="usg" style="grid-template-columns:repeat({{ e.models|length }},1fr)">{% for m in e.models %}<div class="usc">{{ stage(m.img, m.model) }}
-    <div class="bd"><div class="mn">{{ m.model }}</div><ul class="desc">{% for x in m.desc %}<li>{{ x|hl }}</li>{% endfor %}</ul></div>
+    <div class="bd"><div class="mn">{{ m.model }}</div><div class="inc">INCLUDE · {{ m.include|hl }}</div><ul class="desc">{% for x in m.desc %}<li>{{ x|hl }}</li>{% endfor %}</ul></div>
     <div class="pr"><span>제안가</span><b>{{ m.price|won }}</b></div></div>{% endfor %}</div></div></div>{% endmacro %}
 
 {% macro rx_table(e) %}<table class="rxt"><colgroup><col style="width:42px"><col style="width:118px"><col style="width:104px"><col style="width:150px"><col style="width:104px"><col style="width:46px"><col style="width:118px"><col><col style="width:66px"></colgroup>

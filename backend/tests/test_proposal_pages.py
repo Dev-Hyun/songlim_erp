@@ -25,7 +25,7 @@ FULL = dict(
     carm_table="01M",
     carm_reducer={"price": 4500000},
     bmd=[{"model": "PRIMUS", "price": 44000000}],
-    ultrasound=[{"brand": "ALPINION", "models": [{"model": "X-CUBE 50", "price": 1}]},
+    ultrasound=[{"brand": "ALPINION", "models": [{"model": "X-CUBE 50", "price": 1, "probes": 3}]},
                 {"brand": "DRGEM", "models": [{"model": "DS30", "price": 2}, {"model": "DS20", "price": 3}]}],
     emg=[{"model": "Keypoint Focus Elite (Synergy)", "price": 25000000}],
     therapy=_therapy(17),
@@ -146,6 +146,26 @@ def test_price_memory_keys():
     assert mem["xray:GXR-52SD"] == (52800000, None)
     assert mem["xray_opt:capacitor"] == (2500000, None)
     assert mem["pacs"] == (2000000, None) and mem["carm_reducer"] == (4500000, None)
-    assert mem["us:DRGEM:DS30"] == (2, None)
+    assert mem["us:DRGEM:DS30"] == (2, 2)  # Probe 기본 2개가 수량 칸에 남는다
+    assert mem["us:ALPINION:X-CUBE 50"] == (1, 3)
     assert mem["emg:Keypoint Focus Elite (Synergy)"] == (25000000, None)
     assert mem["therapy:1"] == (1000, 2)
+
+
+def test_ultrasound_probe_count_in_include():
+    us = [p for p in build_pages(_items(**FULL)) if p["kind"] == "us"]
+    alp = [p for p in us if p["brand"] == "ALPINION"][0]
+    assert alp["models"][0]["include"] == "Main Body + **3 Probe**"
+    drgem = [p for p in us if p["brand"] == "DRGEM"][0]
+    assert drgem["models"][0]["include"] == "Main Body + **2 Probe**"  # 안 적으면 2개
+    html = render_html({**META, "design": "C"}, build_pages(_items(**FULL)), asset_base="S/", upload_base="U/")
+    assert 'INCLUDE · Main Body + <b class="hl">3 Probe</b>' in html
+    assert 'class="opts opts-2col"' not in html and 'class="opts "' in html  # 옵션 1개면 1단
+
+
+def test_many_xray_options_use_two_columns():
+    from app.proposal import catalog
+    opts = [{"key": k, "price": 1} for k in catalog.XRAY_OPTIONS]
+    html = render_html({**META, "design": "A"}, build_pages(_items(xray=[{"model": "GXR-E40S Plus", "price": 1, "options": opts}])),
+                       asset_base="S/", upload_base="U/")
+    assert 'class="opts opts-2col"' in html

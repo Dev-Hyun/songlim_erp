@@ -58,7 +58,7 @@ def build_pages(items: ProposalItems) -> list[dict]:
         models = catalog.US_BRANDS[b.brand]["models"]
         order = list(models)
         pages.append({"kind": "us", "cat": "ULTRASOUND", "brand": b.brand, "warranty": "3년", "models": [
-            {"model": m.model, "price": m.price, **models[m.model]}
+            {"model": m.model, "price": m.price, "include": f"Main Body + **{m.probes} Probe**", **models[m.model]}
             for m in sorted(b.models, key=lambda m: order.index(m.model))]})
 
     for r in _ordered(items.emg, catalog.EMG_MODELS):

@@ -1,7 +1,8 @@
 """SQLite DB 자동 백업 — 매일 cron으로 실행.
 
 1. backend/data.db를 backend/backups/data_YYYYMMDD_HHMMSS.db로 스냅샷
-2. 로컬 보관은 최근 KEEP_COUNT개만 남기고 오래된 것 삭제(로테이션)
+2. 로컬 보관은 최근 KEEP_COUNT개만 남기고 오래된 것 삭제(로테이션). 새 스냅샷을 뜨기 전에
+   KEEP_COUNT-1개로 줄여 두므로, 실행이 끝나면 디스크에 정확히 KEEP_COUNT개가 남는다.
 
    왜 '일수'가 아니라 '개수'인가: 원래 KEEP_DAYS=14였는데, data.db가 92MB에서 1.2GB로
    커지자 14일치가 16.8GB가 되어 20GB 디스크를 꽉 채웠다(2026-09-24 백업이
@@ -24,7 +25,7 @@ from datetime import datetime, timezone
 BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DB_PATH = os.path.join(BACKEND_DIR, "data.db")
 BACKUP_DIR = os.path.join(BACKEND_DIR, "backups")
-KEEP_COUNT = 3          # 로컬에 남길 백업 개수 (전체 이력은 S3)
+KEEP_COUNT = 2          # 로컬에 남길 백업 개수 (전체 이력은 S3). 2026-11-07 사용자 결정: 3→2(디스크 확보)
 FREE_MARGIN = 1.3       # 스냅샷에 DB 크기의 몇 배만큼 여유를 요구할지
 
 
@@ -118,7 +119,7 @@ def main():
         sys.exit(1)
     # 순서가 중요하다: 예전에는 snapshot()을 먼저 해서, 로테이션으로 비울 수 있는 공간이
     # 있는데도 "disk is full"로 실패했다. 지우고 나서 뜬다.
-    rotate()
+    rotate(KEEP_COUNT - 1)  # 새 스냅샷까지 합쳐 KEEP_COUNT개가 되도록
     ensure_space()
     path = snapshot()
     print(f"스냅샷 생성: {path}")

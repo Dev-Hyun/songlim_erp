@@ -7,13 +7,32 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@300;400;500;600;700&family=Gothic+A1:wght@300;400;500;700;800;900&display=swap">
 <style>
-@page { size: 297mm 210mm; margin: 0; }
+/* 용지 = 한 장(1123×794px)과 정확히 같게. 297×210mm(793.7px)로 두면 한 장이 0.3px 길어 맨 아래에 닿는
+   내용이 다음 장으로 밀려 잘리거나(가격 상자) 통째로 빈 페이지가 됐다. */
+@page { size: 1123px 794px; margin: 0; }
 html, body { margin: 0; padding: 0; }
 body { background: {{ '#fff' if for_pdf else '#e9ecef' }}; }
 .sheets { display: flex; flex-direction: column; align-items: center; gap: {{ '0' if for_pdf else '24px' }}; padding: {{ '0' if for_pdf else '24px 0' }}; }
 .sheet { page-break-after: always; break-after: page; flex: none; {{ '' if for_pdf else 'box-shadow: 0 2px 12px rgba(0,0,0,.12);' }} }
 .sheet:last-child { page-break-after: auto; break-after: auto; }
 {% include "proposal.css" %}
+.sheet { break-inside: avoid; }
+/* X-ray 옵션이 많으면(6개 이상) 2단으로 — 11개를 다 골라도 한 장에 들어가게 */
+.opts.opts-2col ul { display: grid; grid-template-columns: 1fr 1fr; column-gap: 18px; }
+.opts.opts-2col li { font-size: 12.5px !important; }
+.dA .opts.opts-2col li { padding: 4px 0; }
+.dC .opts.opts-2col li { padding: 2px 0; }
+.opts li { gap: 8px; }
+.opts li span { min-width: 0; }
+.opts li b { white-space: nowrap; }
+/* 초음파 카드: 설명이 길어도 가격 띠가 잘리지 않게 사진 칸을 조금 낮추고 본문은 남는 칸만 쓴다 */
+.dA .usc .stage { height: 262px; }
+.usc .bd { min-height: 0; overflow: hidden; }
+.usc .pr { flex: none; }
+/* 초음파 카드 Include 줄 */
+.usc .inc { font-size: 12px; margin: 2px 0 4px; font-weight: 600; }
+.dA .usc .inc { color: var(--ink); }
+.dC .usc .inc { color: var(--g1); }
 /* 웹폰트를 못 받았을 때 서버에 깔린 Noto CJK로 (한글 깨짐 방지) */
 .dA { font-family: "IBM Plex Sans KR", "Noto Sans CJK KR", "Noto Sans KR", sans-serif; }
 .dC { font-family: "Gothic A1", "Noto Sans CJK KR", "Noto Sans KR", sans-serif; }

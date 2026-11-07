@@ -324,7 +324,7 @@ export default function CategoryPanels({
         <p className="fg-muted text-ui-xs">브랜드마다 1페이지, 고른 모델 수(1~4개)만큼 칸이 나뉩니다.</p>
         {catalog.ultrasound.map((b) => {
           const line = items.ultrasound.find((u) => u.brand === b.brand);
-          const setModels = (models: { model: string; price: number }[]) =>
+          const setModels = (models: { model: string; price: number; probes: number }[]) =>
             setItems((it) => {
               const rest = it.ultrasound.filter((u) => u.brand !== b.brand);
               return { ...it, ultrasound: models.length ? [...rest, { brand: b.brand, models }] : rest };
@@ -338,20 +338,48 @@ export default function CategoryPanels({
                     key={m}
                     label={m}
                     checked={!!line?.models.some((x) => x.model === m)}
-                    onChange={(on) => setModels(toggle(line?.models || [], on, () => ({ model: m, price: dp(`us:${b.brand}:${m}`) }), (x) => x.model === m))}
+                    onChange={(on) =>
+                      setModels(
+                        toggle(
+                          line?.models || [],
+                          on,
+                          // Probe 개수 기본값: 마지막 저장값 → 없으면 2개(기존 제안서 기준)
+                          () => ({ model: m, price: dp(`us:${b.brand}:${m}`), probes: catalog.defaults?.[`us:${b.brand}:${m}`]?.qty || 2 }),
+                          (x) => x.model === m,
+                        ),
+                      )
+                    }
                   />
                 ))}
               </div>
               {line && (
                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                   {line.models.map((m) => (
-                    <Field key={m.model} label={`${m.model} 제안가`}>
-                      <MoneyInput
-                        value={m.price}
-                        invalid={showErrors && !m.price}
-                        onChange={(v) => setModels(line.models.map((x) => (x.model === m.model ? { ...x, price: v } : x)))}
-                      />
-                    </Field>
+                    <div key={m.model} className="grid grid-cols-[minmax(0,1fr)_96px] gap-2">
+                      <Field label={`${m.model} 제안가`}>
+                        <MoneyInput
+                          value={m.price}
+                          invalid={showErrors && !m.price}
+                          onChange={(v) => setModels(line.models.map((x) => (x.model === m.model ? { ...x, price: v } : x)))}
+                        />
+                      </Field>
+                      <Field label="Probe 개수">
+                        <input
+                          type="number"
+                          min={1}
+                          max={10}
+                          className="field w-full text-right"
+                          value={m.probes}
+                          onChange={(e) =>
+                            setModels(
+                              line.models.map((x) =>
+                                x.model === m.model ? { ...x, probes: Math.max(1, Math.min(10, Number(e.target.value) || 1)) } : x,
+                              ),
+                            )
+                          }
+                        />
+                      </Field>
+                    </div>
                   ))}
                 </div>
               )}

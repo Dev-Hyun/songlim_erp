@@ -48,7 +48,8 @@ async def html_to_pdf(html: str) -> bytes:
             page = await ctx.new_page()
             await page.goto(Path(path).as_uri(), wait_until="load", timeout=TIMEOUT_MS)
             await page.wait_for_function("window.__proposalReady === true", timeout=TIMEOUT_MS)
-            return await page.pdf(width="297mm", height="210mm", print_background=True)
+            # 한 장(1123×794px)과 같은 크기 = A4 가로(297×210mm, 소수점 차이만)
+            return await page.pdf(width="1123px", height="794px", print_background=True)
         except Exception as e:  # noqa: BLE001 — 크롬 오류 종류와 상관없이 503으로 보낸다
             log.exception("제안서 PDF 생성 실패")
             raise PdfError(str(e)) from e

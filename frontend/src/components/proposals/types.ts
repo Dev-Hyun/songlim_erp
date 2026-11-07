@@ -16,7 +16,8 @@ export interface ModelPrice {
 }
 export interface UsBrandLine {
   brand: string;
-  models: { model: string; price: number }[];
+  /** probes = Include "Main Body + N Probe"의 N */
+  models: { model: string; price: number; probes: number }[];
 }
 export interface TherapyLine {
   item_id: number;

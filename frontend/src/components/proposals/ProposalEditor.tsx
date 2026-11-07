@@ -32,6 +32,12 @@ function missing(f: ProposalForm): string[] {
   return out;
 }
 
+/** 저장된 items를 화면 형태로 — 예전에 저장한 제안서에 없는 칸(근전도, Probe 개수 등)을 기본값으로 채운다. */
+function normalize(items: Partial<ProposalItems>): ProposalItems {
+  const it = { ...EMPTY_ITEMS, ...items };
+  return { ...it, ultrasound: it.ultrasound.map((b) => ({ ...b, models: b.models.map((m) => ({ ...m, probes: m.probes || 2 })) })) };
+}
+
 /** 미리보기는 금액을 아직 안 넣은 줄을 빼고 그린다(입력하는 동안에도 나머지는 계속 보이게). */
 function completeOnly(items: ProposalItems): ProposalItems {
   return {
@@ -102,7 +108,7 @@ export default function ProposalEditor({ id }: { id?: number }) {
         setCatalog(cat);
         const f: ProposalForm = p
           ? { hospital_name: p.hospital_name, doctor_name: p.doctor_name, proposal_date: p.proposal_date, rep_name: p.rep_name,
-              rep_title: p.rep_title, rep_phone: p.rep_phone, design: p.design, items: { ...EMPTY_ITEMS, ...p.items } }
+              rep_title: p.rep_title, rep_phone: p.rep_phone, design: p.design, items: normalize(p.items) }
           : { hospital_name: "", doctor_name: "", proposal_date: today(), rep_name: "", rep_title: "", rep_phone: "", design: "A", items: EMPTY_ITEMS };
         setForm(f);
         setSavedJson(p ? JSON.stringify(f) : "");
@@ -163,7 +169,7 @@ export default function ProposalEditor({ id }: { id?: number }) {
     setBusy("save");
     try {
       const saved = id ? await updateProposal(id, form) : await createProposal(form);
-      const next: ProposalForm = { ...form, items: { ...EMPTY_ITEMS, ...saved.items } };
+      const next: ProposalForm = { ...form, items: normalize(saved.items) };
       setForm(next);
       setSavedJson(JSON.stringify(next));
       setMsg({ tone: "ok", text: "저장했습니다" });
