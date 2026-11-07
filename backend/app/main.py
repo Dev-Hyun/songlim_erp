@@ -28,6 +28,7 @@ from app.routers import (
     supply,
     uploads,
     kakao_bridge,
+    proposals,
 )
 
 setup_logging()
@@ -66,6 +67,7 @@ app.include_router(storage.router)
 app.include_router(notifications.router)
 app.include_router(push.router)
 app.include_router(kakao_bridge.router)
+app.include_router(proposals.router)
 
 
 @app.get("/api/health")
@@ -90,3 +92,11 @@ async def _startup():
     _scheduler.start()
     asyncio.create_task(refresh_bids_job())
     asyncio.create_task(refresh_news_job())
+
+
+@app.on_event("shutdown")
+async def _shutdown_pdf_browser():
+    # 제안서 PDF용으로 띄워 둔 Chromium 정리
+    from app.proposal.pdf import shutdown
+
+    await shutdown()
