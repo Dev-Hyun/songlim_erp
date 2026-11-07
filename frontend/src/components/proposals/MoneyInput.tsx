@@ -23,7 +23,9 @@ export default function MoneyInput({
         inputMode="numeric"
         aria-label={ariaLabel || placeholder}
         aria-invalid={invalid}
-        className={`field w-full pr-8 text-right tabular-nums max-sm:pr-10 ${invalid ? "!border-error-400" : ""}`}
+        className={`field w-full text-right tabular-nums ${invalid ? "!border-error-400" : ""}`}
+        // 폰에서는 globals.css의 `.field.field { px-3.5 }`가 pr-* 클래스를 덮어써 "원"과 겹쳤다 → 인라인으로 고정
+        style={{ paddingRight: 40 }}
         placeholder={placeholder}
         value={shown}
         onChange={(e) => {
@@ -31,7 +33,6 @@ export default function MoneyInput({
           onChange(digits ? Number(digits) : 0);
         }}
       />
-      {/* 폰은 입력 글자가 16px로 커지므로(iOS 확대 방지) 오른쪽 여백을 더 둔다 */}
       <span className="fg-muted pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-ui-xs max-sm:text-ui">원</span>
     </div>
   );

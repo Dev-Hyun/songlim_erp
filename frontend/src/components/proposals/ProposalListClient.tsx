@@ -96,7 +96,7 @@ export default function ProposalListClient() {
   return (
     <div className="space-y-3">
       <div className="surface-card flex flex-wrap items-center gap-2 px-3 py-2.5">
-        <input className="field min-w-0 flex-1" placeholder="병원명·원장님 검색" value={q} onChange={(e) => setQ(e.target.value)} />
+        <input className="field min-w-0 flex-1" placeholder="병원명·받는 분 검색" value={q} onChange={(e) => setQ(e.target.value)} />
         <button className="btn btn-primary" onClick={() => router.push("/proposals/new")}>
           새 제안서
         </button>
@@ -117,7 +117,7 @@ export default function ProposalListClient() {
               <thead>
                 <tr>
                   <th className="th-dense">병원명</th>
-                  <th className="th-dense">원장님</th>
+                  <th className="th-dense">받는 분</th>
                   <th className="th-dense">제안일</th>
                   <th className="th-dense">장비</th>
                   <th className="th-dense">담당자</th>
@@ -153,7 +153,7 @@ export default function ProposalListClient() {
                   <div className="min-w-0">
                     <div className="fg-strong text-ui-md font-semibold">{r.hospital_name}</div>
                     <div className="fg-muted text-ui-xs">
-                      {r.doctor_name} 원장님 · {r.proposal_date} · {DESIGN_LABEL[r.design]}
+                      {r.doctor_name} · {r.proposal_date} · {DESIGN_LABEL[r.design]}
                     </div>
                     {r.summary && <div className="fg-base mt-1 text-ui-xs">{r.summary}</div>}
                   </div>

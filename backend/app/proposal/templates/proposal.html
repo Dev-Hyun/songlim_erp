@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8">
-<title>{{ p.proposal_date }}_제안서_{{ p.hospital_name }} {{ p.doctor_name }}원장님</title>
+<title>{{ p.proposal_date }}_제안서_{{ p.hospital_name }} {{ p.doctor_name }}</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@300;400;500;600;700&family=Gothic+A1:wght@300;400;500;700;800;900&display=swap">
@@ -33,6 +33,90 @@ body { background: {{ '#fff' if for_pdf else '#e9ecef' }}; }
 .usc .inc { font-size: 12px; margin: 2px 0 4px; font-weight: 600; }
 .dA .usc .inc { color: var(--ink); }
 .dC .usc .inc { color: var(--g1); }
+/* ESWT 칸: 모델 위에 브랜드(제조사)를 작게 */
+.usc .mb { font-size: 12px; font-weight: 600; letter-spacing: .02em; opacity: .7; margin-bottom: 1px; }
+/* ===== 디자인 고도화 (2026-11-07) ===== */
+/* 한글은 단어 중간에서 끊지 않고, 마지막 줄에 한 단어만 남지 않게 줄을 고르게 나눈다 */
+.sheet { word-break: keep-all; overflow-wrap: break-word; text-wrap: pretty; }
+/* 장비 페이지 왼쪽 칸: 페이지 높이를 다 쓰고, 서비스 띠는 맨 아래(가격 상자와 같은 높이선)에 둔다.
+   내용이 많아 넘치면 스크립트가 서비스 띠를 지우고, 그래도 넘치면 .tight로 글자를 원래 크기로 줄인다. */
+.dA .eq, .dC .eq { grid-template-rows: minmax(0, 1fr); }
+.lc { display: flex; flex-direction: column; min-height: 0; }
+.lc > .svc { margin-top: auto; flex: none; }
+.svc-h { font-size: 11.5px; letter-spacing: .18em; font-weight: 700; margin-bottom: 10px; }
+.svc ul { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.svc li b { display: block; font-size: 14.5px; margin-bottom: 3px; }
+.svc li span { display: block; font-size: 12.5px; line-height: 1.5; }
+.dA .svc { background: var(--pale); border-radius: 4px; padding: 18px 22px 20px; }
+.dA .svc-h { color: var(--blue); }
+.dA .svc li { border-left: 2px solid var(--blue); padding-left: 10px; }
+.dA .svc li b { color: var(--ink); }
+.dA .svc li span { color: var(--mu); }
+.dC .svc { background: var(--mint); padding: 16px 20px 18px; border-left: 6px solid var(--g1); }
+.dC .svc-h { color: var(--g1); }
+.dC .svc li b { color: var(--g1); }
+.dC .svc li span { color: var(--mu); }
+/* 모델명 옆 부제가 길면 중간에서 끊지 않고 통째로 다음 줄로 */
+.model small, .h40 small { display: inline-block; white-space: nowrap; }
+/* 여유 있을 때는 글자·줄 간격을 키워 왼쪽 칸을 채운다 */
+.dA .lc:not(.tight) .model { font-size: 48px; }
+.dA .lc:not(.tight) .chips span { font-size: 14px; padding: 5px 11px; }
+.dA .lc:not(.tight) .rows { margin-top: 24px; }
+.dA .lc:not(.tight) .rows .r { padding: 15px 0; font-size: 16px; grid-template-columns: 132px 1fr; }
+.dA .lc:not(.tight) .rows .k { font-size: 12.5px; padding-top: 3px; }
+.dA .lc:not(.tight) .rows li { line-height: 1.85; }
+.dA .lc:not(.tight) .note { font-size: 14px; padding: 12px 16px; }
+.dC .lc:not(.tight) .model { font-size: 50px; }
+.dC .lc:not(.tight) .tb { margin-top: 22px; }
+.dC .lc:not(.tight) .tb .r { font-size: 16px; line-height: 1.75; grid-template-columns: 124px 1fr; }
+.dC .lc:not(.tight) .tb .k { font-size: 14px; padding: 12px 14px; }
+.dC .lc:not(.tight) .tb .v { padding: 12px 16px; }
+.dC .lc:not(.tight) .tb .r.price .v { font-size: 38px; }
+.dC .lc:not(.tight) .note { font-size: 14px; padding: 12px 16px; }
+/* A 회사 소개: 위(소개 + 4개 카드)가 남는 높이를 다 쓰고, 아래에 공급 분야 띠 */
+.dA .iw { display: flex; flex-direction: column; gap: 26px; }
+.dA .iw .intro { height: auto; flex: 1; min-height: 0; grid-template-columns: 430px 1fr; }
+.dA .intro-l { display: flex; flex-direction: column; }
+.dA .intro-l h3 { font-size: 50px; }
+.dA .intro-l p.lead { font-size: 18.5px; line-height: 1.85; }
+.dA .intro-l .stats { margin-top: auto; }
+.dA .intro-l .stats b { font-size: 52px; }
+.dA .intro-l .stats span { font-size: 14px; }
+.dA .iw .pts { align-content: stretch; grid-auto-rows: 1fr; gap: 18px; }
+.dA .iw .pts li { display: flex; flex-direction: column; justify-content: center; padding: 26px 28px; border-top: 3px solid var(--ink); }
+.dA .iw .pts .no { font-size: 13px; font-weight: 700; color: var(--blue); letter-spacing: .1em; margin-bottom: 10px; }
+.dA .iw .pts h4 { font-size: 21px; margin-bottom: 10px; }
+.dA .iw .pts p { font-size: 15.5px; line-height: 1.75; }
+.fields { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 10px; }
+.fields b { font-size: 13px; letter-spacing: .12em; margin-right: 10px; }
+.fields span { font-size: 14px; font-weight: 600; padding: 7px 14px; border-radius: 999px; }
+.dA .fields { background: var(--ink); border-radius: 4px; padding: 18px 24px; }
+.dA .fields b { color: #8FB8E8; }
+.dA .fields span { color: #fff; border: 1px solid rgba(255,255,255,.28); }
+/* C 회사 소개 */
+.dC .iw { display: flex; flex-direction: column; }
+.dC .iw > .tagp { align-self: flex-start; }
+.dC .iw .intro { flex: 1; min-height: 0; margin-top: 44px; align-items: stretch; }
+.dC .intro-l { display: flex; flex-direction: column; }
+.dC .intro-l h3 { font-size: 50px; }
+.dC .intro-l .lead { font-size: 18px; }
+.dC .intro-l .yrs { margin-top: auto; padding-bottom: 6px; }
+.dC .intro-l .yrs b { font-size: 120px; }
+.dC .iw .intro ul { display: flex; flex-direction: column; justify-content: space-between; }
+.dC .iw .intro ul li { flex: 1; align-items: center; font-size: 16.5px; padding: 0; }
+.dC .iw .intro ul li::before { margin-top: 0; }
+.dC .intro .pt { display: block; font-size: 19px; color: var(--g1); margin-bottom: 4px; }
+.dC .fields { margin-top: 30px; background: var(--g1); padding: 16px 22px; }
+.dC .fields b { color: var(--hi); }
+.dC .fields span { color: #fff; background: rgba(255,255,255,.1); }
+/* A 함께 하는 이유: 세 카드가 페이지 아래까지 */
+.dA .ww { display: flex; flex-direction: column; }
+.dA .ww .why { flex: 1; margin-top: 34px; min-height: 0; }
+.dA .ww .why > div { background: var(--pale); padding: 30px 30px 26px; display: flex; flex-direction: column; border-radius: 0 0 4px 4px; }
+.dA .ww .why h4 { font-size: 30px; }
+.dA .ww .why .sub { font-size: 15px; margin-bottom: 16px; }
+.dA .ww .why li { font-size: 18px; padding: 16px 0; }
+.dA .ww .why .no { order: 9; margin-top: auto; align-self: flex-end; font-size: 84px; font-weight: 700; line-height: 1; color: #D5E3F2; letter-spacing: -.03em; }
 /* 웹폰트를 못 받았을 때 서버에 깔린 Noto CJK로 (한글 깨짐 방지) */
 .dA { font-family: "IBM Plex Sans KR", "Noto Sans CJK KR", "Noto Sans KR", sans-serif; }
 .dC { font-family: "Gothic A1", "Noto Sans CJK KR", "Noto Sans KR", sans-serif; }
@@ -64,6 +148,22 @@ body { background: {{ '#fff' if for_pdf else '#e9ecef' }}; }
   });
   var fonts = document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve();
   Promise.all(waits.concat([fonts])).then(function () {
+    // 왼쪽 칸이 넘치면: 서비스 띠를 빼고 → 그래도 넘치면 글자를 원래 크기로
+    var over = function (el) { return el.scrollHeight > el.clientHeight + 1; };
+    document.querySelectorAll(".lc").forEach(function (lc) {
+      if (!over(lc)) return;
+      lc.querySelectorAll(".filler").forEach(function (f) { f.remove(); });
+      if (over(lc)) lc.classList.add("tight");
+    });
+    // 치료장비 표: 아래에 남는 칸을 줄마다 나눠 준다(한 줄에 16px까지 — 줄이 적은 장이 휑하지 않게)
+    document.querySelectorAll(".rxt").forEach(function (t) {
+      var sheet = t.closest(".sheet"), ft = sheet.querySelector(".ft, .vat");
+      var limit = ft ? ft.getBoundingClientRect().top - 14 : sheet.getBoundingClientRect().bottom - 40;
+      var rows = t.querySelectorAll("tbody tr"), free = limit - t.getBoundingClientRect().bottom;
+      if (!rows.length || free <= 0) return;
+      var add = Math.min(16, free / rows.length);
+      rows.forEach(function (r) { r.style.height = (r.getBoundingClientRect().height + add) + "px"; });
+    });
     document.querySelectorAll(".stage img").forEach(fit);
     window.__proposalReady = true;
   });

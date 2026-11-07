@@ -35,6 +35,9 @@ export interface ProposalItems {
   carm_reducer: { price: number } | null;
   bmd: ModelPrice[];
   ultrasound: UsBrandLine[];
+  /** 기타장비: LIPUS · ESWT(한 장에 4대까지) · 근전도 */
+  lipus: ModelPrice[];
+  eswt: ModelPrice[];
   emg: ModelPrice[];
   therapy: TherapyLine[];
 }
@@ -85,6 +88,8 @@ export interface Catalog {
   carm_tables: { key: "HCK" | "01M"; label: string }[];
   bmd: { model: string; sub: string }[];
   ultrasound: { brand: string; models: string[] }[];
+  lipus: { model: string; brand: string; sub: string }[];
+  eswt: { model: string; brand: string; type: string }[];
   emg: { model: string; brand: string; sub: string }[];
   therapy: TherapyCatalogItem[];
   /** 기본 금액: 기존 제안서 금액 → 이후로는 누가 만들든 마지막 저장 금액. 키는 xray:모델, us:브랜드:모델, therapy:품목id 등 */
@@ -100,6 +105,8 @@ export const EMPTY_ITEMS: ProposalItems = {
   carm_reducer: null,
   bmd: [],
   ultrasound: [],
+  lipus: [],
+  eswt: [],
   emg: [],
   therapy: [],
 };

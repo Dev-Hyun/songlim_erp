@@ -22,6 +22,11 @@ INTRO_PTS = [
     ("방사선사 출신 엔지니어", "방사선사 출신 엔지니어로 구성된 기술팀이 철저한 A/S를 원칙으로 생각하는 기업"),
     ("정직 · 근면 · 성실", "정직, 근면, 성실이라는 사훈 아래 고객과의 신뢰를 가장 우선으로 생각하는 기업"),
 ]
+# 회사 소개 페이지 아래 띠 — INTRO_LEAD(방사선 장비·초음파·기타 의료장비·소모품)와 제안서 카테고리에서
+INTRO_FIELDS = ["DR · X-RAY", "C-ARM", "MAMMOGRAPHY", "BMD", "ULTRASOUND", "물리치료 장비", "의료 소모품"]
+# 장비 페이지 왼쪽 아래 서비스 띠 — WHY의 SERVICE 문구를 줄인 것
+SVC = [("전국 A/S Network", "대전 본사 · 서울 · 대구 지사"), ("원격 지원", "신속한 대응으로 불편 최소화"),
+       ("정기점검", "사전 예방 Service")]
 WHY = [
     ("SERVICE", "빠르고 꾸준한 관리", ["서울·대전·대구 지사 Network를 통한 **신속한 Service** 지원",
                                     "원격 지원 대응으로 고객의 불편 최소화", "주기적 정기점검을 통한 사전 예방 Service"]),
@@ -61,9 +66,17 @@ def krw(n) -> str:
     return f"₩{int(n):,}"
 
 
+def eul(word) -> str:
+    """받는 분 이름 뒤 목적격 조사: 받침 있으면 '을'(원장님을), 없으면 '를'(대학교를). 한글이 아니면 '을'."""
+    w = str(word or "").strip()
+    if w and "가" <= w[-1] <= "힣":
+        return "을" if (ord(w[-1]) - 0xAC00) % 28 else "를"
+    return "을"
+
+
 _env = Environment(loader=FileSystemLoader(str(TEMPLATES)), autoescape=select_autoescape(["html"]),
                    trim_blocks=True, lstrip_blocks=True)
-_env.filters.update(hl=hl, em=em, num=num, won=won, krw=krw)
+_env.filters.update(hl=hl, em=em, num=num, won=won, krw=krw, eul=eul)
 
 
 def _long_date(d: str) -> str:
@@ -75,14 +88,15 @@ def _toc(pages: list[dict]) -> list[tuple[str, str]]:
     """A 표지 오른쪽 '제안 품목' 목록: 카테고리별 첫 모델 + 외 N."""
     out: dict[str, list[str]] = {}
     for p in pages:
+        cat = p.get("group") or p.get("cat")
         if p["kind"] == "eq":
-            out.setdefault(p["cat"], []).append(p["model"])
+            out.setdefault(cat, []).append(p["model"])
         elif p["kind"] == "us":
-            out.setdefault(p["cat"], []).append(p["brand"])
+            out.setdefault(cat, []).extend(p["toc"])
         elif p["kind"] == "rx":
-            out.setdefault(p["cat"], []).extend(r["model"] or r["name"] for r in p["rows"])
+            out.setdefault(cat, []).extend(r["model"] or r["name"] for r in p["rows"])
         elif p["kind"] in ("pacs", "hck", "x3c", "seld"):
-            out.setdefault(p["cat"], [])
+            out.setdefault(cat, [])
     toc = []
     for cat, names in out.items():
         if cat == "치료장비":
@@ -111,6 +125,6 @@ def render_html(proposal: dict, pages: list[dict], *, asset_base: str, upload_ba
     design = p.get("design") or "A"
     return _env.get_template("proposal.html").render(
         p=p, pages=pages, total=len(pages), design=design, toc=_toc(pages),
-        intro_lead=INTRO_LEAD, intro_pts=INTRO_PTS, why_rows=WHY,
+        intro_lead=INTRO_LEAD, intro_pts=INTRO_PTS, intro_fields=INTRO_FIELDS, svc_items=SVC, why_rows=WHY,
         asset=asset, therapy_src=therapy_src, for_pdf=for_pdf,
     )

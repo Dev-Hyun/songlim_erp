@@ -185,16 +185,58 @@ US_BRANDS: dict[str, dict] = {
                       "간 패키지 (ATI · SWE · CEUS) · Depth View", "복부·간·산부인과·근골격·심혈관"]}}},
 }
 
-# 근전도 — 지금은 Natus 1종. 모델이 늘면 여기에 추가만 하면 된다.
+# ---------- 기타장비: LIPUS(골융합치료기) · ESWT(체외충격파) · 근전도 ----------
+# 모델이 늘면 각 표에 항목과 사진만 추가하면 된다(표 순서 = 제안서 순서).
+LIPUS_MODELS: dict[str, dict] = {
+    # 제조사·공급사에 공개된 제품 정보가 아직 없어 기존 제안서(김형주 원장님) 사진과 구성만 옮겼다.
+    "CELLABONE": {"brand": "PROMEDI (스트라텍)", "sub": "골융합치료기 (LIPUS)", "img": "img/lipus_cellabone.jpg", "desc": [
+        "**저강도 펄스 초음파(LIPUS)** 골융합 치료기", "터치스크린으로 치료 모드 선택·조작",
+        "부위별 트랜스듀서 · 고정 밴드 구성", "PROMEDI 제조 · 스트라텍 공급"]},
+}
+
+# ESWT는 한 장에 4대까지 칸으로 나눠 싣는다. type = 칸의 TYPE 줄. Warranty 없음.
+# 문구 출처: 각 제조사 홈페이지(아이티시 itc21.co.kr, 스트라텍 stratek.kr, 웨버인스트루먼트, STORZ MEDICAL) ·
+# 공급사 대화메디케어(nemectron.co.kr, DUAL WAVE·IN-5200). 보장 타수는 기존 제안서(송림메디칼 조건) 문구.
+# 기존 제안서의 '스톨즈 Shockwave F1'은 제조사 제품군에서 확인되지 않아 정확한 모델명을 받을 때까지 넣지 않았다.
+ESWT_MODELS: dict[str, dict] = {
+    "ULFORCE": {"brand": "아이티시 (ITC)", "type": "**Focus**", "img": "img/eswt_ulforce.png", "desc": [
+        "**피에조(압전) 집중형** 체외충격파", "강도 1~25단계 / 주파수 1~10Hz",
+        "에너지 0.003~1.0 mJ/mm²", "침투 깊이 10·20·30mm, **500만타 보장**"]},
+    "ULFORCE Radial": {"brand": "아이티시 (ITC)", "type": "**Radial**", "img": "img/eswt_ulforce_r.png", "desc": [
+        "**공기압 방사형** 체외충격파", "충격 압력 1.0~5.0 bar",
+        "주파수 **1~17Hz**", "트랜스미터 F15 · R15 · R20"]},
+    "TROIKA (FOCUS)": {"brand": "스트라텍 (StraTek)", "type": "**Focus**", "img": "img/eswt_troika.png", "desc": [
+        "**Handpiece 3개**, 개당 **1,000만타 보장**", "압전식 집중형, 침투 깊이 10·20·30mm",
+        "세기 0.5~20 Level / 1~10Hz", "터치스크린 · 다이오드 레이저 내장"]},
+    "ESWT-1000": {"brand": "스트라텍 (StraTek)", "type": "**Radial**", "img": "img/eswt_eswt1000.png", "desc": [
+        "**공압식 방사형** 체외충격파", "출력 압력 **1~7 bar**",
+        "출력 주파수 1~10Hz", "자극 횟수 1,000~9,999회 설정"]},
+    "ZEUS WAVE": {"brand": "웨버인스트루먼트", "type": "**Radial + Focus**", "img": "img/eswt_zeuswave.png", "desc": [
+        "**Piezo 집중형 + 공기압 방사형** 통합", "고강도 레이저(HILT) **15W** 탑재",
+        "집중형 최대 0.702mJ/mm², 깊이 40mm", "방사형 0.5~7.0 bar / 1~10Hz, 팁 8종"]},
+    "SD1 BT F-SW": {"brand": "STORZ MEDICAL (스톨즈)", "type": "**Focus**", "img": "img/eswt_sd1.png", "desc": [
+        "**전자기식 집중형(F-SW)** 충격파", "조작부를 핸드피스에 통합",
+        "에너지 0.01~0.55mJ/mm²", "침투 깊이 최대 **125mm**"]},
+    "IN-5200": {"brand": "영인바이오텍", "type": "**Radial + Focus**", "img": "img/eswt_in5200.png", "desc": [
+        "**Array Piezo 집중형 + Radial** 듀얼", "에너지 0.07~0.82mJ/mm²",
+        "Radial 최대 4.0 bar / 1~15Hz", "10.1인치 터치스크린"]},
+    "DUAL WAVE PLUS": {"brand": "메디젠", "type": "**Radial + Focus**", "img": "img/eswt_dualwave.png", "desc": [
+        "**Radial + Focus** 충격파 한 대로", "방사형 · 집중형 손쉬운 전환",
+        "Focus 프로브 3종 (초점 10/20/30mm)", "Radial 프로브 3종"]},
+}
+
+# 근전도 — 지금은 Natus 1종(하이메드 공급). 장비 = Keypoint Focus, 소프트웨어 = Elite.
+# 문구 출처: 하이메드 제품 페이지(https://www.himed.co.kr/page/product01), 사진: 하이메드 게시 Natus 브로슈어(2025).
 EMG_MODELS: dict[str, dict] = {
-    "Keypoint Focus Elite (Synergy)": {"brand": "Natus", "sub": "EMG · NCS 근전도 검사 시스템", "img": "img/natus_keypoint.png",
-        "desc": ["EMG · NCS · EP 올인원 근전도 검사 시스템", "**3 · 4 · 6 · 8채널** 증폭기 선택 구성",
-                 "**Natus Elite** SW: 프로토콜 검사 · 원클릭 리포트", "전용 컨트롤 패널 · 자극기 내장, 마우스 없이 조작"]},
+    "Keypoint Focus": {"brand": "Natus (하이메드)", "sub": "EMG · NCS · EP", "img": "img/natus_keypoint.png",
+        "desc": ["2025 최신 **Natus Elite** 소프트웨어 탑재", "EMG · NCS · EP 검사, **3 · 4 · 6 · 8채널** 선택",
+                 "**Auto Summary**로 검사 · 보고서 간편화", "높은 CMRR · 저노이즈로 안정된 레코딩"]},
 }
 
 # 처음 고를 때 들어가는 기본 금액 — 기존 제안서(2026-06~09)의 마지막 금액.
 # 제안서를 저장하면 그때 금액이 proposal_last_prices에 남아 다음부터 그 값이 기본값이 된다(누가 만들든 마지막 값).
-# 키: xray:모델 / xray_opt:옵션키 / pacs / mammo:모델 / carm:모델 / carm_reducer / bmd:모델 / us:브랜드:모델 / emg:모델
+# 키: xray:모델 / xray_opt:옵션키 / pacs / mammo:모델 / carm:모델 / carm_reducer / bmd:모델 / us:브랜드:모델
+#     / lipus:모델 / eswt:모델 / emg:모델
 DEFAULT_PRICES: dict[str, int] = {
     "xray:GXR-E40S Plus": 28_180_000,
     "xray:GXR-40SD": 60_000_000,
@@ -214,7 +256,15 @@ DEFAULT_PRICES: dict[str, int] = {
     "carm_reducer": 4_500_000,
     "bmd:DEXXUM T QUANTUM": 17_500_000,
     "bmd:PRIMUS": 44_000_000,
-    "emg:Keypoint Focus Elite (Synergy)": 25_000_000,
+    "lipus:CELLABONE": 9_900_000,
+    "eswt:ULFORCE": 11_000_000,
+    "eswt:ULFORCE Radial": 7_700_000,
+    "eswt:TROIKA (FOCUS)": 13_200_000,
+    "eswt:ESWT-1000": 5_330_000,
+    "eswt:ZEUS WAVE": 17_600_000,
+    "eswt:IN-5200": 17_600_000,
+    "eswt:DUAL WAVE PLUS": 14_300_000,
+    "emg:Keypoint Focus": 25_000_000,
 }
 
 # 치료장비 초기 품목의 기본 단가·수량(개비공 제안서). THERAPY_SEED와 같은 순서. None = 기존 제안서에 금액 없음.
@@ -226,6 +276,7 @@ THERAPY_SEED_PRICES: list[tuple[int | None, int]] = [
 ]
 
 # 치료장비 초기 품목(개비공 제안서 순서). 마이그레이션이 이 목록을 DB에 넣는다. 이후 수정은 품목 관리 화면에서.
+# 1~8번 ESWT는 '기타장비 → ESWT'로 옮겨 가 마이그레이션 c4e8a2f6b1d3이 품목에서 지운다(사진 번호 seed/NN 유지를 위해 목록은 그대로).
 THERAPY_SEED: list[dict] = [
     {"name": n, "maker": mk, "model": md, "note": nt, "warranty": w, "image_key": f"seed/{i:02d}.png"}
     for i, (n, mk, md, nt, w) in enumerate([
@@ -253,7 +304,7 @@ THERAPY_SEED: list[dict] = [
         ("자기장 치료기", "스트라텍", "G-500", "출력 **3T**", ""),
         ("자동 혈압계", "인바디", "BpBio320N", "프린터 미지원", "2년"),
         ("소독기 / Autoclave", "엠케이티", "MK-50NS", "50L", "2년"),
-        ("두타메트", "OK메디칼", "OK-1", "", ""),
+        ("두타메트", "OK메디칼", "OKB-01", "", ""),
         ("치료베드", "", "", "", ""),
         ("파라핀", "아이젠", "PS100", "", ""),
         ("장화", "원진물산", "WHF-324", "", ""),
@@ -273,5 +324,7 @@ def catalog_for_client() -> dict:
         "carm_tables": [{"key": k, "label": f"{v['brand']} {v['model']}"} for k, v in CARM_TABLES.items()],
         "bmd": [{"model": m, "sub": v["sub"]} for m, v in BMD_MODELS.items()],
         "ultrasound": [{"brand": b, "models": list(v["models"].keys())} for b, v in US_BRANDS.items()],
+        "lipus": [{"model": m, "brand": v["brand"], "sub": v["sub"]} for m, v in LIPUS_MODELS.items()],
+        "eswt": [{"model": m, "brand": v["brand"], "type": v["type"].replace("**", "")} for m, v in ESWT_MODELS.items()],
         "emg": [{"model": m, "brand": v["brand"], "sub": v["sub"]} for m, v in EMG_MODELS.items()],
     }

@@ -14,15 +14,18 @@
 
 {% macro cover() %}<div class="sheet dC"><div class="slab2"></div><div class="slab"></div>
   <div class="cov-k">QUOTATION<br>PROPOSAL<small>송림메디칼㈜ 견적 제안서</small></div><div class="cov-yr">{{ p.proposal_date[:4] }}</div>
-  <div class="cov-r"><div class="h">{{ p.hospital_name }}</div><div class="s">{{ p.doctor_name }} 원장님 <span>을 위한</span></div>
+  <div class="cov-r"><div class="h">{{ p.hospital_name }}</div><div class="s">{{ p.doctor_name }} <span>{{ p.doctor_name|eul }} 위한</span></div>
     <div class="t"><span>의료장비 견적 제안서</span><b>{{ p.date_long }}</b></div></div></div>{% endmacro %}
 
-{% macro intro(n) %}<div class="sheet dC"><div class="corner"></div><div class="corner2"></div><div class="pg"><span class="tagp">ABOUT US</span>
-  <div class="intro"><div><h3>송림메디칼</h3><p class="lead">{{ intro_lead }}</p><div class="yrs"><b>20</b><span>여 년간 병·의원과 함께</span></div></div>
-  <ul>{% for t, d in intro_pts %}<li><span>{{ d|em }}</span></li>{% endfor %}</ul></div></div></div>{% endmacro %}
+{% macro intro(n) %}<div class="sheet dC"><div class="corner"></div><div class="corner2"></div><div class="pg iw"><span class="tagp">ABOUT US</span>
+  <div class="intro"><div class="intro-l"><h3>송림메디칼</h3><p class="lead">{{ intro_lead }}</p><div class="yrs"><b>20</b><span>여 년간 병·의원과 함께</span></div></div>
+  <ul>{% for t, d in intro_pts %}<li><span><b class="pt">{{ t }}</b>{{ d|em }}</span></li>{% endfor %}</ul></div>
+  <div class="fields"><b>주요 공급 분야</b>{% for f in intro_fields %}<span>{{ f }}</span>{% endfor %}</div></div></div>{% endmacro %}
+
+{% macro svc() %}<div class="svc filler"><div class="svc-h">SONGLIM SERVICE</div><ul>{% for t, s in svc_items %}<li><b>{{ t }}</b><span>{{ s }}</span></li>{% endfor %}</ul></div>{% endmacro %}
 
 {% macro eq(e, n) %}<div class="sheet dC"><div class="pg"><span class="tagp">{{ e.cat }}</span>
-  <div class="eq"><div><div class="brand">{{ e.brand }}</div>
+  <div class="eq"><div class="lc"><div class="brand">{{ e.brand }}</div>
     <div class="model">{{ e.model }}<small>{{ e.sub }}</small></div>
     <div class="tb">
       {% if e.desc_line %}<div class="r"><div class="k">Description</div><div class="v">{{ e.desc_line }}</div></div>{% endif %}
@@ -31,10 +34,10 @@
       {% if e.size %}<div class="r"><div class="k">Size</div><div class="v">{{ e.size }}</div></div>{% endif %}
       <div class="r price"><div class="k">Price</div><div class="v">{{ price_v(e) }}</div></div>
       {% if e.tradein %}<div class="r"><div class="k">기존장비 인수</div><div class="v">{{ e.tradein|won }}</div></div>{% endif %}
-      <div class="r"><div class="k">Warranty</div><div class="v w hl">{{ e.warranty }}</div></div></div>
+      {% if e.warranty %}<div class="r"><div class="k">Warranty</div><div class="v w hl">{{ e.warranty }}</div></div>{% endif %}</div>
     {% if e.det %}{{ det_box(e.det) }}{% endif %}
     {% if e.options %}<div class="opts {{ 'opts-2col' if e.options|length > 5 }}"><h5>OPTIONS</h5><ul>{% for label, pr in e.options %}<li><span>{{ label }}</span><b>{{ pr|won }}</b></li>{% endfor %}</ul></div>{% endif %}
-    {% if e.note %}<div class="note"><b>{{ e.note.title }}</b> · {{ e.note.text|hl }}</div>{% endif %}</div>
+    {% if e.note %}<div class="note"><b>{{ e.note.title }}</b> · {{ e.note.text|hl }}</div>{% endif %}{{ svc() }}</div>
   {{ stage(e.img, e.model, (e.brand ~ " · " ~ e.model) if e.brand else e.model) }}</div></div>{{ foot(n) }}</div>{% endmacro %}
 
 {% macro pacs(e, n) %}<div class="sheet dC"><div class="pg"><span class="tagp">{{ e.cat }} · {{ e.label }}</span>
@@ -63,10 +66,11 @@
     {{ kv([("Brand", e.brand, ""), ("Model", e.model, ""), ("Price", price_v(e), "price"), ("Warranty", warranty(e.warranty), "")]) }}</div>
     <div class="stack"><div class="pic seldmain"><img src="{{ asset(e.img) }}" alt="SELD X70"></div><div class="tiles" style="grid-template-columns:1fr 1fr">{% for src, cap in e.tiles %}<figure class="tile"><div class="pic" style="height:180px;padding:6px"><img src="{{ asset(src) }}" alt="{{ cap }}"></div><figcaption>{{ cap }}</figcaption></figure>{% endfor %}</div></div></div></div>{{ foot(n) }}</div>{% endmacro %}
 
-{% macro us(e, n) %}<div class="sheet dC"><div class="pg"><span class="tagp">ULTRASOUND</span>
-  <div class="us-h"><div class="h40">{{ e.brand }}</div><div class="meta">Warranty <b>{{ e.warranty }}</b> · VAT 포함 금액</div></div>
+{# 여러 대를 한 장에 칸으로 나눠 싣는 페이지 — 초음파(브랜드당 1장), ESWT(4대씩) #}
+{% macro us(e, n) %}<div class="sheet dC"><div class="pg"><span class="tagp">{{ e.cat }}</span>
+  <div class="us-h"><div class="h40">{{ e.title }}</div><div class="meta">{% if e.warranty %}Warranty <b>{{ e.warranty }}</b> · {% endif %}VAT 포함 금액{% if e.page_cnt and e.page_cnt > 1 %} · {{ e.page_no }} / {{ e.page_cnt }}{% endif %}</div></div>
   <div class="usg" style="grid-template-columns:repeat({{ e.models|length }},1fr)">{% for m in e.models %}<div class="usc">{{ stage(m.img, m.model) }}
-    <div class="bd"><div class="mn">{{ m.model }}</div><div class="inc">INCLUDE · {{ m.include|hl }}</div><ul class="desc">{% for x in m.desc %}<li>{{ x|hl }}</li>{% endfor %}</ul></div>
+    <div class="bd">{% if m.brand %}<div class="mb">{{ m.brand }}</div>{% endif %}<div class="mn">{{ m.model }}</div>{% if m.include %}<div class="inc">INCLUDE · {{ m.include|hl }}</div>{% endif %}{% if m.type %}<div class="inc">TYPE · {{ m.type|hl }}</div>{% endif %}<ul class="desc">{% for x in m.desc %}<li>{{ x|hl }}</li>{% endfor %}</ul></div>
     <div class="pr"><span>Price</span><b>{{ m.price|won }}</b></div></div>{% endfor %}</div></div>{{ foot(n) }}</div>{% endmacro %}
 
 {% macro rx_table(e) %}<table class="rxt"><colgroup><col style="width:42px"><col style="width:118px"><col style="width:104px"><col style="width:150px"><col style="width:104px"><col style="width:46px"><col style="width:118px"><col><col style="width:66px"></colgroup>

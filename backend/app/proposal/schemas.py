@@ -62,6 +62,9 @@ class ProposalItems(BaseModel):
     carm_reducer: Optional[PriceOnly] = None
     bmd: list[ModelPrice] = []
     ultrasound: list[UsBrand] = []
+    # 기타장비: LIPUS(골융합치료기) · ESWT(체외충격파, 한 장에 4대까지 — 기존장비 인수금액 없음) · 근전도
+    lipus: list[ModelPrice] = []
+    eswt: list[ModelPrice] = []
     emg: list[ModelPrice] = []
     therapy: list[TherapyLine] = []
 
@@ -111,6 +114,8 @@ def validate_items(items: ProposalItems) -> list[str]:
     for label, rows, table in (("MAMMOGRAPHY", items.mammo, catalog.MAMMO_MODELS),
                                ("C-ARM", items.carm, catalog.CARM_MODELS),
                                ("BMD", items.bmd, catalog.BMD_MODELS),
+                               ("LIPUS", items.lipus, catalog.LIPUS_MODELS),
+                               ("ESWT", items.eswt, catalog.ESWT_MODELS),
                                ("근전도", items.emg, catalog.EMG_MODELS)):
         for r in rows:
             if r.model not in table:
@@ -139,7 +144,8 @@ def price_memory(items: ProposalItems) -> dict[str, tuple[int, int | None]]:
             out[f"xray_opt:{o.key}"] = (o.price, None)
     if items.pacs:
         out["pacs"] = (items.pacs.price, None)
-    for prefix, rows in (("mammo", items.mammo), ("carm", items.carm), ("bmd", items.bmd), ("emg", items.emg)):
+    for prefix, rows in (("mammo", items.mammo), ("carm", items.carm), ("bmd", items.bmd),
+                         ("lipus", items.lipus), ("eswt", items.eswt), ("emg", items.emg)):
         for r in rows:
             out[f"{prefix}:{r.model}"] = (r.price, None)
     if items.carm_reducer:

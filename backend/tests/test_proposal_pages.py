@@ -27,7 +27,7 @@ FULL = dict(
     bmd=[{"model": "PRIMUS", "price": 44000000}],
     ultrasound=[{"brand": "ALPINION", "models": [{"model": "X-CUBE 50", "price": 1, "probes": 3}]},
                 {"brand": "DRGEM", "models": [{"model": "DS30", "price": 2}, {"model": "DS20", "price": 3}]}],
-    emg=[{"model": "Keypoint Focus Elite (Synergy)", "price": 25000000}],
+    emg=[{"model": "Keypoint Focus", "price": 25000000}],
     therapy=_therapy(17),
 )
 
@@ -38,19 +38,19 @@ def test_page_order_follows_category_order():
     # X-RAY → C-ARM → MAMMO → BMD → ULTRASOUND → 근전도 → 치료장비
     cats = [p.get("cat") for p in pages]
     assert cats == [None, None, "X-RAY SYSTEM", "X-RAY SYSTEM", "X-RAY SYSTEM", "C-ARM", "C-ARM", "C-ARM",
-                    "MAMMOGRAPHY", "BMD", "ULTRASOUND", "ULTRASOUND", "근전도", "치료장비", "치료장비", "치료장비", None, None]
+                    "MAMMOGRAPHY", "BMD", "ULTRASOUND", "ULTRASOUND", "기타장비 · 근전도", "치료장비", "치료장비", "치료장비", None, None]
     assert kinds == ["cover", "intro", "eq", "eq", "pacs", "eq", "x3c", "seld", "eq", "eq", "us", "us",
                      "eq", "rx", "rx", "rx", "why", "thx"]
     # 초음파 브랜드는 카탈로그 순서(DRGEM → ALPINION), 브랜드 안 모델도 카탈로그 순서
     us = [p for p in pages if p["kind"] == "us"]
-    assert [p["brand"] for p in us] == ["DRGEM", "ALPINION"]
+    assert [p["title"] for p in us] == ["DRGEM", "ALPINION"]
     assert [m["model"] for m in us[0]["models"]] == ["DS20", "DS30"]
 
 
 def test_therapy_split_eight_per_page_without_total():
     rx = [p for p in build_pages(_items(**FULL)) if p["kind"] == "rx"]
-    assert [len(p["rows"]) for p in rx] == [8, 8, 1]
-    assert [r["no"] for r in rx[1]["rows"]][0] == 9
+    assert [len(p["rows"]) for p in rx] == [6, 6, 5]  # 8줄까지, 장마다 고르게
+    assert [r["no"] for r in rx[1]["rows"]][0] == 7
     assert all("total" not in p for p in rx)
     first = rx[0]["rows"][0]
     assert first["amount"] == 2000 and first["qty"] == 2
@@ -148,15 +148,15 @@ def test_price_memory_keys():
     assert mem["pacs"] == (2000000, None) and mem["carm_reducer"] == (4500000, None)
     assert mem["us:DRGEM:DS30"] == (2, 2)  # Probe 기본 2개가 수량 칸에 남는다
     assert mem["us:ALPINION:X-CUBE 50"] == (1, 3)
-    assert mem["emg:Keypoint Focus Elite (Synergy)"] == (25000000, None)
+    assert mem["emg:Keypoint Focus"] == (25000000, None)
     assert mem["therapy:1"] == (1000, 2)
 
 
 def test_ultrasound_probe_count_in_include():
     us = [p for p in build_pages(_items(**FULL)) if p["kind"] == "us"]
-    alp = [p for p in us if p["brand"] == "ALPINION"][0]
+    alp = [p for p in us if p["title"] == "ALPINION"][0]
     assert alp["models"][0]["include"] == "Main Body + **3 Probe**"
-    drgem = [p for p in us if p["brand"] == "DRGEM"][0]
+    drgem = [p for p in us if p["title"] == "DRGEM"][0]
     assert drgem["models"][0]["include"] == "Main Body + **2 Probe**"  # 안 적으면 2개
     html = render_html({**META, "design": "C"}, build_pages(_items(**FULL)), asset_base="S/", upload_base="U/")
     assert 'INCLUDE · Main Body + <b class="hl">3 Probe</b>' in html
@@ -169,3 +169,37 @@ def test_many_xray_options_use_two_columns():
     html = render_html({**META, "design": "A"}, build_pages(_items(xray=[{"model": "GXR-E40S Plus", "price": 1, "options": opts}])),
                        asset_base="S/", upload_base="U/")
     assert 'class="opts opts-2col"' in html
+
+
+def test_etc_equipment_order_eswt_split_and_no_warranty():
+    from app.proposal import catalog
+    eswt = [{"model": m, "price": 1} for m in reversed(list(catalog.ESWT_MODELS))]  # 입력 순서와 무관
+    pages = build_pages(_items(lipus=[{"model": "CELLABONE", "price": 9900000}], eswt=eswt[:5],
+                               emg=[{"model": "Keypoint Focus", "price": 1}], therapy=_therapy(1)))
+    cats = [p.get("cat") for p in pages]
+    assert cats[2:7] == ["기타장비 · LIPUS", "기타장비 · ESWT", "기타장비 · ESWT", "기타장비 · 근전도", "치료장비"]
+    es = [p for p in pages if p.get("cat") == "기타장비 · ESWT"]
+    assert [len(p["models"]) for p in es] == [3, 2]  # 5대 → 3+2
+    assert [p["page_no"] for p in es] == [1, 2] and es[0]["page_cnt"] == 2
+    picked = [m["model"] for p in es for m in p["models"]]
+    assert picked == [m for m in catalog.ESWT_MODELS if m in picked]  # 카탈로그 순서
+    assert all(p["warranty"] is None for p in es) and pages[2]["warranty"] is None  # ESWT·LIPUS는 Warranty 없음
+    html = render_html({**META, "design": "A"}, pages, asset_base="S/", upload_base="U/")
+    assert html.count("WARRANTY") == 1  # 근전도만
+    assert "기타장비 <span>CELLABONE 외 6</span>" in html  # 표지 목차는 기타장비 한 줄
+
+
+def test_eight_eswt_make_two_pages_of_four():
+    from app.proposal import catalog
+    es = [p for p in build_pages(_items(eswt=[{"model": m, "price": 1} for m in catalog.ESWT_MODELS]))
+          if p.get("cat") == "기타장비 · ESWT"]
+    assert [len(p["models"]) for p in es] == [4, 4]
+
+
+def test_recipient_written_as_is_with_particle():
+    from app.proposal.render import eul
+    assert eul("김민수 원장님") == "을" and eul("충남대학교") == "를" and eul("Dr. Kim") == "을"
+    for d in "AC":
+        html = render_html({**META, "doctor_name": "이영희 실장님", "design": d}, build_pages(_items()),
+                           asset_base="S/", upload_base="U/")
+        assert "이영희 실장님" in html and "원장님" not in html

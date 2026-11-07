@@ -181,8 +181,9 @@ def _summary(items: dict) -> str:
             parts.append(f"{label} {len(items[key])}")
     if items.get("ultrasound"):
         parts.append(f"초음파 {sum(len(b['models']) for b in items['ultrasound'])}")
-    if items.get("emg"):
-        parts.append(f"근전도 {len(items['emg'])}")
+    for key, label in (("lipus", "LIPUS"), ("eswt", "ESWT"), ("emg", "근전도")):
+        if items.get(key):
+            parts.append(f"{label} {len(items[key])}")
     if items.get("therapy"):
         parts.append(f"치료장비 {len(items['therapy'])}")
     return " · ".join(parts)
@@ -334,7 +335,7 @@ async def proposal_pdf(pid: int, db: AsyncSession = Depends(get_db), _: User = D
         pdf = await html_to_pdf(html)
     except PdfError:
         raise HTTPException(status_code=503, detail="PDF를 만들지 못했습니다. 잠시 후 다시 시도해 주세요.")
-    name = f"{p.proposal_date}_제안서_{p.hospital_name} {p.doctor_name}원장님.pdf"
+    name = f"{p.proposal_date}_제안서_{p.hospital_name} {p.doctor_name}.pdf"
     name = re.sub(r'[\\/:*?"<>|]', "_", name)
     return Response(pdf, media_type="application/pdf",
                     headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quote(name)}"})

@@ -204,8 +204,8 @@ async def test_last_saved_price_becomes_default(client, db_session):
     cat = (await client.get("/api/proposals/catalog", cookies=c)).json()
     # 처음 기본값 = 기존 제안서 금액
     assert cat["defaults"]["xray:GXR-E40S Plus"]["price"] == 28180000
-    assert cat["defaults"]["emg:Keypoint Focus Elite (Synergy)"]["price"] == 25000000
-    assert any(x["model"] == "Keypoint Focus Elite (Synergy)" for x in cat["emg"])
+    assert cat["defaults"]["emg:Keypoint Focus"]["price"] == 25000000
+    assert any(x["model"] == "Keypoint Focus" for x in cat["emg"])
 
     it = await _item(client, c, "자기장 치료기")
     await client.post("/api/proposals", cookies=c, json=_payload(

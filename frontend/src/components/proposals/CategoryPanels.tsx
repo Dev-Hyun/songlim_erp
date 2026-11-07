@@ -55,6 +55,16 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
+/** 한 패널 안의 작은 카테고리 제목(기타장비 → LIPUS · ESWT · 근전도) */
+function SubHead({ title, note }: { title: string; note?: string }) {
+  return (
+    <div className="pt-1">
+      <div className="fg-strong text-ui font-semibold">{title}</div>
+      {note && <p className="fg-muted text-ui-xs">{note}</p>}
+    </div>
+  );
+}
+
 /** 고른 모델 한 대의 입력 상자 */
 function LineBox({ title, children, onRemove }: { title: string; children: React.ReactNode; onRemove: () => void }) {
   return (
@@ -173,14 +183,14 @@ export default function CategoryPanels({
         {items.xray.map((x) => (
           <LineBox key={x.model} title={x.model} onRemove={() => setItems((it) => ({ ...it, xray: it.xray.filter((r) => r.model !== x.model) }))}>
             <Field label="Detector 개수">
-              <input
-                type="number"
-                min={1}
-                max={20}
-                className="field w-full"
-                value={x.detector_count}
-                onChange={(e) => patchX(x.model, { detector_count: Math.max(1, Math.min(20, Number(e.target.value) || 1)) })}
-              />
+              {/* 1~3개가 기본이라 고르기만 하게(폰에서 숫자칸 수정이 불편했음). 예전에 4개 이상 저장한 값도 보이게 남긴다. */}
+              <select className="field w-full" value={x.detector_count} onChange={(e) => patchX(x.model, { detector_count: Number(e.target.value) })}>
+                {Array.from(new Set([1, 2, 3, x.detector_count])).map((n) => (
+                  <option key={n} value={n}>
+                    {n}개
+                  </option>
+                ))}
+              </select>
             </Field>
             {xrayType(x.model) === "ceiling" && (
               <>
@@ -388,8 +398,47 @@ export default function CategoryPanels({
         })}
       </Panel>
 
-      {/* ---------- 근전도 ---------- */}
-      <Panel title="근전도" count={items.emg.length}>
+      {/* ---------- 기타장비: LIPUS · ESWT · 근전도 ---------- */}
+      <Panel title="기타장비" count={items.lipus.length + items.eswt.length + items.emg.length}>
+        <SubHead title="LIPUS (골융합치료기)" />
+        <ModelPriceSection
+          models={catalog.lipus.map((m) => ({ model: m.model, sub: m.brand }))}
+          rows={items.lipus}
+          onRows={(rows) => setItems((it) => ({ ...it, lipus: rows }))}
+          showErrors={showErrors}
+          defaultPrice={(m) => dp(`lipus:${m}`)}
+        />
+        <SubHead title="ESWT (체외충격파)" note="한 페이지에 4대까지 — 더 고르면 페이지가 나뉩니다." />
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          {catalog.eswt.map((m) => (
+            <Check
+              key={m.model}
+              label={m.model}
+              sub={`${m.brand} · ${m.type}`}
+              checked={items.eswt.some((r) => r.model === m.model)}
+              onChange={(on) =>
+                setItems((it) => ({
+                  ...it,
+                  eswt: toggle(it.eswt, on, () => ({ model: m.model, price: dp(`eswt:${m.model}`) }), (r) => r.model === m.model),
+                }))
+              }
+            />
+          ))}
+        </div>
+        {items.eswt.length > 0 && (
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            {items.eswt.map((r) => (
+              <Field key={r.model} label={`${r.model} 제안가`}>
+                <MoneyInput
+                  value={r.price}
+                  invalid={showErrors && !r.price}
+                  onChange={(v) => setItems((it) => ({ ...it, eswt: it.eswt.map((x) => (x.model === r.model ? { ...x, price: v } : x)) }))}
+                />
+              </Field>
+            ))}
+          </div>
+        )}
+        <SubHead title="근전도" />
         <ModelPriceSection
           models={catalog.emg.map((m) => ({ model: m.model, sub: `${m.brand} · ${m.sub}` }))}
           rows={items.emg}

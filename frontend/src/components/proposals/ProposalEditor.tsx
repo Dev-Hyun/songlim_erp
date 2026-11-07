@@ -19,7 +19,7 @@ function today(): string {
 function missing(f: ProposalForm): string[] {
   const out: string[] = [];
   if (!f.hospital_name.trim()) out.push("병원명");
-  if (!f.doctor_name.trim()) out.push("원장님 이름");
+  if (!f.doctor_name.trim()) out.push("받는 분");
   const it = f.items;
   if (it.xray.some((x) => !x.price || x.options.some((o) => !o.price))) out.push("X-RAY 금액");
   if (it.pacs && !it.pacs.price) out.push("PACS 금액");
@@ -27,12 +27,14 @@ function missing(f: ProposalForm): string[] {
   if (it.carm.some((x) => !x.price) || (it.carm_reducer && !it.carm_reducer.price)) out.push("C-ARM 금액");
   if (it.bmd.some((x) => !x.price)) out.push("BMD 금액");
   if (it.ultrasound.some((b) => b.models.some((m) => !m.price))) out.push("초음파 금액");
+  if (it.lipus.some((x) => !x.price)) out.push("LIPUS 금액");
+  if (it.eswt.some((x) => !x.price)) out.push("ESWT 금액");
   if (it.emg.some((x) => !x.price)) out.push("근전도 금액");
   if (it.therapy.some((t) => !t.unit_price)) out.push("치료장비 단가");
   return out;
 }
 
-/** 저장된 items를 화면 형태로 — 예전에 저장한 제안서에 없는 칸(근전도, Probe 개수 등)을 기본값으로 채운다. */
+/** 저장된 items를 화면 형태로 — 예전에 저장한 제안서에 없는 칸(기타장비, Probe 개수 등)을 기본값으로 채운다. */
 function normalize(items: Partial<ProposalItems>): ProposalItems {
   const it = { ...EMPTY_ITEMS, ...items };
   return { ...it, ultrasound: it.ultrasound.map((b) => ({ ...b, models: b.models.map((m) => ({ ...m, probes: m.probes || 2 })) })) };
@@ -51,6 +53,8 @@ function completeOnly(items: ProposalItems): ProposalItems {
     ultrasound: items.ultrasound
       .map((b) => ({ ...b, models: b.models.filter((m) => m.price > 0) }))
       .filter((b) => b.models.length > 0),
+    lipus: items.lipus.filter((x) => x.price > 0),
+    eswt: items.eswt.filter((x) => x.price > 0),
     emg: items.emg.filter((x) => x.price > 0),
     therapy: items.therapy.filter((t) => t.unit_price > 0),
   };
@@ -77,7 +81,7 @@ function Preview({ html, status }: { html: string; status: string }) {
           style={{ width: (PAGE_W + 48), height: box.h / s, transform: `scale(${s})`, transformOrigin: "0 0", border: 0 }}
         />
       ) : (
-        <div className="fg-muted flex h-full items-center justify-center p-6 text-center text-ui">{status || "병원명과 원장님 이름을 넣으면 미리보기가 나옵니다."}</div>
+        <div className="fg-muted flex h-full items-center justify-center p-6 text-center text-ui">{status || "병원명과 받는 분을 넣으면 미리보기가 나옵니다."}</div>
       )}
       {html && status && <div className="absolute right-2 top-2 rounded bg-black/70 px-2 py-1 text-ui-xs text-white">{status}</div>}
     </div>
@@ -202,7 +206,7 @@ export default function ProposalEditor({ id }: { id?: number }) {
   if (!form || !catalog) return <div className="surface-card fg-muted p-6 text-ui">불러오는 중…</div>;
 
   const bad = (v: string) => showErrors && !v.trim();
-  const text = (k: "hospital_name" | "doctor_name" | "rep_name" | "rep_title" | "rep_phone", label: string, required = false) => (
+  const text = (k: "hospital_name" | "doctor_name" | "rep_name" | "rep_title" | "rep_phone", label: string, required = false, placeholder = "") => (
     <label className="block min-w-0">
       <span className="fg-muted mb-1 block text-ui-xs">
         {label}
@@ -211,6 +215,7 @@ export default function ProposalEditor({ id }: { id?: number }) {
       <input
         className={`field w-full ${required && bad(form[k]) ? "!border-error-400" : ""}`}
         value={form[k]}
+        placeholder={placeholder}
         onChange={(e) => set(k, e.target.value)}
       />
     </label>
@@ -232,7 +237,8 @@ export default function ProposalEditor({ id }: { id?: number }) {
           <section className="surface-card space-y-3 p-4">
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               {text("hospital_name", "병원명", true)}
-              {text("doctor_name", "원장님 이름", true)}
+              {/* 직함까지 그대로 적는다 — 원장님·실장님·대학교 등 받는 곳이 달라서 "원장님"을 붙이지 않는다 */}
+              {text("doctor_name", "받는 분 (직함까지)", true, "예: 홍길동 원장님")}
               <label className="block">
                 <span className="fg-muted mb-1 block text-ui-xs">제안일</span>
                 <input type="date" className="field w-full" value={form.proposal_date} onChange={(e) => set("proposal_date", e.target.value)} />
