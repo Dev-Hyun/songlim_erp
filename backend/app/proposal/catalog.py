@@ -164,7 +164,7 @@ US_BRANDS: dict[str, dict] = {
         "DS20": {"img": "img/ds20.png", "desc": ["외래·검사실용 컴팩트 초음파", "15인치 모니터, 소형 설계로 이동 용이",
                  "μ-Scan 노이즈 저감 · M-Tuning 원터치 최적화", "복부·심장·갑상선·혈관·유방·근골격"]},
         "DS30": {"img": "img/ds30.png", "desc": ["디알젬 **프리미엄** 초음파 (DS20 상위)", '21.5" LED 모니터 + 13.3" 틸팅 터치',
-                 "μ-Scan · SR Flow(저속혈류) · 컬러 파노라마", "산부인과(S-Fetus AI · Auto NT) · 복부 · 심장"]}}},
+                 "μ-Scan · SR Flow(저속혈류) · 컬러 파노라마", "산부인과(S-Fetus AI · Auto NT) · 복부 · 심장 · 근골격"]}}},
     "SAMSUNG MEDISON": {"models": {
         "V5": {"img": "img/v5.png", "desc": ["슬림·컴팩트 범용 모델, 배터리 옵션", '21.5" 모니터 + 14" 터치',
                "S-Vue 프로브 · HQ-Vision", "복부·갑상선·심장·근골격"]},
