@@ -20,6 +20,7 @@ import {
   TaskIcon,
   TimeIcon,
   UserCircleIcon,
+  DocsIcon,
 } from "../icons/index";
 
 type NavItem = {
@@ -63,6 +64,14 @@ const navItems: NavItem[] = [
       { name: "의료소식", path: "/news", pro: false },
       { name: "공동구매", path: "/group-buy", pro: false },
       { name: "중고기기", path: "/used-equipment", pro: false },
+    ],
+  },
+  {
+    icon: <DocsIcon />,
+    name: "제안서 제작",
+    subItems: [
+      { name: "개원의 제안서 제작", path: "/proposals", pro: false },
+      { name: "치료장비 품목 관리", path: "/proposals/therapy-items", pro: false },
     ],
   },
   {
