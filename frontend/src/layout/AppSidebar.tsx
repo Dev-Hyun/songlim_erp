@@ -70,7 +70,7 @@ const navItems: NavItem[] = [
     icon: <DocsIcon />,
     name: "제안서 제작",
     subItems: [
-      { name: "개원의 제안서 제작", path: "/proposals", pro: false },
+      { name: "제안서 제작", path: "/proposals", pro: false },
       { name: "치료장비 품목 관리", path: "/proposals/therapy-items", pro: false },
     ],
   },
