@@ -189,7 +189,7 @@ US_BRANDS: dict[str, dict] = {
 # 모델이 늘면 각 표에 항목과 사진만 추가하면 된다(표 순서 = 제안서 순서).
 LIPUS_MODELS: dict[str, dict] = {
     # 출처: 메디시스 제품 페이지 https://medisys.life/product-cellabone (제조 (주)프로메디, 모델 CB-1000)
-    "CELLABONE": {"brand": "PROMEDI (프로메디)", "sub": "CB-1000 · 골유합 촉진기", "img": "img/lipus_cellabone.png", "desc": [
+    "CELLABONE": {"brand": "스트라텍 (StraTek)", "sub": "CB-1000 · 골유합 촉진기", "img": "img/lipus_cellabone.png", "desc": [
         "**저강도 박동성 초음파(LIPUS)** 골유합 촉진", "**4채널** — 최대 4명 동시 치료",
         "1.5MHz · 30 / 60 mW/cm², 5~30분", "비침습 · 무통, 비급여(조-88)"]},
 }
