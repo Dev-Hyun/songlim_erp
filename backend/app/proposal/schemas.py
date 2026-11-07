@@ -61,6 +61,7 @@ class ProposalItems(BaseModel):
     carm_reducer: Optional[PriceOnly] = None
     bmd: list[ModelPrice] = []
     ultrasound: list[UsBrand] = []
+    emg: list[ModelPrice] = []
     therapy: list[TherapyLine] = []
 
 
@@ -108,7 +109,8 @@ def validate_items(items: ProposalItems) -> list[str]:
                 errors.append(f"{x.model}: 옵션 없음: {o.key}")
     for label, rows, table in (("MAMMOGRAPHY", items.mammo, catalog.MAMMO_MODELS),
                                ("C-ARM", items.carm, catalog.CARM_MODELS),
-                               ("BMD", items.bmd, catalog.BMD_MODELS)):
+                               ("BMD", items.bmd, catalog.BMD_MODELS),
+                               ("근전도", items.emg, catalog.EMG_MODELS)):
         for r in rows:
             if r.model not in table:
                 errors.append(f"{label} 모델 없음: {r.model}")
@@ -125,3 +127,25 @@ def validate_items(items: ProposalItems) -> list[str]:
             if m.model not in brand["models"]:
                 errors.append(f"{b.brand} 모델 없음: {m.model}")
     return errors
+
+
+def price_memory(items: ProposalItems) -> dict[str, tuple[int, int | None]]:
+    """저장한 금액 → 다음 제안서의 기본값으로 남길 (키 → (금액, 수량)). 키 형식은 catalog.DEFAULT_PRICES와 같다."""
+    out: dict[str, tuple[int, int | None]] = {}
+    for x in items.xray:
+        out[f"xray:{x.model}"] = (x.price, None)
+        for o in x.options:
+            out[f"xray_opt:{o.key}"] = (o.price, None)
+    if items.pacs:
+        out["pacs"] = (items.pacs.price, None)
+    for prefix, rows in (("mammo", items.mammo), ("carm", items.carm), ("bmd", items.bmd), ("emg", items.emg)):
+        for r in rows:
+            out[f"{prefix}:{r.model}"] = (r.price, None)
+    if items.carm_reducer:
+        out["carm_reducer"] = (items.carm_reducer.price, None)
+    for b in items.ultrasound:
+        for m in b.models:
+            out[f"us:{b.brand}:{m.model}"] = (m.price, None)
+    for t in items.therapy:
+        out[f"therapy:{t.item_id}"] = (t.unit_price, t.qty)
+    return out

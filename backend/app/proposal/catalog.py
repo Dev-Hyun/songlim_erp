@@ -185,6 +185,46 @@ US_BRANDS: dict[str, dict] = {
                       "간 패키지 (ATI · SWE · CEUS) · Depth View", "복부·간·산부인과·근골격·심혈관"]}}},
 }
 
+# 근전도 — 지금은 Natus 1종. 모델이 늘면 여기에 추가만 하면 된다.
+EMG_MODELS: dict[str, dict] = {
+    "Keypoint Focus Elite (Synergy)": {"brand": "Natus", "sub": "EMG · NCS 근전도 검사 시스템", "img": "img/natus_keypoint.png",
+        "desc": ["EMG · NCS · EP 올인원 근전도 검사 시스템", "**3 · 4 · 6 · 8채널** 증폭기 선택 구성",
+                 "**Natus Elite** SW: 프로토콜 검사 · 원클릭 리포트", "전용 컨트롤 패널 · 자극기 내장, 마우스 없이 조작"]},
+}
+
+# 처음 고를 때 들어가는 기본 금액 — 기존 제안서(2026-06~09)의 마지막 금액.
+# 제안서를 저장하면 그때 금액이 proposal_last_prices에 남아 다음부터 그 값이 기본값이 된다(누가 만들든 마지막 값).
+# 키: xray:모델 / xray_opt:옵션키 / pacs / mammo:모델 / carm:모델 / carm_reducer / bmd:모델 / us:브랜드:모델 / emg:모델
+DEFAULT_PRICES: dict[str, int] = {
+    "xray:GXR-E40S Plus": 28_180_000,
+    "xray:GXR-40SD": 60_000_000,
+    "xray_opt:capacitor": 2_500_000,
+    "xray_opt:detector_1d": 10_000_000,
+    "xray_opt:ma640": 6_000_000,
+    "xray_opt:table_6way": 3_000_000,
+    "pacs": 2_000_000,
+    "mammo:AIDIA UD": 130_000_000,
+    "mammo:AIDIA TDB": 80_000_000,
+    "mammo:AIDIA VOLVE": 55_000_000,
+    "mammo:PINKVIEW BT": 43_000_000,
+    "carm:ZEN-2090 TURBO": 42_000_000,
+    "carm:OSCAR PRIME": 53_000_000,
+    "carm:OSCAR 15FD": 99_000_000,
+    "carm:BELLIGER ACE": 47_000_000,
+    "carm_reducer": 4_500_000,
+    "bmd:DEXXUM T QUANTUM": 17_500_000,
+    "bmd:PRIMUS": 44_000_000,
+    "emg:Keypoint Focus Elite (Synergy)": 25_000_000,
+}
+
+# 치료장비 초기 품목의 기본 단가·수량(개비공 제안서). THERAPY_SEED와 같은 순서. None = 기존 제안서에 금액 없음.
+THERAPY_SEED_PRICES: list[tuple[int | None, int]] = [
+    (11_000_000, 1), (7_700_000, 1), (13_200_000, 1), (5_330_000, 1), (17_600_000, 1), (None, 1), (None, 1),
+    (17_600_000, 1), (660_000, 1), (7_400, 24), (7_400, 24), (143_000, 10), (990_000, 5), (1_430_000, 1),
+    (990_000, 2), (1_870_000, 1), (5_400_000, 3), (4_400_000, 1), (3_900_000, 1), (800_000, 4), (700_000, 1),
+    (4_400_000, 1), (1_000_000, 1), (3_000_000, 1), (363_000, 10), (99_000, 10), (77_000, 1), (230_000, 6),
+]
+
 # 치료장비 초기 품목(개비공 제안서 순서). 마이그레이션이 이 목록을 DB에 넣는다. 이후 수정은 품목 관리 화면에서.
 THERAPY_SEED: list[dict] = [
     {"name": n, "maker": mk, "model": md, "note": nt, "warranty": w, "image_key": f"seed/{i:02d}.png"}
@@ -233,4 +273,5 @@ def catalog_for_client() -> dict:
         "carm_tables": [{"key": k, "label": f"{v['brand']} {v['model']}"} for k, v in CARM_TABLES.items()],
         "bmd": [{"model": m, "sub": v["sub"]} for m, v in BMD_MODELS.items()],
         "ultrasound": [{"brand": b, "models": list(v["models"].keys())} for b, v in US_BRANDS.items()],
+        "emg": [{"model": m, "brand": v["brand"], "sub": v["sub"]} for m, v in EMG_MODELS.items()],
     }

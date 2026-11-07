@@ -1,7 +1,7 @@
 """고른 장비(items) → PDF 페이지 목록. 순수 함수라 DB·템플릿 없이 테스트한다.
 
-페이지 순서: 표지 → 회사 소개 → X-RAY(모델들 → PACS) → MAMMOGRAPHY → C-ARM(모델들 → 전동테이블 → 저감장치)
-→ BMD → ULTRASOUND(브랜드당 1장) → 치료장비(8줄씩) → 함께 하는 이유 → 마지막 장.
+페이지 순서: 표지 → 회사 소개 → X-RAY(모델들 → PACS) → C-ARM(모델들 → 전동테이블 → 저감장치) → MAMMOGRAPHY
+→ BMD → ULTRASOUND(브랜드당 1장) → 근전도 → 치료장비(8줄씩) → 함께 하는 이유 → 마지막 장.
 카테고리 안의 순서는 카탈로그 순서를 따른다(입력 순서와 무관하게 늘 같은 제안서 모양).
 """
 from . import catalog
@@ -32,11 +32,6 @@ def build_pages(items: ProposalItems) -> list[dict]:
     if items.pacs:
         pages.append({"kind": "pacs", "cat": "X-RAY SYSTEM", "label": "PACS", **catalog.PACS, "price": items.pacs.price})
 
-    for r in _ordered(items.mammo, catalog.MAMMO_MODELS):
-        spec = catalog.MAMMO_MODELS[r.model]
-        pages.append({"kind": "eq", "cat": "MAMMOGRAPHY", "model": r.model, "price": r.price, "tradein": r.tradein,
-                      "warranty": "3년", "options": [], **spec})
-
     for r in _ordered(items.carm, catalog.CARM_MODELS):
         spec = catalog.CARM_MODELS[r.model]
         pages.append({"kind": "eq", "cat": "C-ARM", "brand": "GENORAY", "model": r.model, "price": r.price,
@@ -47,6 +42,11 @@ def build_pages(items: ProposalItems) -> list[dict]:
         pages.append({"cat": "C-ARM", "label": f"전동테이블 · {t['brand']}", **t})
     if items.carm_reducer:
         pages.append({"kind": "seld", "cat": "C-ARM", "label": "저감장치", **catalog.SELD, "price": items.carm_reducer.price})
+
+    for r in _ordered(items.mammo, catalog.MAMMO_MODELS):
+        spec = catalog.MAMMO_MODELS[r.model]
+        pages.append({"kind": "eq", "cat": "MAMMOGRAPHY", "model": r.model, "price": r.price, "tradein": r.tradein,
+                      "warranty": "3년", "options": [], **spec})
 
     for r in _ordered(items.bmd, catalog.BMD_MODELS):
         spec = catalog.BMD_MODELS[r.model]
@@ -60,6 +60,11 @@ def build_pages(items: ProposalItems) -> list[dict]:
         pages.append({"kind": "us", "cat": "ULTRASOUND", "brand": b.brand, "warranty": "3년", "models": [
             {"model": m.model, "price": m.price, **models[m.model]}
             for m in sorted(b.models, key=lambda m: order.index(m.model))]})
+
+    for r in _ordered(items.emg, catalog.EMG_MODELS):
+        spec = catalog.EMG_MODELS[r.model]
+        pages.append({"kind": "eq", "cat": "근전도", "model": r.model, "price": r.price, "tradein": r.tradein,
+                      "warranty": "3년", "options": [], **spec})
 
     rows = []
     for i, t in enumerate(items.therapy, start=1):

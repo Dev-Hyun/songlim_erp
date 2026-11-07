@@ -17,15 +17,16 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, Response
 from pydantic import BaseModel, Field
 from sqlalchemy import func, or_, select
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.models import Proposal, ProposalTherapyItem, User
+from app.models import Proposal, ProposalLastPrice, ProposalTherapyItem, User
 from app.proposal import catalog, therapy_image
 from app.proposal.pages import build_pages
 from app.proposal.pdf import PdfError, html_to_pdf
 from app.proposal.render import STATIC_DIR, render_html
-from app.proposal.schemas import ProposalIn, ProposalItems, validate_items
+from app.proposal.schemas import ProposalIn, ProposalItems, price_memory, validate_items
 from app.routers.auth import require_staff
 
 router = APIRouter(prefix="/api/proposals", tags=["proposals"])
@@ -175,11 +176,13 @@ def _author_name(u: Optional[User]) -> str:
 
 def _summary(items: dict) -> str:
     parts = []
-    for key, label in (("xray", "X-RAY"), ("mammo", "MAMMO"), ("carm", "C-ARM"), ("bmd", "BMD")):
+    for key, label in (("xray", "X-RAY"), ("carm", "C-ARM"), ("mammo", "MAMMO"), ("bmd", "BMD")):
         if items.get(key):
             parts.append(f"{label} {len(items[key])}")
     if items.get("ultrasound"):
         parts.append(f"초음파 {sum(len(b['models']) for b in items['ultrasound'])}")
+    if items.get("emg"):
+        parts.append(f"근전도 {len(items['emg'])}")
     if items.get("therapy"):
         parts.append(f"치료장비 {len(items['therapy'])}")
     return " · ".join(parts)
@@ -225,11 +228,23 @@ async def _load(db: AsyncSession, pid: int) -> Proposal:
     return p
 
 
+async def _remember_prices(db: AsyncSession, items: ProposalItems) -> None:
+    """저장한 금액을 '마지막 금액'으로 남긴다 — 다음 제안서에서 같은 장비를 고르면 이 값이 기본으로 들어간다."""
+    for key, (price, qty) in price_memory(items).items():
+        stmt = sqlite_insert(ProposalLastPrice).values(key=key, price=price, qty=qty)
+        await db.execute(stmt.on_conflict_do_update(
+            index_elements=["key"], set_={"price": price, "qty": qty, "updated_at": func.current_timestamp()}))
+
+
 @router.get("/catalog")
 async def get_catalog(db: AsyncSession = Depends(get_db), _: User = Depends(require_staff)):
     therapy = (await db.execute(select(ProposalTherapyItem).where(ProposalTherapyItem.is_active.is_(True))
                                 .order_by(ProposalTherapyItem.sort_order, ProposalTherapyItem.id))).scalars()
-    return {**catalog.catalog_for_client(), "therapy": [_item_out(it) for it in therapy]}
+    # 기본 금액: 기존 제안서 금액(코드) 위에 마지막 저장 금액(DB)을 덮어쓴다.
+    defaults = {k: {"price": v, "qty": None} for k, v in catalog.DEFAULT_PRICES.items()}
+    for row in (await db.execute(select(ProposalLastPrice))).scalars():
+        defaults[row.key] = {"price": row.price, "qty": row.qty}
+    return {**catalog.catalog_for_client(), "therapy": [_item_out(it) for it in therapy], "defaults": defaults}
 
 
 @router.post("/preview", response_class=HTMLResponse)
@@ -257,6 +272,7 @@ async def create_proposal(payload: ProposalIn, db: AsyncSession = Depends(get_db
     await _fill_snapshots(db, payload.items, refresh=False)
     p = Proposal(**payload.model_dump(exclude={"items"}), items=payload.items.model_dump_json(), author_id=user.id)
     db.add(p)
+    await _remember_prices(db, payload.items)
     await db.commit()
     return _out(p, user)
 
@@ -276,6 +292,7 @@ async def update_proposal(pid: int, payload: ProposalIn, db: AsyncSession = Depe
     for k, v in payload.model_dump(exclude={"items"}).items():
         setattr(p, k, v)
     p.items = payload.items.model_dump_json()
+    await _remember_prices(db, payload.items)
     await db.commit()
     return _out(p, await db.get(User, p.author_id))
 

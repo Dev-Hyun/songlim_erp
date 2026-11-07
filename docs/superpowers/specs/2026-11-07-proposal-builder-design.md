@@ -12,7 +12,7 @@
 
 ### 이번 범위
 - 사이드바 "제안서 제작" → "개원의 제안서 제작" 메뉴
-- 장비 카테고리 5개: X-RAY SYSTEM, MAMMOGRAPHY, C-ARM, BMD, ULTRASOUND
+- 장비 카테고리 6개: X-RAY SYSTEM, C-ARM, MAMMOGRAPHY, BMD, ULTRASOUND, 근전도
 - 소개 페이지 4종: PACS(ViewRex3), 전동테이블(HCK C301 / 01M X3-C), C-arm 저감장치(CARESON SELD X70)
 - **치료장비** 품목표 페이지 + 치료장비 품목 관리 화면(품목 추가·수정·사진 업로드)
 - 디자인 2종: A 클리닉 블루(기본), C 송림 그린 — 제안서마다 선택
@@ -44,6 +44,9 @@
 | C-arm 대체 장비 문구 | 유지 |
 | 강조 | 원본 제안서처럼 중요 포인트를 색·굵기로 강조 |
 | 치료장비 | 개비공 제안서 형식의 품목표, 품목은 우리가 수정, 단가·수량은 제안서마다 입력, 합계 줄 없음 |
+| 근전도 | Natus Keypoint Focus Elite (Synergy) 1종. 나중에 모델 추가 가능한 구조 |
+| 페이지 순서 | X-RAY / C-ARM / MAMMO / BMD / ULTRASOUND / 근전도 / 치료장비 |
+| 기본 금액 | 처음엔 기존 제안서 금액, 이후로는 누가 만들든 마지막으로 저장한 금액이 기본값 |
 
 ## 3. 페이지 구성
 
@@ -59,11 +62,12 @@ n  마지막 장        담당자 이름 · 직함 · 연락처
 장비 페이지 순서(카테고리 순서 고정, 카테고리 안에서는 카탈로그 순서):
 
 1. **X-RAY SYSTEM** — 고른 X-ray 모델 각 1장 → PACS 소개(선택 시) 1장
-2. **MAMMOGRAPHY** — 고른 모델 각 1장
-3. **C-ARM** — 고른 C-arm 모델 각 1장 → 전동테이블(HCK 또는 01M 중 하나) 1장 → 저감장치(선택 시) 1장
+2. **C-ARM** — 고른 C-arm 모델 각 1장 → 전동테이블(HCK 또는 01M 중 하나) 1장 → 저감장치(선택 시) 1장
+3. **MAMMOGRAPHY** — 고른 모델 각 1장
 4. **BMD** — 고른 모델 각 1장
 5. **ULTRASOUND** — 고른 브랜드 각 1장 (DRGEM → SAMSUNG MEDISON → ALPINION)
-6. **치료장비** — 고른 품목을 관리 화면 순서대로, 8줄씩 나눠 여러 장
+6. **근전도** — 고른 모델 각 1장
+7. **치료장비** — 고른 품목을 관리 화면 순서대로, 8줄씩 나눠 여러 장
 
 모든 장비 페이지 하단에 "VAT 포함 금액입니다." 표시. 쪽 번호는 `n / 전체`.
 
@@ -161,6 +165,17 @@ DESCRIPTION과 SIZE(크기·무게)는 카탈로그 문구.
 **초기 품목 28개**(개비공 제안서 순서): ESWT ULFORCE / ULFORCE Radial / 스트라텍 TROIKA (FOCUS) / 스트라텍 ESWT-1000 / ZEUSWAVE / 스톨즈 Shockwave F1 / 스톨즈 SD1 BT F-SW / 영인 IN5200 / Hot Pack Unit 24P / Hot Pack 고급형 / Hot Pack Cover 고급형 / 벽걸이 적외선 IR-VITA / I.C.T TM-301 / Therapy Laser GP-1060L / 근육마사지기 SASSO STS-1000 / Ion Cooler SERAPIS ION / 수 치료기 AQUA SMART / 극저온 치료기 CRYO-CO2+ / 견인 치료기 LC-100 / Elevation Bed 2단 GR-7000 / Elevation Bed 1단 GR-7000A / 자기장 치료기 G-500 / 자동 혈압계 BpBio320N / 소독기 MK-50NS / 두타메트 OK-1 / 치료베드 / 파라핀 PS100 / 장화 WHF-324.
 비고·Warranty는 개비공 제안서 문구 그대로. 사진은 제조사·판매처 웹 이미지로 새로 받아 배경을 정리해 넣는다. 원본 제안서보다 선명한 사진을 쓴다.
 
+### 4.7 근전도 (Warranty `3년` 고정)
+
+모델: **Natus Keypoint Focus Elite (Synergy)** 1종(카탈로그에 추가만 하면 모델이 늘어남). 입력: Price, 기존장비 인수금액(선택).
+설명 4줄은 Natus 공식 자료(브로셔·제품 페이지) 기준: EMG·NCS·EP 올인원 / 3·4·6·8채널 증폭기 / Natus Elite SW(프로토콜 검사·원클릭 리포트) / 전용 컨트롤 패널·자극기 내장.
+
+### 4.8 기본 금액
+- 장비·옵션·PACS·저감장치·초음파 모델·근전도·치료장비 품목을 고르는 순간 금액 칸에 기본값이 들어간다(바로 고칠 수 있음).
+- 처음 기본값: 기존 제안서(2026-06~09)의 마지막 금액(`catalog.DEFAULT_PRICES`), 치료장비는 개비공 제안서의 단가·수량.
+- 제안서를 저장하면 그 금액이 `proposal_last_prices`에 남아, 이후 누가 만들든 그 값이 기본값이 된다(치료장비는 수량도).
+- 기존 제안서에 금액이 없던 장비(52SD·68SD·82SD, LUXE, TD, OSCAR 15, DEXXUM T, 초음파 전 모델, 스톨즈 2종)는 처음엔 빈칸.
+
 ## 5. 강조 표시 규칙
 
 원본 제안서의 빨간 글씨를 정리한 규칙. 색은 디자인별(A `#D2372B`, C `#C2352A`), 굵게.
@@ -215,6 +230,8 @@ DESCRIPTION과 SIZE(크기·무게)는 카탈로그 문구.
 | copied_from_id | int null | 복사 원본 |
 | created_at / updated_at | | TimestampMixin |
 
+**`proposal_last_prices`** (마지막 저장 금액) — `key`(PK, 예: `xray:GXR-52SD`, `us:ALPINION:X-CUBE 70`, `therapy:13`) · `price` · `qty`(치료장비만) · `updated_at`
+
 **`proposal_therapy_items`** (치료장비 품목)
 
 | 컬럼 | 타입 | 설명 |
@@ -264,7 +281,7 @@ DESCRIPTION과 SIZE(크기·무게)는 카탈로그 문구.
 | POST | `/api/proposals/{id}/copy` | 복사 → 새 id, 제안일은 오늘 |
 | POST | `/api/proposals/preview` | 저장 전 내용으로 미리보기 HTML |
 | GET | `/api/proposals/{id}/pdf` | PDF 다운로드 |
-| GET | `/api/proposals/catalog` | 화면용 카탈로그(모델·옵션) + 사용 중인 치료장비 품목 |
+| GET | `/api/proposals/catalog` | 화면용 카탈로그(모델·옵션) + 사용 중인 치료장비 품목 + 기본 금액(`defaults`) |
 | GET / POST | `/api/proposals/therapy-items` | 품목 목록(사용 안 함 포함 옵션) / 추가 |
 | PUT | `/api/proposals/therapy-items/{id}` | 수정(사용 여부 포함) |
 | POST | `/api/proposals/therapy-items/reorder` | 순서 변경 `{ids}` |
@@ -310,7 +327,8 @@ PDF 파일명: `{제안일}_제안서_{병원명} {원장님}원장님.pdf` (기
 3. **삼성 V 시리즈** — S-Shearwave, S-Detect 등 일부는 유상 옵션이라 "(옵션)" 표시.
 4. **01M X3-C Warranty 1년** — 기존 X3-A 제안서 기준.
 5. **치료장비 제조사** — 원본 제안서에 제조사가 비어 있는 품목은 사진 조사 때 확인한 제조사로 채웠다(시안 표 참고). 다르면 품목 관리 화면에서 고치면 된다.
-6. **치료장비 사진 중 확인 필요** (모두 품목 관리 화면에서 사진 교체 가능)
+6. **근전도 모델명** — Natus 공식 자료상 현재 이름은 "Keypoint Focus" + 소프트웨어 "Natus Elite"이고, Synergy는 Nicolet EDX 쪽 이름이다. 제안서에는 기존대로 "Keypoint Focus Elite (Synergy)"로 표기했다. 바꿀 경우 카탈로그 한 줄만 고치면 된다.
+7. **치료장비 사진 중 확인 필요** (모두 품목 관리 화면에서 사진 교체 가능)
    - 1 ULFORCE — 아이티시 공식 사진이 현재 모델(Ulforce Blue plus). 예전 탁상형 ULFORCE라면 교체 필요
    - 9 Hot Pack Unit 24P — 24P를 만드는 회사가 여러 곳. 사진은 카리스 KRS-24PD, 제조사 칸은 비워 둠
    - 11 Hot Pack Cover — 깨끗한 사진이 나무 바닥 배경뿐이라 그대로 사용

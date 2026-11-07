@@ -47,6 +47,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
     allow_credentials=True,
+    # 제안서 PDF 한글 파일명을 프론트(다른 포트)에서도 읽을 수 있게
+    expose_headers=["Content-Disposition"],
 )
 app.middleware("http")(request_logging_middleware)
 

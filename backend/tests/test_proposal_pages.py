@@ -27,6 +27,7 @@ FULL = dict(
     bmd=[{"model": "PRIMUS", "price": 44000000}],
     ultrasound=[{"brand": "ALPINION", "models": [{"model": "X-CUBE 50", "price": 1}]},
                 {"brand": "DRGEM", "models": [{"model": "DS30", "price": 2}, {"model": "DS20", "price": 3}]}],
+    emg=[{"model": "Keypoint Focus Elite (Synergy)", "price": 25000000}],
     therapy=_therapy(17),
 )
 
@@ -34,8 +35,12 @@ FULL = dict(
 def test_page_order_follows_category_order():
     pages = build_pages(_items(**FULL))
     kinds = [p["kind"] for p in pages]
-    assert kinds == ["cover", "intro", "eq", "eq", "pacs", "eq", "eq", "x3c", "seld", "eq", "us", "us",
-                     "rx", "rx", "rx", "why", "thx"]
+    # X-RAY → C-ARM → MAMMO → BMD → ULTRASOUND → 근전도 → 치료장비
+    cats = [p.get("cat") for p in pages]
+    assert cats == [None, None, "X-RAY SYSTEM", "X-RAY SYSTEM", "X-RAY SYSTEM", "C-ARM", "C-ARM", "C-ARM",
+                    "MAMMOGRAPHY", "BMD", "ULTRASOUND", "ULTRASOUND", "근전도", "치료장비", "치료장비", "치료장비", None, None]
+    assert kinds == ["cover", "intro", "eq", "eq", "pacs", "eq", "x3c", "seld", "eq", "eq", "us", "us",
+                     "eq", "rx", "rx", "rx", "why", "thx"]
     # 초음파 브랜드는 카탈로그 순서(DRGEM → ALPINION), 브랜드 안 모델도 카탈로그 순서
     us = [p for p in pages if p["kind"] == "us"]
     assert [p["brand"] for p in us] == ["DRGEM", "ALPINION"]
@@ -84,6 +89,7 @@ def test_hck_table_and_no_extras_when_not_selected():
     ({"xray": [{"model": "GXR-52SD", "detector_type": "MANO 17x17", "table": "PBT-9", "price": 1}]}, "Table"),
     ({"xray": [{"model": "GXR-E40S Plus", "price": 1, "options": [{"key": "nope", "price": 1}]}]}, "nope"),
     ({"mammo": [{"model": "AIDIA X", "price": 1}]}, "AIDIA X"),
+    ({"emg": [{"model": "Cadwell", "price": 1}]}, "Cadwell"),
     ({"ultrasound": [{"brand": "SAMSUNG MEDISON", "models": [{"model": "X-CUBE 50", "price": 1}]}]}, "X-CUBE 50"),
     ({"ultrasound": [{"brand": "DRGEM", "models": [{"model": "DS20", "price": 1}]},
                      {"brand": "DRGEM", "models": [{"model": "DS30", "price": 1}]}]}, "DRGEM"),
@@ -131,3 +137,15 @@ def test_render_therapy_image_sources():
     assert 'src="S/therapy/01.png"' in html and 'src="U/abc.png"' in html
     assert '1) x<br>2) <b class="hl">y</b>' in html
     assert '<td class="hl">3</td>' in html
+
+
+def test_price_memory_keys():
+    from app.proposal.schemas import price_memory
+
+    mem = price_memory(_items(**FULL))
+    assert mem["xray:GXR-52SD"] == (52800000, None)
+    assert mem["xray_opt:capacitor"] == (2500000, None)
+    assert mem["pacs"] == (2000000, None) and mem["carm_reducer"] == (4500000, None)
+    assert mem["us:DRGEM:DS30"] == (2, None)
+    assert mem["emg:Keypoint Focus Elite (Synergy)"] == (25000000, None)
+    assert mem["therapy:1"] == (1000, 2)

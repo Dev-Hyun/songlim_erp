@@ -1,9 +1,10 @@
+from datetime import datetime
 from typing import Optional
 
 from sqlalchemy import CheckConstraint, ForeignKey, Index
 from sqlalchemy.orm import Mapped, mapped_column
 
-from .base import Base, TimestampMixin
+from .base import Base, TimestampMixin, utcnow
 
 
 class Proposal(Base, TimestampMixin):
@@ -42,3 +43,14 @@ class ProposalTherapyItem(Base, TimestampMixin):
     image_key: Mapped[Optional[str]] = mapped_column(default=None)
     sort_order: Mapped[int] = mapped_column(default=0)
     is_active: Mapped[bool] = mapped_column(default=True)
+
+
+class ProposalLastPrice(Base):
+    """장비·옵션·치료장비별 '마지막으로 저장한 금액' — 다음 제안서에서 그 장비를 고를 때 기본값으로 쓴다.
+    키 형식은 app.proposal.catalog.DEFAULT_PRICES 주석 참고(치료장비는 therapy:<품목 id>, 수량도 함께)."""
+    __tablename__ = "proposal_last_prices"
+
+    key: Mapped[str] = mapped_column(primary_key=True)
+    price: Mapped[int] = mapped_column()
+    qty: Mapped[Optional[int]] = mapped_column(default=None)
+    updated_at: Mapped[datetime] = mapped_column(default=utcnow, onupdate=utcnow)

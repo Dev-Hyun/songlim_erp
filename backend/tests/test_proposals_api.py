@@ -10,6 +10,14 @@ from app.security import hash_password
 pytestmark = pytest.mark.asyncio
 
 
+@pytest.fixture(autouse=True)
+def _tmp_upload_dir(tmp_path, monkeypatch):
+    """사진 업로드 테스트가 실제 backend/uploads 폴더에 파일을 남기지 않게 임시 폴더로 돌린다."""
+    import app.routers.proposals as r
+
+    monkeypatch.setattr(r, "UPLOAD_DIR", tmp_path / "proposal_therapy")
+
+
 async def _login(client, db_session, username: str, role: str = "songrim", is_admin: bool = False):
     db_session.add(User(username=username, password_hash=hash_password("pw1234"), display_name=username,
                         role=role, is_admin=is_admin, is_approved=True))
@@ -94,7 +102,7 @@ async def test_create_get_update_list_and_search(client, db_session):
         mammo=[{"model": "AIDIA VOLVE", "price": 55000000}], carm=[{"model": "OSCAR 15", "price": 85000000}]))
     assert res.status_code == 200, res.text
     p = res.json()
-    assert p["summary"] == "MAMMO 1 · C-ARM 1" and p["author_name"] == "pp_staff1"
+    assert p["summary"] == "C-ARM 1 · MAMMO 1" and p["author_name"] == "pp_staff1"
 
     upd = _payload(mammo=[{"model": "AIDIA VOLVE", "price": 52000000}])
     upd["design"] = "C"
@@ -188,3 +196,29 @@ async def test_pdf_download(client, db_session):
     assert res.status_code == 200
     assert res.content[:4] == b"%PDF"
     assert "filename*=UTF-8''2026-11-07_" in res.headers["content-disposition"]
+
+
+async def test_last_saved_price_becomes_default(client, db_session):
+    c = await _login(client, db_session, "pp_staff6")
+    o = await _login(client, db_session, "pp_staff7")
+    cat = (await client.get("/api/proposals/catalog", cookies=c)).json()
+    # 처음 기본값 = 기존 제안서 금액
+    assert cat["defaults"]["xray:GXR-E40S Plus"]["price"] == 28180000
+    assert cat["defaults"]["emg:Keypoint Focus Elite (Synergy)"]["price"] == 25000000
+    assert any(x["model"] == "Keypoint Focus Elite (Synergy)" for x in cat["emg"])
+
+    it = await _item(client, c, "자기장 치료기")
+    await client.post("/api/proposals", cookies=c, json=_payload(
+        xray=[{"model": "GXR-E40S Plus", "price": 27000000, "options": [{"key": "capacitor", "price": 2400000}]}],
+        therapy=[{"item_id": it["id"], "unit_price": 4300000, "qty": 2}]))
+    # 다른 사람이 만들어도 마지막 금액이 기본값
+    d = (await client.get("/api/proposals/catalog", cookies=o)).json()["defaults"]
+    assert d["xray:GXR-E40S Plus"]["price"] == 27000000
+    assert d["xray_opt:capacitor"]["price"] == 2400000
+    assert d[f"therapy:{it['id']}"] == {"price": 4300000, "qty": 2}
+
+    p = (await client.post("/api/proposals", cookies=o, json=_payload(
+        xray=[{"model": "GXR-E40S Plus", "price": 26500000}]))).json()
+    await client.put(f"/api/proposals/{p['id']}", cookies=o, json=_payload(xray=[{"model": "GXR-E40S Plus", "price": 26000000}]))
+    d = (await client.get("/api/proposals/catalog", cookies=c)).json()["defaults"]
+    assert d["xray:GXR-E40S Plus"]["price"] == 26000000
