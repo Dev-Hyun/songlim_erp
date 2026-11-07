@@ -100,3 +100,34 @@ def test_validate_items_accepts_full_selection():
 def test_price_must_be_positive():
     with pytest.raises(Exception):
         _items(mammo=[{"model": "AIDIA UD", "price": 0}])
+
+
+# ---------- 렌더링 ----------
+from app.proposal.render import render_html  # noqa: E402
+
+META = {"hospital_name": "세종드림<script>내과", "doctor_name": "김민수", "proposal_date": "2026-11-07",
+        "rep_name": "이정호", "rep_title": "상무", "rep_phone": "010-6426-7469"}
+
+
+@pytest.mark.parametrize("design, cls", [("A", "sheet dA"), ("C", "sheet dC")])
+def test_render_has_one_sheet_per_page_and_escapes_input(design, cls):
+    pages = build_pages(_items(**FULL))
+    html = render_html({**META, "design": design}, pages, asset_base="http://x/static/", upload_base="http://x/up/")
+    assert html.count(f'class="{cls}') == len(pages)
+    assert "세종드림&lt;script&gt;내과" in html and "<script>내과" not in html
+    assert "김민수" in html and "010-6426-7469" in html
+    assert '<b class="hl">2EA</b>' in html
+    assert "<tfoot" not in html  # 치료장비 합계 줄 없음
+    assert "http://x/static/img/sd.png" in html
+    assert "C-arm 견적에 포함" in html  # 01M 전동테이블
+
+
+def test_render_therapy_image_sources():
+    items = _items(therapy=[
+        {"item_id": 1, "unit_price": 1, "qty": 1, "snapshot": {"name": "a", "image_key": "seed/01.png"}},
+        {"item_id": 2, "unit_price": 1, "qty": 3, "snapshot": {"name": "b", "image_key": "up/abc.png", "note": "1) x\n2) **y**"}},
+    ])
+    html = render_html({**META, "design": "A"}, build_pages(items), asset_base="S/", upload_base="U/")
+    assert 'src="S/therapy/01.png"' in html and 'src="U/abc.png"' in html
+    assert '1) x<br>2) <b class="hl">y</b>' in html
+    assert '<td class="hl">3</td>' in html
