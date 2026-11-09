@@ -56,6 +56,10 @@ watchfiles==1.2.0
 websockets==16.1
 pillow-heif==1.1.0
 PyMuPDF==1.26.5
+# 제안서 PPT 내려받기
+python-pptx==1.0.2
+lxml==6.1.1
+XlsxWriter==3.2.9
 
 # PWA 웹 푸시 알림(VAPID) — 사내 PC/외부 서비스 계정 없이 브라우저로 직접 발송
 pywebpush==2.5.0

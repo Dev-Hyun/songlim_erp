@@ -46,19 +46,18 @@ export async function fetchPreview(f: ProposalForm): Promise<string> {
   return html.replace("<head>", `<head><base href="${API}/">`);
 }
 
-/** PDF 다운로드 — 서버가 정한 한글 파일명 그대로 저장 */
-export async function downloadPdf(id: number): Promise<void> {
-  const res = await fetch(`${API}/api/proposals/${id}/pdf`, { credentials: "include" });
-  if (!res.ok) throw new Error(await errorText(res, "PDF를 만들지 못했습니다"));
-  const cd = res.headers.get("content-disposition") || "";
-  const m = cd.match(/filename\*=UTF-8''([^;]+)/);
-  const name = m ? decodeURIComponent(m[1]) : `제안서_${id}.pdf`;
-  const url = URL.createObjectURL(await res.blob());
+export type ExportFormat = "pdf" | "pptx";
+
+/** PDF/PPT 다운로드 — 서버가 파일을 만들어 두고 준 주소로 이동해 브라우저가 일반 파일처럼 받게 한다.
+ *  (blob으로 받으면 안드로이드 앱 안 브라우저·다운로드 관리자에서 "지원하지 않는 파일 형식"이 됐다) */
+export async function downloadFile(id: number, fmt: ExportFormat): Promise<void> {
+  const label = fmt === "pdf" ? "PDF" : "PPT";
+  const res = await fetch(`${API}/api/proposals/${id}/export?fmt=${fmt}`, { method: "POST", credentials: "include" });
+  if (!res.ok) throw new Error(await errorText(res, `${label}를 만들지 못했습니다`));
+  const { url } = (await res.json()) as { url: string };
   const a = document.createElement("a");
-  a.href = url;
-  a.download = name;
+  a.href = `${API}${url}`;
   document.body.appendChild(a);
   a.click();
   a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 10_000);
 }

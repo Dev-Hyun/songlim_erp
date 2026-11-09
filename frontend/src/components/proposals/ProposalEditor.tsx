@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { useSidebar } from "@/context/SidebarContext";
 import CategoryPanels from "./CategoryPanels";
-import { createProposal, downloadPdf, fetchCatalog, fetchPreview, fetchProposal, updateProposal } from "./api";
+import { createProposal, downloadFile, fetchCatalog, fetchPreview, fetchProposal, updateProposal, type ExportFormat } from "./api";
 import { EMPTY_ITEMS, type Catalog, type Design, type ProposalForm, type ProposalItems } from "./types";
 
 const PAGE_W = 1123; // 제안서 한 장 너비(px) = A4 가로
@@ -97,7 +97,7 @@ export default function ProposalEditor({ id }: { id?: number }) {
   const [savedJson, setSavedJson] = useState("");
   const [loadError, setLoadError] = useState("");
   const [msg, setMsg] = useState<{ tone: "ok" | "err"; text: string } | null>(null);
-  const [busy, setBusy] = useState<"" | "save" | "pdf">("");
+  const [busy, setBusy] = useState<"" | "save" | ExportFormat>("");
   const [showErrors, setShowErrors] = useState(false);
   const [tab, setTab] = useState<"form" | "preview">("form");
   const [preview, setPreview] = useState("");
@@ -188,13 +188,13 @@ export default function ProposalEditor({ id }: { id?: number }) {
     }
   }
 
-  async function pdf() {
+  async function download(fmt: ExportFormat) {
     const pid = dirty || !id ? await save() : id;
     if (!pid) return;
-    setBusy("pdf");
+    setBusy(fmt);
     try {
-      await downloadPdf(pid);
-      setMsg({ tone: "ok", text: "PDF를 내려받았습니다" });
+      await downloadFile(pid, fmt);
+      setMsg({ tone: "ok", text: `${fmt === "pdf" ? "PDF" : "PPT"}를 내려받았습니다` });
     } catch (e) {
       setMsg({ tone: "err", text: (e as Error).message });
     } finally {
@@ -270,16 +270,22 @@ export default function ProposalEditor({ id }: { id?: number }) {
         </div>
       </div>
 
-      {/* 하단 고정: 저장 / PDF */}
+      {/* 하단 고정: 저장 / PDF / PPT */}
       <div className={`surface-card fixed inset-x-0 bottom-0 z-30 flex items-center justify-end gap-2 border-t px-4 py-2.5 ${isExpanded || isHovered ? "lg:left-[248px]" : "lg:left-[68px]"}`}>
         {msg && <span className={`mr-auto truncate text-ui ${msg.tone === "err" ? "text-error-600" : "fg-muted"}`}>{msg.text}</span>}
         {!msg && dirty && <span className="fg-muted mr-auto text-ui-xs">저장하지 않은 변경 사항이 있습니다</span>}
         <button type="button" className="btn btn-default" disabled={!!busy} onClick={save}>
           {busy === "save" ? "저장 중…" : "저장"}
         </button>
-        <button type="button" className="btn btn-primary" disabled={!!busy || problems.length > 0} onClick={pdf} title={problems.length ? `빈 칸: ${problems.join(", ")}` : ""}>
-          {busy === "pdf" ? "PDF 만드는 중…" : "PDF 다운로드"}
-        </button>
+        {(["pdf", "pptx"] as const).map((fmt) => {
+          const label = fmt === "pdf" ? "PDF" : "PPT";
+          return (
+            <button key={fmt} type="button" className="btn btn-primary" disabled={!!busy || problems.length > 0}
+              onClick={() => download(fmt)} title={problems.length ? `빈 칸: ${problems.join(", ")}` : ""}>
+              {busy === fmt ? `${label} 만드는 중…` : `${label} 다운로드`}
+            </button>
+          );
+        })}
       </div>
     </div>
   );

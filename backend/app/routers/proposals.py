@@ -1,20 +1,22 @@
-"""제안서 제작 API — 제안서 CRUD·복사·미리보기·PDF, 치료장비 품목 관리, 제안서용 사진.
+"""제안서 제작 API — 제안서 CRUD·복사·미리보기·PDF/PPT 내려받기, 치료장비 품목 관리, 제안서용 사진.
 
 미리보기 HTML의 사진 주소는 '/api/proposals/…'로 시작하는 상대 주소다. 프론트가 iframe에 넣을 때
 <base href="API 주소">를 붙여서, 운영(같은 도메인)·개발(포트 다름) 모두에서 같은 HTML을 쓴다.
 PDF는 같은 HTML을 file:// 주소로 렌더한다(Chromium이 디스크에서 바로 읽음).
 """
+import asyncio
 import json
+import logging
 import os
 import re
 import secrets
 from datetime import date
 from pathlib import Path
-from typing import Optional
+from typing import Literal, Optional
 from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
-from fastapi.responses import FileResponse, HTMLResponse, Response
+from fastapi.responses import FileResponse, HTMLResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import func, or_, select
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
@@ -22,14 +24,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.models import Proposal, ProposalLastPrice, ProposalTherapyItem, User
-from app.proposal import catalog, therapy_image
+from app.proposal import catalog, export, therapy_image
 from app.proposal.pages import build_pages
-from app.proposal.pdf import PdfError, html_to_pdf
+from app.proposal.pdf import html_to_pdf
 from app.proposal.render import STATIC_DIR, render_html
 from app.proposal.schemas import ProposalIn, ProposalItems, price_memory, validate_items
 from app.routers.auth import require_staff
 
 router = APIRouter(prefix="/api/proposals", tags=["proposals"])
+log = logging.getLogger(__name__)
 
 BACKEND_DIR = Path(__file__).resolve().parents[2]
 UPLOAD_DIR = BACKEND_DIR / "uploads" / "proposal_therapy"
@@ -323,19 +326,39 @@ async def copy_proposal(pid: int, db: AsyncSession = Depends(get_db), user: User
     return _out(p, user)
 
 
-@router.get("/{pid}/pdf")
-async def proposal_pdf(pid: int, db: AsyncSession = Depends(get_db), _: User = Depends(require_staff)):
+@router.post("/{pid}/export")
+async def proposal_export(pid: int, fmt: Literal["pdf", "pptx"] = "pdf",
+                          db: AsyncSession = Depends(get_db), _: User = Depends(require_staff)):
+    """PDF/PPT 파일을 만들어 잠깐 보관하고 내려받을 주소를 돌려준다(이유는 app/proposal/export.py)."""
     p = await _load(db, pid)
     items = ProposalItems.model_validate_json(p.items or "{}")
     meta = {k: getattr(p, k) for k in ("hospital_name", "doctor_name", "proposal_date", "rep_name",
                                        "rep_title", "rep_phone", "design")}
     html = render_html(meta, build_pages(items), asset_base=STATIC_DIR.as_uri() + "/",
                        upload_base=UPLOAD_DIR.as_uri() + "/", for_pdf=True)
+    label = "PDF" if fmt == "pdf" else "PPT"
     try:
-        pdf = await html_to_pdf(html)
-    except PdfError:
-        raise HTTPException(status_code=503, detail="PDF를 만들지 못했습니다. 잠시 후 다시 시도해 주세요.")
-    name = f"{p.proposal_date}_제안서_{p.hospital_name} {p.doctor_name}.pdf"
+        data = await html_to_pdf(html)
+        if fmt == "pptx":
+            data = await asyncio.to_thread(export.pdf_to_pptx, data)
+    except Exception:  # noqa: BLE001 — Chromium·PPT 변환 오류 모두 같은 안내
+        log.exception("제안서 %s 생성 실패", label)
+        raise HTTPException(status_code=503, detail=f"{label}를 만들지 못했습니다. 잠시 후 다시 시도해 주세요.")
+    name = f"{p.proposal_date}_제안서_{p.hospital_name} {p.doctor_name}.{fmt}"
     name = re.sub(r'[\\/:*?"<>|]', "_", name)
-    return Response(pdf, media_type="application/pdf",
-                    headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quote(name)}"})
+    token = export.save_export(data, name, export.PDF_TYPE if fmt == "pdf" else export.PPTX_TYPE)
+    return {"url": f"/api/proposals/download/{token}/{quote(name)}", "filename": name}
+
+
+@router.get("/download/{token}/{name}")
+async def proposal_download(token: str, name: str):
+    """보관해 둔 파일. 주소 끝이 실제 파일명이라 Content-Disposition을 못 읽는 다운로드 관리자도 이름·확장자를 맞게 쓴다."""
+    found = export.load_export(token)
+    if not found:
+        raise HTTPException(status_code=404, detail="내려받기 주소가 만료됐습니다. 다시 눌러 주세요.")
+    path, filename, media_type = found
+    ascii_name = "proposal." + filename.rsplit(".", 1)[-1]
+    return FileResponse(path, media_type=media_type, headers={
+        "Content-Disposition": f"attachment; filename=\"{ascii_name}\"; filename*=UTF-8''{quote(filename)}",
+        "Cache-Control": "no-store",
+    })

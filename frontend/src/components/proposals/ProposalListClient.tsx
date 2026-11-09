@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
-import { copyProposal, deleteProposal, downloadPdf, fetchProposals } from "./api";
+import { copyProposal, deleteProposal, downloadFile, fetchProposals } from "./api";
 import type { ProposalListItem } from "./types";
 
 const DESIGN_LABEL = { A: "A 블루", C: "C 그린" } as const;
@@ -66,13 +66,16 @@ export default function ProposalListClient() {
       </div>
     ) : (
       <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-        <button
-          className="btn btn-ghost h-7 px-2 text-ui-xs"
-          disabled={busyId === r.id}
-          onClick={() => run(r.id, () => downloadPdf(r.id))}
-        >
-          {busyId === r.id ? "…" : "PDF"}
-        </button>
+        {(["pdf", "pptx"] as const).map((fmt) => (
+          <button
+            key={fmt}
+            className="btn btn-ghost h-7 px-2 text-ui-xs"
+            disabled={busyId === r.id}
+            onClick={() => run(r.id, () => downloadFile(r.id, fmt))}
+          >
+            {busyId === r.id ? "…" : fmt === "pdf" ? "PDF" : "PPT"}
+          </button>
+        ))}
         <button
           className="btn btn-ghost h-7 px-2 text-ui-xs"
           disabled={busyId === r.id}

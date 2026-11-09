@@ -188,14 +188,53 @@ async def test_pdf_download(client, db_session):
     from app.proposal.pdf import shutdown
 
     try:
-        res = await client.get(f"/api/proposals/{p['id']}/pdf", cookies=c)
+        made = {fmt: await client.post(f"/api/proposals/{p['id']}/export?fmt={fmt}", cookies=c) for fmt in ("pdf", "pptx")}
     finally:
         await shutdown()  # 이 테스트의 이벤트 루프가 닫히기 전에 Chromium 정리
-    if res.status_code == 503:
+    if made["pdf"].status_code == 503:
         pytest.skip("Chromium을 띄울 수 없는 환경")
-    assert res.status_code == 200
-    assert res.content[:4] == b"%PDF"
-    assert "filename*=UTF-8''2026-11-07_" in res.headers["content-disposition"]
+
+    for fmt, magic, ctype in (("pdf", b"%PDF", "application/pdf"),
+                              ("pptx", b"PK", "application/vnd.openxmlformats-officedocument.presentationml.presentation")):
+        assert made[fmt].status_code == 200, made[fmt].text
+        body = made[fmt].json()
+        assert body["filename"] == f"2026-11-07_제안서_세종드림내과의원 김민수.{fmt}"
+        assert body["url"].startswith("/api/proposals/download/") and body["url"].endswith(f".{fmt}")
+        # 다운로드 관리자는 로그인 쿠키 없이 받는다
+        res = await client.get(body["url"])
+        assert res.status_code == 200
+        assert res.content[:len(magic)] == magic
+        assert res.headers["content-type"] == ctype
+        cd = res.headers["content-disposition"]
+        assert cd.startswith("attachment;") and f'filename="proposal.{fmt}"' in cd and "filename*=UTF-8''2026-11-07_" in cd
+
+    import io
+
+    from pptx import Presentation
+    from pptx.util import Mm
+
+    prs = Presentation(io.BytesIO((await client.get(made["pptx"].json()["url"])).content))
+    assert (prs.slide_width, prs.slide_height) == (Mm(297), Mm(210))  # A4 가로
+    assert len(prs.slides) >= 2  # 표지 + BMD + …
+
+
+async def test_export_needs_login_and_bad_or_expired_download_is_404(client, db_session, monkeypatch):
+    c = await _login(client, db_session, "pp_export")
+    p = (await client.post("/api/proposals", cookies=c, json=_payload(
+        bmd=[{"model": "PRIMUS", "price": 44000000}]))).json()
+    assert (await client.post(f"/api/proposals/{p['id']}/export?fmt=hwp", cookies=c)).status_code == 422
+    client.cookies.clear()  # 로그인 응답 쿠키를 client가 들고 있으므로 비운다
+    assert (await client.post(f"/api/proposals/{p['id']}/export?fmt=pdf")).status_code == 401
+    assert (await client.get("/api/proposals/download/" + "x" * 32 + "/a.pdf")).status_code == 404
+    assert (await client.get("/api/proposals/download/..%2f..%2fetc/a.pdf")).status_code == 404
+
+    from app.proposal import export
+
+    monkeypatch.setattr(export, "EXPORT_DIR", export.EXPORT_DIR.parent / "songlim_proposal_exports_test")
+    token = export.save_export(b"%PDF-1.7", "a.pdf", export.PDF_TYPE)
+    assert (await client.get(f"/api/proposals/download/{token}/a.pdf")).status_code == 200
+    monkeypatch.setattr(export, "TTL_SEC", -1)  # 10분 지남
+    assert (await client.get(f"/api/proposals/download/{token}/a.pdf")).status_code == 404
 
 
 async def test_last_saved_price_becomes_default(client, db_session):
