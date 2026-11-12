@@ -69,11 +69,14 @@ BID_CATEGORIES = [
     ("기타 의료장비", ["의료기기", "의료장비", "의료용", "의료기", "진료장비", "의무장비"]),
 ]
 BID_CATEGORY_NAMES = [c for c, _ in BID_CATEGORIES]
-BID_EXCLUDE = ["소모품", "필름", "시약", "약품", "현상액", "탐지기", "보안검색", "수하물", "세탁", "청소", "건축", "공사", "용역",
-               "교육", "임대차", "식자재", "급식", "차량", "드론", "사무용", "생리컵", "시금형", "시제품", "액화산소", "의료용가스",
+BID_EXCLUDE = ["소모품", "필름", "시약", "약품", "현상액", "탐지기", "보안검색", "수하물", "세탁", "청소",
+               "식자재", "급식", "드론", "사무용", "생리컵", "시금형", "시제품", "액화산소", "의료용가스",
                "의료가스", "의료용품", "회절", "방폭", "콘크리트",
                "동물용", "동물병원", "수의과대학", "가축", "실험동물", "사육", "해충", "지게차", "탈수기",
                "진료재료", "수술재료", "동물실험"]   # 물품으로 찾으면서 더함(재료 단가계약·동물실험용 X선)
+# 제목이 장비를 콕 집어 말할 때는 살린다: "디지털 엑스선 촬영장치 구매 및 차폐시설 설치공사",
+# "이동진료차량용 X-ray", "의대교육_범용초음파영상진단장치"는 장비 입찰이다(2026-11-12 운영 자료 점검).
+BID_EXCLUDE_UNLESS_EQUIP = ["건축", "공사", "용역", "교육", "임대차", "차량"]
 HOSPITAL_AGENCY = re.compile(r"병원|의료원|보건소|보건의료원|의료센터|의과대학|치과|재활원")
 # 병원·보건 기관이 아닌 곳의 공고는 제목에 의료 낱말이 있을 때만(연구용 현미경·산업용 초음파·X선 회절 분석기 제외)
 MED_AGENCY = re.compile(r"병원|의료|의학원|보건|적십자|건강관리|재활|요양|치과|의과대학|소방|119")
@@ -138,6 +141,8 @@ def classify_bid(title: str, agency: str = "", products: list = ()) -> list:
     """의료장비 분류 목록(BID_CATEGORIES 순서). 의료장비 공고가 아니면 []."""
     t = _norm(title)
     if any(x in t for x in BID_EXCLUDE):
+        return []
+    if any(x in t for x in BID_EXCLUDE_UNLESS_EQUIP) and _word_category(t) in (None, "기타 의료장비"):
         return []
     cats = {c for c in (_item_category(p["code"], p["name"]) for p in products) if c}
     if not agency or MED_AGENCY.search(agency) or MED_TITLE.search(t):

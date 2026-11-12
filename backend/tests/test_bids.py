@@ -136,3 +136,13 @@ def test_d2b_collects_medical_only_pages_through_and_builds_detail():
     assert xr["end_date"] == "2026-11-20 10:00" and xr["budget_amount"] == 21910340 and xr["notice_kind"] == "재공고"
     info = dict(json.loads(xr["detail_json"])["info"])
     assert info["공고번호"] == "LCF0601-2" and info["개찰일시"] == "2026-11-20 10:30" and info["기초예가"] == "21,910,340원"
+
+
+def test_work_vehicle_education_words_keep_named_equipment():
+    """공사·차량·교육·용역 낱말은 장비를 콕 집은 제목이면 살리고, 아니면 뺀다(2026-11-12 운영 자료)."""
+    assert bn.classify_bid("디지털 엑스선 촬영장치 구매 및 차폐시설 설치공사", "OO의료원") == ["X-ray"]
+    assert bn.classify_bid("경상북도 안동의료원 [의료기기] 이동진료차량용 X-ray 1SET", "경상북도 안동의료원") == ["X-ray"]
+    assert bn.classify_bid("2026학년도 실험실습기자재 구매(의대교육6_범용초음파영상진단장치)", "OO대학교") == ["초음파"]
+    assert bn.classify_bid("의료장비 이전설치 용역", "OO병원") == []
+    assert bn.classify_bid("2026학년도 실험실습기자재 구매(의대교육1_동물용초음파영상진단장치)", "OO대학교") == []
+    assert bn.classify_bid("정부대전청사 보안검색장비(X-Ray 수하물 검색기) 구매 설치", "행정안전부") == []
