@@ -91,11 +91,16 @@ async def test_bids_api_filters(client, db_session):
         Bid(bid_no="t_open_us", title="초음파진단기 구매", end_date=future, category="초음파", budget_amount=9, **base),
         Bid(bid_no="t_closed_xray", title="X선 촬영장치", end_date=past, category="X-ray", **base),
         Bid(bid_no="t_cancel_xray", title="X선 촬영장치", end_date=future, category="X-ray", notice_kind="취소공고", **base),
+        Bid(bid_no="t_open_uncat", title="보안검색장비(X-ray 검색기) 구매", end_date=future, **base),   # 예전 수집기가 넣은 행
         User(username="bidstaff1", password_hash=hash_password("pw"), display_name="직원", role="songrim",
              is_approved=True),
     ])
     await db_session.commit()
     assert (await client.post("/api/auth/login", json={"username": "bidstaff1", "password": "pw"})).status_code == 200
+
+    body = (await client.get("/api/bids")).json()
+    assert {b["bid_no"] for b in body["items"]} == {"t_open_xray", "t_open_us"}   # 분류 없는 행은 안 보인다
+    assert body["summary"]["open"] == 2 and body["summary"]["new_today"] == 4
 
     body = (await client.get("/api/bids", params={"category": "X-ray"})).json()
     assert [b["bid_no"] for b in body["items"]] == ["t_open_xray"]   # 마감·취소공고 제외

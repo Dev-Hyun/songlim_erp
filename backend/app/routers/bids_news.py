@@ -570,7 +570,9 @@ async def get_bids(
     size: int = 30,
 ):
     now = datetime.now()
-    conds = []
+    # 의료장비 분류가 없는 행(예전 수집기가 낱말만 보고 넣은 동물용·보안검색 X선 등)은 보이지 않는다
+    medical = func.coalesce(Bid.category, "") != ""
+    conds = [medical]
     if source:
         conds.append(Bid.source == source.upper())
     if search:
@@ -601,7 +603,7 @@ async def get_bids(
     page_rows = (await db.execute(q.order_by(*order).offset((page - 1) * size).limit(size))).scalars().all()
 
     # 위쪽 요약 숫자(출처·검색과 상관없이 전체)
-    open_c = _open_clause(now)
+    open_c = and_(medical, _open_clause(now))
     soon_s = (now + timedelta(days=3)).strftime("%Y-%m-%d 23:59")
     async def count(*where) -> int:
         return (await db.execute(select(func.count()).select_from(Bid).where(*where))).scalar_one()
@@ -609,7 +611,7 @@ async def get_bids(
     summary = {
         "open": await count(open_c),
         "closing_soon": await count(open_c, Bid.end_date <= soon_s),
-        "new_today": await count(Bid.notice_date >= now.strftime("%Y-%m-%d")),
+        "new_today": await count(medical, Bid.notice_date >= now.strftime("%Y-%m-%d")),
     }
     today = now.date()
     return {
