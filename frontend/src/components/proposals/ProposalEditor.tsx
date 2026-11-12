@@ -22,9 +22,11 @@ function missing(f: ProposalForm): string[] {
   if (!f.doctor_name.trim()) out.push("받는 분");
   const it = f.items;
   if (it.xray.some((x) => !x.price || x.options.some((o) => !o.price))) out.push("X-RAY 금액");
+  if (it.xray_mobile.some((x) => !x.price)) out.push("이동형 X-RAY 금액");
   if (it.pacs && !it.pacs.price) out.push("PACS 금액");
   if (it.mammo.some((x) => !x.price)) out.push("MAMMOGRAPHY 금액");
   if (it.carm.some((x) => !x.price) || (it.carm_reducer && !it.carm_reducer.price)) out.push("C-ARM 금액");
+  if (it.mct.some((x) => !x.price)) out.push("MCT 금액");
   if (it.bmd.some((x) => !x.price)) out.push("BMD 금액");
   if (it.ultrasound.some((b) => b.models.some((m) => !m.price))) out.push("초음파 금액");
   if (it.lipus.some((x) => !x.price)) out.push("LIPUS 금액");
@@ -45,10 +47,12 @@ function completeOnly(items: ProposalItems): ProposalItems {
   return {
     ...items,
     xray: items.xray.filter((x) => x.price > 0).map((x) => ({ ...x, options: x.options.filter((o) => o.price > 0) })),
+    xray_mobile: items.xray_mobile.filter((x) => x.price > 0),
     pacs: items.pacs?.price ? items.pacs : null,
     mammo: items.mammo.filter((x) => x.price > 0),
     carm: items.carm.filter((x) => x.price > 0),
     carm_reducer: items.carm_reducer?.price ? items.carm_reducer : null,
+    mct: items.mct.filter((x) => x.price > 0),
     bmd: items.bmd.filter((x) => x.price > 0),
     ultrasound: items.ultrasound
       .map((b) => ({ ...b, models: b.models.filter((m) => m.price > 0) }))

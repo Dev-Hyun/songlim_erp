@@ -83,7 +83,7 @@ function LineBox({ title, children, onRemove }: { title: string; children: React
 const toggle = <T,>(list: T[], on: boolean, make: () => T, match: (x: T) => boolean): T[] =>
   on ? (list.some(match) ? list : [...list, make()]) : list.filter((x) => !match(x));
 
-/** MAMMO·C-ARM·BMD 공통: 모델 체크 → 제안가·기존장비 인수금액 */
+/** MAMMO·C-ARM·MCT·BMD 공통: 모델 체크 → 제안가·기존장비 인수금액 */
 function ModelPriceSection({
   models,
   rows,
@@ -152,7 +152,7 @@ export default function CategoryPanels({
   return (
     <div className="space-y-3">
       {/* ---------- X-RAY ---------- */}
-      <Panel title="X-RAY SYSTEM" count={items.xray.length + (items.pacs ? 1 : 0)}>
+      <Panel title="X-RAY SYSTEM" count={items.xray.length + items.xray_mobile.length + (items.pacs ? 1 : 0)}>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           {catalog.xray.map((m) => (
             <Check
@@ -255,6 +255,14 @@ export default function CategoryPanels({
             </div>
           </LineBox>
         ))}
+        <SubHead title="이동형 (모바일 DR)" note="옵션 없음 · 한 대에 소개 3장" />
+        <ModelPriceSection
+          models={catalog.xray_mobile.map((m) => ({ model: m.model, sub: `DRGEM · ${m.sub}` }))}
+          rows={items.xray_mobile}
+          onRows={(rows) => setItems((it) => ({ ...it, xray_mobile: rows }))}
+          showErrors={showErrors}
+          defaultPrice={(m) => dp(`xray_mobile:${m}`)}
+        />
         <Check
           label="PACS 소개 페이지 넣기"
           sub="TECHHEIM VIEWREX 3 · 12 Copy"
@@ -307,6 +315,17 @@ export default function CategoryPanels({
             />
           </Field>
         )}
+      </Panel>
+
+      {/* ---------- MCT (모바일 CT) ---------- */}
+      <Panel title="MCT" count={items.mct.length}>
+        <ModelPriceSection
+          models={catalog.mct.map((m) => ({ model: m.model, sub: `VATECH · ${m.sub}` }))}
+          rows={items.mct}
+          onRows={(rows) => setItems((it) => ({ ...it, mct: rows }))}
+          showErrors={showErrors}
+          defaultPrice={(m) => dp(`mct:${m}`)}
+        />
       </Panel>
 
       {/* ---------- MAMMOGRAPHY ---------- */}

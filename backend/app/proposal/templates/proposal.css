@@ -282,3 +282,98 @@
 .dA .rxt th{background:var(--ink)}.dA .rxt .tv{background:var(--ink)}.dA .rxt .amt{color:var(--ink)}
 .dC .rxt th{background:var(--g1)}.dC .rxt .tv{background:var(--g1)}.dC .rxt .amt{color:var(--g1)}
 .dC .rxt tbody tr:nth-child(even) td{background:var(--mist)}
+
+/* ===== 이동형 X-ray(RAYMO) 3장 — A ===== */
+.dA .md1{display:grid;grid-template-columns:548px 1fr;gap:36px;height:100%}
+.dA .md-l{display:flex;flex-direction:column;min-height:0}
+.dA .md-tag{margin-top:10px;font-size:19px;font-weight:600;color:var(--ink);letter-spacing:-.01em}
+.dA .md-lead{margin-top:10px;font-size:15.5px;line-height:1.8}
+.dA .md-hi{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:18px}
+.dA .md-hi>div{background:var(--pale);border-radius:4px;padding:15px 22px}
+.dA .md-hi b{display:block;font-size:42px;font-weight:700;color:var(--ink);line-height:1;letter-spacing:-.02em}
+.dA .md-hi b small{font-size:15px;font-weight:600;color:var(--blue);margin-left:4px;letter-spacing:0}
+.dA .md-hi span{display:block;margin-top:8px;font-size:13.5px;color:var(--mu)}
+.dA .md-sec{margin-top:18px;font-size:12px;letter-spacing:.16em;color:var(--blue);font-weight:600}
+.dA .md-cp{display:grid;grid-template-columns:1fr 1fr;gap:6px 18px;margin-top:10px}
+.dA .md-cp li{font-size:15px;line-height:1.75}
+.dA .md-h{display:flex;align-items:flex-end;justify-content:space-between;gap:20px}
+.dA .md-h .meta{font-size:13px;color:var(--mu);letter-spacing:.04em}
+.dA .md-band{margin-top:18px;background:var(--ink);color:#fff;border-radius:4px;padding:24px 28px;display:grid;grid-template-columns:96px repeat(4,1fr);gap:18px;align-items:center}
+.dA .md-band>b{font-size:12px;letter-spacing:.2em;color:#8FB8E8}
+.dA .md-band h5{margin:0 0 4px;font-size:15px}
+.dA .md-band span{font-size:12.5px;color:#C9DAEE;line-height:1.5}
+.dA .md3{display:grid;grid-template-columns:1fr 450px;gap:36px;margin-top:16px}
+.dA .md3 .md-sec:first-child{margin-top:0}
+.dA .md-rfid p{margin-top:8px;font-size:14.5px;line-height:1.7}
+.dA .md-rfid h5{margin:0 0 4px;font-size:14px;color:var(--ink)}
+.dA .md3 .kv{margin-top:8px}
+.dA .md3 .kv .r{padding:8px 0}
+.dA .md3 .price{margin-top:14px}
+
+/* ===== 이동형 X-ray(RAYMO) 3장 — C ===== */
+.dC .md1{display:grid;grid-template-columns:560px 1fr;gap:34px;margin-top:20px;height:626px}
+.dC .md-l{display:flex;flex-direction:column;min-height:0}
+.dC .md-tag{margin-top:12px;font-size:19px;font-weight:700;color:var(--g1);letter-spacing:-.01em}
+.dC .md-lead{margin-top:10px;font-size:15.5px;line-height:1.8}
+.dC .md-hi{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px}
+.dC .md-hi>div{background:var(--mist);border-left:4px solid var(--g2);padding:18px 20px}
+.dC .md-hi b{display:block;font-size:42px;font-weight:800;color:var(--g1);line-height:1;letter-spacing:-.03em}
+.dC .md-hi b small{font-size:15px;font-weight:700;color:var(--g2);margin-left:4px;letter-spacing:0}
+.dC .md-hi span{display:block;margin-top:8px;font-size:13.5px;color:var(--mu)}
+.dC .md-sec{margin-top:16px;font-size:13px;color:var(--g1);font-weight:800;letter-spacing:.12em}
+.dC .md-cp{display:grid;grid-template-columns:1fr 1fr;gap:6px 18px;margin-top:10px}
+.dC .md-cp li{font-size:15px;line-height:1.75}
+.dC .md-h{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;margin-top:14px}
+.dC .md-h .meta{font-size:13px;color:var(--mu)}
+.dC .md-band{margin-top:18px;background:var(--g1);color:#fff;padding:24px 28px;display:grid;grid-template-columns:96px repeat(4,1fr);gap:18px;align-items:center;clip-path:polygon(0 0,100% 0,98.5% 100%,0 100%)}
+.dC .md-band>b{font-size:12px;letter-spacing:.2em;color:var(--mint2)}
+.dC .md-band h5{margin:0 0 4px;font-size:15px}
+.dC .md-band span{font-size:12.5px;color:var(--mint2);line-height:1.5}
+.dC .md3{display:grid;grid-template-columns:1fr 460px;gap:34px;margin-top:16px}
+.dC .md3 .md-sec:first-child{margin-top:0}
+.dC .md-rfid p{margin-top:8px;font-size:14.5px;line-height:1.7}
+.dC .md-rfid h5{margin:0 0 4px;font-size:14px;color:var(--g1)}
+.dC .md3 .kv{margin-top:0}
+.dC .md3 .kv .k,.dC .md3 .kv .v{padding-top:11px;padding-bottom:11px}
+.dC .md3 .kv .r.price .v{padding-top:8px;padding-bottom:8px}
+
+/* RAYMO 사진 배치 (사용자가 받은 디알젬 사진·영상 장면) */
+.md-l > .svc{margin-top:auto}
+.md-hero{position:relative;border-radius:6px;overflow:hidden;min-width:0}
+.md-hero img{display:block;width:100%;height:100%;object-fit:cover}
+.md-hero .cap{position:absolute;left:16px;bottom:14px;font-size:12px;letter-spacing:.14em;font-weight:700;color:#fff;background:rgba(0,0,0,.35);padding:4px 10px;border-radius:3px}
+.md2{display:grid;grid-template-columns:300px 1fr;gap:14px;margin-top:20px;height:436px}
+.md-photos{display:grid;grid-template-rows:1fr 1fr;gap:14px;min-height:0}
+.md-photos figure,.md-pers figure,.md-panel{margin:0;position:relative;overflow:hidden;min-height:0}
+.md-photos img,.md-pers figure img{display:block;width:100%;height:100%;object-fit:cover}
+.md-photos figcaption,.md-pers figcaption{position:absolute;left:0;right:0;bottom:0;padding:16px 12px 8px;font-size:12.5px;font-weight:600;color:#fff;background:linear-gradient(transparent,rgba(0,0,0,.55))}
+.md-cards{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:repeat(3,1fr);gap:10px}
+.md-card{padding:13px 18px 12px}
+.md-card .no{font-size:12px;letter-spacing:.08em}
+.md-card h4{margin:2px 0 4px;font-size:17px}
+.md-card p{font-size:13.5px;line-height:1.6}
+.md-pers{display:grid;grid-template-columns:210px 1fr;gap:12px;margin-top:12px}
+.md-pers ul{display:grid;gap:8px}
+.md-pers li{padding:9px 13px}
+.md-pers h5{margin:0 0 2px;font-size:14px}
+.md-pers figure img{position:absolute;inset:0}
+.md-pers li span{font-size:12.5px;line-height:1.5}
+.md-panel{margin-top:16px}
+.md-panel img{display:block;width:100%;height:auto}
+.md-panel figcaption{margin-top:6px;font-size:12px;line-height:1.5}
+.dA .md-hero{background:var(--pale)}
+.dA .md-card{background:var(--pale);border-top:3px solid var(--ink);border-radius:0 0 4px 4px}
+.dA .md-card .no{font-weight:700;color:var(--blue)}
+.dA .md-card h4{color:var(--ink)}
+.dA .md-photos figure,.dA .md-pers figure{border-radius:4px}
+.dA .md-pers li{background:var(--pale);border-radius:4px}
+.dA .md-panel figcaption{color:var(--mu)}
+.dA .md-panel img{border:1px solid var(--ln);border-radius:4px}
+.dC .md1 .md-hero{border-radius:0}
+.dC .md-hero .cap{background:var(--g1);border-radius:0;color:var(--mint2)}
+.dC .md-card{background:var(--mist);border-top:3px solid var(--g1)}
+.dC .md-card .no{font-weight:800;color:var(--g2)}
+.dC .md-card h4{font-weight:800;color:var(--g1)}
+.dC .md-pers li{background:var(--mist);border-left:4px solid var(--g2)}
+.dC .md-panel figcaption{color:var(--mu)}
+.dC .md-panel img{border:1px solid var(--ln)}

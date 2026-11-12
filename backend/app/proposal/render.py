@@ -89,7 +89,7 @@ def _toc(pages: list[dict]) -> list[tuple[str, str]]:
     out: dict[str, list[str]] = {}
     for p in pages:
         cat = p.get("group") or p.get("cat")
-        if p["kind"] == "eq":
+        if p["kind"] == "eq" or (p["kind"] == "mdr" and p["part"] == 1):
             out.setdefault(cat, []).append(p["model"])
         elif p["kind"] == "us":
             out.setdefault(cat, []).extend(p["toc"])

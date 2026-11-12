@@ -179,9 +179,11 @@ def _author_name(u: Optional[User]) -> str:
 
 def _summary(items: dict) -> str:
     parts = []
-    for key, label in (("xray", "X-RAY"), ("carm", "C-ARM"), ("mammo", "MAMMO"), ("bmd", "BMD")):
+    for key, label in (("xray", "X-RAY"), ("carm", "C-ARM"), ("mct", "MCT"), ("mammo", "MAMMO"), ("bmd", "BMD")):
         if items.get(key):
             parts.append(f"{label} {len(items[key])}")
+    if items.get("xray_mobile"):
+        parts.insert(1 if items.get("xray") else 0, f"이동형 X-RAY {len(items['xray_mobile'])}")
     if items.get("ultrasound"):
         parts.append(f"초음파 {sum(len(b['models']) for b in items['ultrasound'])}")
     for key, label in (("lipus", "LIPUS"), ("eswt", "ESWT"), ("emg", "근전도")):

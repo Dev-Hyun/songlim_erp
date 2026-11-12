@@ -1,6 +1,6 @@
 """고른 장비(items) → PDF 페이지 목록. 순수 함수라 DB·템플릿 없이 테스트한다.
 
-페이지 순서: 표지 → 회사 소개 → X-RAY(모델들 → PACS) → C-ARM(모델들 → 전동테이블 → 저감장치) → MAMMOGRAPHY
+페이지 순서: 표지 → 회사 소개 → X-RAY(모델들 → 이동형(RAYMO, 한 대에 3장) → PACS) → C-ARM(모델들 → 전동테이블 → 저감장치) → MCT → MAMMOGRAPHY
 → BMD → ULTRASOUND(브랜드당 1장) → 기타장비(LIPUS → ESWT(한 장에 4대까지) → 근전도) → 치료장비(8줄씩)
 → 함께 하는 이유 → 마지막 장.
 카테고리 안의 순서는 카탈로그 순서를 따른다(입력 순서와 무관하게 늘 같은 제안서 모양).
@@ -46,6 +46,12 @@ def build_pages(items: ProposalItems) -> list[dict]:
                         for o in sorted(x.options, key=lambda o: list(catalog.XRAY_OPTIONS).index(o.key))],
             "img": spec["img"],
         })
+    # 이동형 X-ray: 설명이 많아 한 대에 3장(part 1 소개 / 2 조작 편의 / 3 개인 맞춤·사양·가격). 옵션 없음.
+    for r in _ordered(items.xray_mobile, catalog.XRAY_MOBILE_MODELS):
+        spec = catalog.XRAY_MOBILE_MODELS[r.model]
+        for part in (1, 2, 3):
+            pages.append({"kind": "mdr", "part": part, "cat": "X-RAY SYSTEM", "brand": "DRGEM", "model": r.model,
+                          "price": r.price, "tradein": r.tradein, "warranty": "3 YEAR", **spec})
     if items.pacs:
         pages.append({"kind": "pacs", "cat": "X-RAY SYSTEM", "label": "PACS", **catalog.PACS, "price": items.pacs.price})
 
@@ -59,6 +65,11 @@ def build_pages(items: ProposalItems) -> list[dict]:
         pages.append({"cat": "C-ARM", "label": f"전동테이블 · {t['brand']}", **t})
     if items.carm_reducer:
         pages.append({"kind": "seld", "cat": "C-ARM", "label": "저감장치", **catalog.SELD, "price": items.carm_reducer.price})
+
+    for r in _ordered(items.mct, catalog.MCT_MODELS):
+        spec = catalog.MCT_MODELS[r.model]
+        pages.append({"kind": "eq", "cat": "MCT", "brand": "VATECH", "model": r.model, "price": r.price,
+                      "tradein": r.tradein, "warranty": "3년", "options": [], **spec})
 
     for r in _ordered(items.mammo, catalog.MAMMO_MODELS):
         spec = catalog.MAMMO_MODELS[r.model]

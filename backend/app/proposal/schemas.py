@@ -55,11 +55,13 @@ class TherapyLine(BaseModel):
 
 class ProposalItems(BaseModel):
     xray: list[XrayItem] = []
+    xray_mobile: list[ModelPrice] = []  # 이동형 X-ray(모바일 DR) — 옵션 없음
     pacs: Optional[PriceOnly] = None
     mammo: list[ModelPrice] = []
     carm: list[ModelPrice] = []
     carm_table: Optional[Literal["HCK", "01M"]] = None
     carm_reducer: Optional[PriceOnly] = None
+    mct: list[ModelPrice] = []  # 모바일 CT (VATECH)
     bmd: list[ModelPrice] = []
     ultrasound: list[UsBrand] = []
     # 기타장비: LIPUS(골융합치료기) · ESWT(체외충격파, 한 장에 4대까지 — 기존장비 인수금액 없음) · 근전도
@@ -111,8 +113,10 @@ def validate_items(items: ProposalItems) -> list[str]:
         for o in x.options:
             if o.key not in catalog.XRAY_OPTIONS:
                 errors.append(f"{x.model}: 옵션 없음: {o.key}")
-    for label, rows, table in (("MAMMOGRAPHY", items.mammo, catalog.MAMMO_MODELS),
+    for label, rows, table in (("X-RAY 이동형", items.xray_mobile, catalog.XRAY_MOBILE_MODELS),
+                               ("MAMMOGRAPHY", items.mammo, catalog.MAMMO_MODELS),
                                ("C-ARM", items.carm, catalog.CARM_MODELS),
+                               ("MCT", items.mct, catalog.MCT_MODELS),
                                ("BMD", items.bmd, catalog.BMD_MODELS),
                                ("LIPUS", items.lipus, catalog.LIPUS_MODELS),
                                ("ESWT", items.eswt, catalog.ESWT_MODELS),
@@ -144,7 +148,7 @@ def price_memory(items: ProposalItems) -> dict[str, tuple[int, int | None]]:
             out[f"xray_opt:{o.key}"] = (o.price, None)
     if items.pacs:
         out["pacs"] = (items.pacs.price, None)
-    for prefix, rows in (("mammo", items.mammo), ("carm", items.carm), ("bmd", items.bmd),
+    for prefix, rows in (("xray_mobile", items.xray_mobile), ("mammo", items.mammo), ("carm", items.carm), ("mct", items.mct), ("bmd", items.bmd),
                          ("lipus", items.lipus), ("eswt", items.eswt), ("emg", items.emg)):
         for r in rows:
             out[f"{prefix}:{r.model}"] = (r.price, None)

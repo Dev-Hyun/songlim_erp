@@ -28,11 +28,15 @@ export interface TherapyLine {
 
 export interface ProposalItems {
   xray: XrayLine[];
+  /** 이동형 X-ray(모바일 DR) — 옵션 없음 */
+  xray_mobile: ModelPrice[];
   pacs: { price: number } | null;
   mammo: ModelPrice[];
   carm: ModelPrice[];
   carm_table: "HCK" | "01M" | null;
   carm_reducer: { price: number } | null;
+  /** MCT(모바일 CT) */
+  mct: ModelPrice[];
   bmd: ModelPrice[];
   ultrasound: UsBrandLine[];
   /** 기타장비: LIPUS · ESWT(한 장에 4대까지) · 근전도 */
@@ -83,9 +87,11 @@ export interface Catalog {
   xray_detector_types: string[];
   xray_table_types: string[];
   xray_options: { key: string; label: string }[];
+  xray_mobile: { model: string; sub: string }[];
   mammo: { model: string; brand: string; sub: string }[];
   carm: { model: string; sub: string }[];
   carm_tables: { key: "HCK" | "01M"; label: string }[];
+  mct: { model: string; sub: string }[];
   bmd: { model: string; sub: string }[];
   ultrasound: { brand: string; models: string[] }[];
   lipus: { model: string; brand: string; sub: string }[];
@@ -98,11 +104,13 @@ export interface Catalog {
 
 export const EMPTY_ITEMS: ProposalItems = {
   xray: [],
+  xray_mobile: [],
   pacs: null,
   mammo: [],
   carm: [],
   carm_table: null,
   carm_reducer: null,
+  mct: [],
   bmd: [],
   ultrasound: [],
   lipus: [],

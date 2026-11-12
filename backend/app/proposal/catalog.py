@@ -50,6 +50,47 @@ def xray_include(model: str, detector_count: int, detector_type: str | None, tab
     ]
 
 
+# 이동형 X-ray(모바일 DR) — 옵션 없이 금액만. 한 대에 3장(소개 → 조작 편의 → 개인 맞춤·사양·가격).
+# 출처: 디알젬 제품 페이지 https://www.drgemhealthcare.com/ko/raymo/ (기능 설명),
+#       미국 FDA 510(k) K260085 요약서(제너레이터·회전 범위·콜리메이터·디스플레이·소프트웨어 사양),
+#       Smart Control(RADMAX M 태블릿)은 국내 미출시라 넣지 않는다(사용자 요청 2026-11-12).
+#       healthcare-in-europe 제품 목록(기능 목록: 소프트웨어 그리드, 듀얼 디텍터 등).
+XRAY_MOBILE_MODELS: dict[str, dict] = {
+    "RAYMO": {
+        # 사진: 사용자가 디알젬 제품 페이지에서 받은 사진·영상(제안서/이미지/RAYMO) — 영상은 한 장면만 잘라 씀
+        "sub": "모바일 DR 시스템", "hero": "img/raymo_main.jpg",
+        "photos": [("img/raymo_haptic.jpg", "SID 햅틱 피드백"), ("img/raymo_camera.jpg", "주행용 내장 카메라")],
+        "monitor": ("img/raymo_monitor.jpg", "자동 틸팅 모니터 · 주행 카메라 화면"),
+        "panel": ("img/raymo_panel.jpg", "조작부 — ① 전원 ② 비상정지 ③ 디텍터 잠금 ④⑤ 유·무선 조사 스위치 ⑥ 배터리 표시 ⑦ 바코드 스캐너 ⑧ RFID"),
+        "tagline": "컴팩트하고 지능적인, 모든 기능을 갖춘 모바일 엑스레이",
+        "lead": "디알젬의 차세대 모바일 X-ray. 더 작고 가벼운 차체에 사용자 맞춤 기능과 임상 편의 기능을 담아 "
+                "병동·응급실·중환자실 어디서나 빠르고 안전한 침상 촬영을 돕습니다.",
+        "highlights": [("40", "kW", "고주파 제너레이터 · 최대 500mA"), ("20", "%", "기존 모바일 대비 더 작게"),
+                       ("10.1", "inch", "틸팅 터치스크린"), ("30", "%", "소프트웨어 그리드 선량 저감 (최대)")],
+        "compact": ["기존 모바일 대비 부피 약 **20% 감소**", "**낮은 차체**로 이동 중 전방 시야 확보",
+                    "**전동 주행**으로 부드럽고 안정적인 이동", "**접이식 컬럼** · 연장된 암 스트로크"],
+        "controls": [
+            ("SID 햅틱 피드백", "설정한 SID에 닿으면 손잡이 진동으로 알려 화면을 보지 않고도 **정확한 거리**를 맞춥니다."),
+            ("주차 잠금 해제 보조", "주차 위치에서 튜브를 풀면 암이 **자동으로 들어 올려져** 무게 부담 없이 시작합니다."),
+            ("간편한 Tube 회전", "콜리메이터 손잡이 옆 버튼을 **누르는 동안만** 자유롭게 돌고, 놓으면 바로 고정됩니다."),
+            ("주행용 내장 카메라", "**주·야간 전방 카메라** 화면을 모니터로 보며 좁은 병동도 안전하게 이동합니다."),
+            ("Tube 틸팅 터치스크린", "**10.1인치** 터치스크린을 기울여 침상 촬영 중에도 어느 각도에서나 잘 보입니다."),
+            ("도난 방지 디텍터 트레이", "**잠금 트레이**가 평판 디텍터를 고정해 분실·낙하를 막습니다.")],
+        "imaging": [("자동 콜리메이터", "LED 램프 · 빠른 촬영 준비"), ("RADMAX", "그래픽 APR · 포지셔닝 가이드"),
+                    ("소프트웨어 그리드", "그리드 없이 선량 최대 30% 저감"), ("듀얼 디텍터", "성인 · 소아 디텍터 함께 운용")],
+        "rfid": "사원증 태그 한 번으로 **사용자를 인식**해, 사람마다 저장해 둔 설정을 장비가 알아서 맞춥니다.",
+        "personal": [("자동 틸팅 모니터", "사용자별로 저장한 각도로 모니터가 기울어집니다."),
+                     ("자동 핸들바 위치", "손잡이 높이와 각도를 사용자에게 맞춥니다."),
+                     ("자동 주행 감도", "운전 습관에 맞춰 주행 반응을 조절합니다.")],
+        "spec": [("제너레이터", "고주파 40 kW · 최대 500 mA"), ("관전압 / mAs", "40 ~ 125 kV (옵션 150 kV) · 0.1 ~ 500 mAs"),
+                 ("X-ray Tube", "초점 0.6 / 1.5 mm · 타깃 각도 14°"),
+                 ("회전 범위", "컬럼 ±330° · 암 ±180° · 튜브 -30° ~ +90°"),
+                 ("콜리메이터", "자동 콜리메이터 · LED 램프"), ("디스플레이", "10.1인치 틸팅 터치스크린"),
+                 ("디텍터", "무선 평판 디텍터 · 듀얼 디텍터 지원"), ("소프트웨어", "RADMAX 영상 소프트웨어"),
+                 ("구동 / 인증", "전동 주행 · 접이식 컬럼 / FDA 510(k) · CE")],
+    },
+}
+
 PACS = {
     "brand": "TECHHEIM", "model": "VIEWREX 3", "warranty": "3년", "desc": "**12 Copy**",
     "lead": [
@@ -142,6 +183,19 @@ SELD = {
               "진료 영상 화질 손실 없이 필터링", "C-arm 모델별 튜브 맞춤 정밀 가공"],
     "img": "img/seld_main.jpg",
     "tiles": [["img/seld_mount.jpg", "C-arm 튜브에 밀착 장착"], ["img/seld_graph.jpg", "장착 전·후 선량 비교 (제조사 측정)"]],
+}
+
+# MCT(모바일 CT) — VATECH. C-ARM 다음 순서.
+# 출처: SMART M — 바텍엠시스 제품 사진(vatechmcis.com), 사양은 송림메디칼 홈페이지 제품 페이지(바텍 자료).
+#       SMART M PLUS — 바텍 보도자료(vatechnetworks.com, 2026-05 국내 판매 개시)와 제품 사진.
+MCT_MODELS: dict[str, dict] = {
+    "SMART M": {"sub": "부위한정용 소형 CT", "img": "img/mct_smartm.png",
+        "size": "W1239 × L2379 × H1572 mm · 599.5 kg (베드 포함) · Bore 580 mm", "desc": [
+        "**부위한정용 소형 CT**, 특수의료장비 미해당", "척추 · 어깨 · 사지 · 폐 촬영, Voxel 최대 0.2mm",
+        "의료용 CT 대비 **1/10 저선량**, 금속 아티팩트 감소", "설치 공간 **3 × 2m**, 220V 일반 전원"]},
+    "SMART M PLUS": {"sub": "근골격계 특화 CT", "img": "img/mct_smartm_plus.png", "desc": [
+        "**근골격계 특화** CT (2026 출시)", "MDCT 대비 약 **1/5 저선량**, 검사 시간 단축",
+        "**큰 Bore**로 환자 체형 · 포지셔닝 제약 감소", "사지말단 · 두부 · 어깨 · 고관절 급여 촬영 · 척추"]},
 }
 
 BMD_MODELS: dict[str, dict] = {
@@ -238,7 +292,7 @@ EMG_MODELS: dict[str, dict] = {
 
 # 처음 고를 때 들어가는 기본 금액 — 기존 제안서(2026-06~09)의 마지막 금액.
 # 제안서를 저장하면 그때 금액이 proposal_last_prices에 남아 다음부터 그 값이 기본값이 된다(누가 만들든 마지막 값).
-# 키: xray:모델 / xray_opt:옵션키 / pacs / mammo:모델 / carm:모델 / carm_reducer / bmd:모델 / us:브랜드:모델
+# 키: xray:모델 / xray_opt:옵션키 / xray_mobile:모델 / pacs / mammo:모델 / carm:모델 / carm_reducer / mct:모델 / bmd:모델 / us:브랜드:모델
 #     / lipus:모델 / eswt:모델 / emg:모델
 DEFAULT_PRICES: dict[str, int] = {
     "xray:GXR-E40S Plus": 28_180_000,
@@ -323,8 +377,10 @@ def catalog_for_client() -> dict:
         "xray_table_types": XRAY_TABLE_TYPES,
         "xray_options": [{"key": k, "label": v} for k, v in XRAY_OPTIONS.items()],
         "mammo": [{"model": m, "brand": v["brand"], "sub": v["sub"]} for m, v in MAMMO_MODELS.items()],
+        "xray_mobile": [{"model": m, "sub": v["sub"]} for m, v in XRAY_MOBILE_MODELS.items()],
         "carm": [{"model": m, "sub": v["sub"]} for m, v in CARM_MODELS.items()],
         "carm_tables": [{"key": k, "label": f"{v['brand']} {v['model']}"} for k, v in CARM_TABLES.items()],
+        "mct": [{"model": m, "sub": v["sub"]} for m, v in MCT_MODELS.items()],
         "bmd": [{"model": m, "sub": v["sub"]} for m, v in BMD_MODELS.items()],
         "ultrasound": [{"brand": b, "models": list(v["models"].keys())} for b, v in US_BRANDS.items()],
         "lipus": [{"model": m, "brand": v["brand"], "sub": v["sub"]} for m, v in LIPUS_MODELS.items()],

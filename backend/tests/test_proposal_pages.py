@@ -206,3 +206,49 @@ def test_recipient_written_as_is_with_particle():
         html = render_html({**META, "doctor_name": "이영희 실장님", "design": d}, build_pages(_items()),
                            asset_base="S/", upload_base="U/")
         assert "이영희 실장님" in html and "원장님" not in html
+
+
+def test_mct_pages_after_carm_before_mammo_in_catalog_order():
+    from app.proposal import catalog
+    from app.proposal.render import STATIC_DIR
+
+    pages = build_pages(_items(carm=[{"model": "ZEN-2090 TURBO", "price": 1}],
+                               mct=[{"model": "SMART M PLUS", "price": 3}, {"model": "SMART M", "price": 2}],
+                               mammo=[{"model": "AIDIA LUXE", "price": 4}]))
+    assert [(p.get("cat"), p.get("model")) for p in pages[2:5]] == [
+        ("C-ARM", "ZEN-2090 TURBO"), ("MCT", "SMART M"), ("MCT", "SMART M PLUS")]
+    assert pages[5]["cat"] == "MAMMOGRAPHY"
+    mct = [p for p in pages if p.get("cat") == "MCT"]
+    assert all(p["kind"] == "eq" and p["brand"] == "VATECH" and len(p["desc"]) == 4 for p in mct)
+    assert all((STATIC_DIR / v["img"]).is_file() for v in catalog.MCT_MODELS.values())
+    assert validate_items(_items(mct=[{"model": "SMART X", "price": 1}])) == ["MCT 모델 없음: SMART X"]
+
+
+def test_raymo_three_pages_after_xray_before_pacs_counted_once_in_toc():
+    from app.proposal.render import _toc
+
+    pages = build_pages(_items(xray=[{"model": "GXR-E40S Plus", "detector_count": 1, "price": 1}],
+                               xray_mobile=[{"model": "RAYMO", "price": 65000000}], pacs={"price": 2}))
+    assert [(p["kind"], p.get("part")) for p in pages[2:7]] == [
+        ("eq", None), ("mdr", 1), ("mdr", 2), ("mdr", 3), ("pacs", None)]
+    assert all(p["brand"] == "DRGEM" and p["price"] == 65000000 and "options" not in p for p in pages[3:6])
+    assert _toc(pages)[0] == ("X-RAY SYSTEM", "GXR-E40S Plus 외 1")
+    assert validate_items(_items(xray_mobile=[{"model": "RAYMO 2", "price": 1}])) == ["X-RAY 이동형 모델 없음: RAYMO 2"]
+    from app.proposal import catalog
+    from app.proposal.render import STATIC_DIR
+    r = catalog.XRAY_MOBILE_MODELS["RAYMO"]
+    imgs = [r["hero"], r["monitor"][0], r["panel"][0]] + [src for src, _ in r["photos"]]
+    assert all((STATIC_DIR / x).is_file() for x in imgs)
+
+
+def test_raymo_and_mct_render_in_both_designs_without_smart_control():
+    from app.proposal.render import STATIC_DIR, render_html
+
+    items = _items(xray_mobile=[{"model": "RAYMO", "price": 65000000}], mct=[{"model": "SMART M", "price": 1}])
+    meta = {"hospital_name": "병원", "doctor_name": "홍길동 원장님", "proposal_date": "2026-11-12",
+            "rep_name": "", "rep_title": "", "rep_phone": ""}
+    for d in "AC":
+        html = render_html({**meta, "design": d}, build_pages(items), asset_base=STATIC_DIR.as_uri() + "/", upload_base="")
+        assert html.count('class="md-h"') == 2 and "md1" in html  # 3장: 소개 + 머리글 있는 2장
+        assert "RADMAX M" not in html and "SMART CONTROL" not in html  # 국내 미출시
+        assert "SMART M" in html and "65,000,000" in html
