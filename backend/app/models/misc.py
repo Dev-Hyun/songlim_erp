@@ -38,6 +38,13 @@ class Bid(Base):
     url: Mapped[Optional[str]] = mapped_column(default=None)
     files_json: Mapped[Optional[str]] = mapped_column(default=None)
     created_at: Mapped[str] = mapped_column()
+    # 의료장비 분류 — 제목 + 구매대상물품(물품분류 42=의료장비)으로 나눈다. 여러 개면 쉼표로("X-ray,초음파")
+    category: Mapped[Optional[str]] = mapped_column(default=None)
+    items: Mapped[Optional[str]] = mapped_column(default=None)  # 구매대상물품 이름(검색·목록 표시용)
+    notice_date: Mapped[Optional[str]] = mapped_column(default=None)  # 공고일시 'YYYY-MM-DD HH:MM'
+    budget_amount: Mapped[Optional[int]] = mapped_column(default=None)  # 추정가격(없으면 배정예산), 원 — 정렬용
+    notice_kind: Mapped[Optional[str]] = mapped_column(default=None)  # 등록공고 | 재공고 | 변경공고 | 취소공고
+    detail_json: Mapped[Optional[str]] = mapped_column(default=None)  # 상세 화면용 {info: [[이름, 값]], products: [...]}
 
 
 class NewsArticle(Base):
