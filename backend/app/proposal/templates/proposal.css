@@ -289,8 +289,8 @@
 .dA .md-tag{margin-top:10px;font-size:19px;font-weight:600;color:var(--ink);letter-spacing:-.01em}
 .dA .md-lead{margin-top:10px;font-size:15.5px;line-height:1.8}
 .dA .md-hi{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:18px}
-.dA .md-hi>div{background:var(--pale);border-radius:4px;padding:15px 22px}
-.dA .md-hi b{display:block;font-size:42px;font-weight:700;color:var(--ink);line-height:1;letter-spacing:-.02em}
+.dA .md-hi>div{background:var(--pale);border-radius:4px;padding:11px 20px}
+.dA .md-hi b{display:block;font-size:38px;font-weight:700;color:var(--ink);line-height:1;letter-spacing:-.02em}
 .dA .md-hi b small{font-size:15px;font-weight:600;color:var(--blue);margin-left:4px;letter-spacing:0}
 .dA .md-hi span{display:block;margin-top:8px;font-size:13.5px;color:var(--mu)}
 .dA .md-sec{margin-top:18px;font-size:12px;letter-spacing:.16em;color:var(--blue);font-weight:600}
@@ -316,8 +316,8 @@
 .dC .md-tag{margin-top:12px;font-size:19px;font-weight:700;color:var(--g1);letter-spacing:-.01em}
 .dC .md-lead{margin-top:10px;font-size:15.5px;line-height:1.8}
 .dC .md-hi{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px}
-.dC .md-hi>div{background:var(--mist);border-left:4px solid var(--g2);padding:18px 20px}
-.dC .md-hi b{display:block;font-size:42px;font-weight:800;color:var(--g1);line-height:1;letter-spacing:-.03em}
+.dC .md-hi>div{background:var(--mist);border-left:4px solid var(--g2);padding:12px 18px}
+.dC .md-hi b{display:block;font-size:38px;font-weight:800;color:var(--g1);line-height:1;letter-spacing:-.03em}
 .dC .md-hi b small{font-size:15px;font-weight:700;color:var(--g2);margin-left:4px;letter-spacing:0}
 .dC .md-hi span{display:block;margin-top:8px;font-size:13.5px;color:var(--mu)}
 .dC .md-sec{margin-top:16px;font-size:13px;color:var(--g1);font-weight:800;letter-spacing:.12em}
@@ -340,6 +340,10 @@
 /* RAYMO 사진 배치 (사용자가 받은 디알젬 사진·영상 장면) */
 .md-l > .svc{margin-top:auto}
 .md-hero{position:relative;border-radius:6px;overflow:hidden;min-width:0}
+/* 1장 오른쪽을 제품 누끼로(hero_stage) — 다른 장비 페이지와 같은 무대·같은 면적 */
+.md1 > .md-r{display:flex;min-width:0}
+.md1 > .md-r > .stage{flex:1}
+.dC .md1 > .stage{height:100%}
 .md-hero img{display:block;width:100%;height:100%;object-fit:cover}
 .md-hero .cap{position:absolute;left:16px;bottom:14px;font-size:12px;letter-spacing:.14em;font-weight:700;color:#fff;background:rgba(0,0,0,.35);padding:4px 10px;border-radius:3px}
 .md2{display:grid;grid-template-columns:300px 1fr;gap:14px;margin-top:20px;height:436px}
@@ -358,9 +362,9 @@
 .md-pers h5{margin:0 0 2px;font-size:14px}
 .md-pers figure img{position:absolute;inset:0}
 .md-pers li span{font-size:12.5px;line-height:1.5}
-.md-panel{margin-top:16px}
-.md-panel img{display:block;width:100%;height:auto}
-.md-panel figcaption{margin-top:6px;font-size:12px;line-height:1.5}
+.md-panel{margin-top:10px}
+.md-panel img{display:block;width:auto;max-width:100%;max-height:150px;height:auto}
+.md-panel figcaption{margin-top:4px;font-size:12px;line-height:1.5}
 .dA .md-hero{background:var(--pale)}
 .dA .md-card{background:var(--pale);border-top:3px solid var(--ink);border-radius:0 0 4px 4px}
 .dA .md-card .no{font-weight:700;color:var(--blue)}

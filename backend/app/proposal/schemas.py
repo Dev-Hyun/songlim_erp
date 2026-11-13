@@ -28,9 +28,24 @@ class ModelPrice(BaseModel):
     model: str
     price: int = Price
     tradein: Optional[int] = Field(None, ge=0)
+    warranty: Optional[str] = Field(None, max_length=40)  # 직접 입력한 보증(지금은 C-ARM DRTECH만) — 없으면 카탈로그 값
+
+
+class MobileDetector(BaseModel):
+    size: str = ""   # 성인용 | 소아용
+    type: str = ""   # LUMEN | H&abyz | Mano
+
+
+class MobileLine(ModelPrice):
+    detectors: list[MobileDetector] = Field([], max_length=6)  # 한 대에 여러 장
 
 
 class PriceOnly(BaseModel):
+    price: int = Price
+
+
+class PacsPick(BaseModel):
+    model: str = "VIEWREX 3"  # 예전 제안서는 model 없이 {price}만 — ViewRex3였다
     price: int = Price
 
 
@@ -55,8 +70,8 @@ class TherapyLine(BaseModel):
 
 class ProposalItems(BaseModel):
     xray: list[XrayItem] = []
-    xray_mobile: list[ModelPrice] = []  # 이동형 X-ray(모바일 DR) — 옵션 없음
-    pacs: Optional[PriceOnly] = None
+    xray_mobile: list[MobileLine] = []  # 이동형 X-ray(모바일 DR) — 옵션 없음, 디텍터 여러 장
+    pacs: Optional[PacsPick] = None  # PACS 3종 중 하나
     mammo: list[ModelPrice] = []
     carm: list[ModelPrice] = []
     carm_table: Optional[Literal["HCK", "01M"]] = None
@@ -113,6 +128,13 @@ def validate_items(items: ProposalItems) -> list[str]:
         for o in x.options:
             if o.key not in catalog.XRAY_OPTIONS:
                 errors.append(f"{x.model}: 옵션 없음: {o.key}")
+    if items.pacs and items.pacs.model not in catalog.PACS_MODELS:
+        errors.append(f"PACS 모델 없음: {items.pacs.model}")
+    for r in items.xray_mobile:
+        for d in r.detectors:
+            if d.size not in catalog.MOBILE_DETECTOR_SIZES or d.type not in catalog.MOBILE_DETECTOR_TYPES:
+                errors.append(f"{r.model}: 디텍터 크기·종류를 선택하세요")
+                break
     for label, rows, table in (("X-RAY 이동형", items.xray_mobile, catalog.XRAY_MOBILE_MODELS),
                                ("MAMMOGRAPHY", items.mammo, catalog.MAMMO_MODELS),
                                ("C-ARM", items.carm, catalog.CARM_MODELS),
@@ -147,7 +169,7 @@ def price_memory(items: ProposalItems) -> dict[str, tuple[int, int | None]]:
         for o in x.options:
             out[f"xray_opt:{o.key}"] = (o.price, None)
     if items.pacs:
-        out["pacs"] = (items.pacs.price, None)
+        out[f"pacs:{items.pacs.model}"] = (items.pacs.price, None)
     for prefix, rows in (("xray_mobile", items.xray_mobile), ("mammo", items.mammo), ("carm", items.carm), ("mct", items.mct), ("bmd", items.bmd),
                          ("lipus", items.lipus), ("eswt", items.eswt), ("emg", items.emg)):
         for r in rows:

@@ -1,10 +1,12 @@
 """고른 장비(items) → PDF 페이지 목록. 순수 함수라 DB·템플릿 없이 테스트한다.
 
-페이지 순서: 표지 → 회사 소개 → X-RAY(모델들 → 이동형(RAYMO, 한 대에 3장) → PACS) → C-ARM(모델들 → 전동테이블 → 저감장치) → MCT → MAMMOGRAPHY
+페이지 순서: 표지 → 회사 소개 → X-RAY(모델들 → 이동형(RAYMO, 한 대에 3장) → PACS(3종 중 하나)) → C-ARM(GENORAY → DRTECH 모델들 → 전동테이블 → 저감장치) → MCT → MAMMOGRAPHY
 → BMD → ULTRASOUND(브랜드당 1장) → 기타장비(LIPUS → ESWT(한 장에 4대까지) → 근전도) → 치료장비(8줄씩)
 → 함께 하는 이유 → 마지막 장.
 카테고리 안의 순서는 카탈로그 순서를 따른다(입력 순서와 무관하게 늘 같은 제안서 모양).
 """
+from collections import Counter
+
 from . import catalog
 from .schemas import ProposalItems
 
@@ -48,17 +50,22 @@ def build_pages(items: ProposalItems) -> list[dict]:
         })
     # 이동형 X-ray: 설명이 많아 한 대에 3장(part 1 소개 / 2 조작 편의 / 3 개인 맞춤·사양·가격). 옵션 없음.
     for r in _ordered(items.xray_mobile, catalog.XRAY_MOBILE_MODELS):
-        spec = catalog.XRAY_MOBILE_MODELS[r.model]
+        spec = dict(catalog.XRAY_MOBILE_MODELS[r.model])
+        if r.detectors:   # 사양의 '디텍터' 줄을 고른 디텍터로 바꾼다: "성인용 LUMEN ×2 · 소아용 Mano"
+            count = Counter(f"{d.size} {d.type}" for d in r.detectors)
+            text = " · ".join(k + (f" ×{n}" if n > 1 else "") for k, n in count.items())
+            spec["spec"] = [(k, text if k == "디텍터" else v) for k, v in spec["spec"]]
         for part in (1, 2, 3):
             pages.append({"kind": "mdr", "part": part, "cat": "X-RAY SYSTEM", "brand": "DRGEM", "model": r.model,
                           "price": r.price, "tradein": r.tradein, "warranty": "3 YEAR", **spec})
     if items.pacs:
-        pages.append({"kind": "pacs", "cat": "X-RAY SYSTEM", "label": "PACS", **catalog.PACS, "price": items.pacs.price})
+        pages.append({"kind": "pacs", "cat": "X-RAY SYSTEM", "label": "PACS", "model": items.pacs.model,
+                      **catalog.PACS_MODELS[items.pacs.model], "price": items.pacs.price})
 
     for r in _ordered(items.carm, catalog.CARM_MODELS):
         spec = catalog.CARM_MODELS[r.model]
-        pages.append({"kind": "eq", "cat": "C-ARM", "brand": "GENORAY", "model": r.model, "price": r.price,
-                      "tradein": r.tradein, "warranty": catalog.CARM_WARRANTY, "include": catalog.CARM_INCLUDE,
+        pages.append({"kind": "eq", "cat": "C-ARM", "model": r.model, "price": r.price,
+                      "tradein": r.tradein, "warranty": r.warranty or catalog.CARM_WARRANTY[spec["brand"]], "include": catalog.CARM_INCLUDE,
                       "note": catalog.CARM_NOTE, "options": [], **spec})
     if items.carm_table:
         t = catalog.CARM_TABLES[items.carm_table]

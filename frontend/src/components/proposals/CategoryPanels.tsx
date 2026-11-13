@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import MoneyInput from "./MoneyInput";
 import { API } from "./api";
-import type { Catalog, ModelPrice, ProposalItems, XrayLine } from "./types";
+import type { Catalog, MobileLine, ModelPrice, ProposalItems, XrayLine } from "./types";
 
 type SetItems = (fn: (it: ProposalItems) => ProposalItems) => void;
 
@@ -83,21 +83,27 @@ function LineBox({ title, children, onRemove }: { title: string; children: React
 const toggle = <T,>(list: T[], on: boolean, make: () => T, match: (x: T) => boolean): T[] =>
   on ? (list.some(match) ? list : [...list, make()]) : list.filter((x) => !match(x));
 
-/** MAMMO·C-ARM·MCT·BMD 공통: 모델 체크 → 제안가·기존장비 인수금액 */
-function ModelPriceSection({
+/** MAMMO·C-ARM·MCT·BMD·이동형 공통: 모델 체크 → 제안가·기존장비 인수금액 (+ extra: 상자 안 추가 칸) */
+function ModelPriceSection<T extends ModelPrice>({
   models,
   rows,
   onRows,
   showErrors,
   defaultPrice,
+  newRow,
+  extra,
 }: {
   models: { model: string; sub?: string }[];
-  rows: ModelPrice[];
-  onRows: (rows: ModelPrice[]) => void;
+  rows: T[];
+  onRows: (rows: T[]) => void;
   showErrors: boolean;
   defaultPrice: (model: string) => number;
+  newRow?: (model: string, price: number) => T;
+  extra?: (row: T, patch: (p: Partial<T>) => void) => React.ReactNode;
 }) {
-  const patch = (model: string, p: Partial<ModelPrice>) => onRows(rows.map((r) => (r.model === model ? { ...r, ...p } : r)));
+  const patch = (model: string, p: Partial<T>) => onRows(rows.map((r) => (r.model === model ? { ...r, ...p } : r)));
+  const make = (model: string): T =>
+    newRow ? newRow(model, defaultPrice(model)) : ({ model, price: defaultPrice(model), tradein: null } as T);
   return (
     <>
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -107,20 +113,49 @@ function ModelPriceSection({
             label={m.model}
             sub={m.sub}
             checked={rows.some((r) => r.model === m.model)}
-            onChange={(on) => onRows(toggle(rows, on, () => ({ model: m.model, price: defaultPrice(m.model), tradein: null }), (r) => r.model === m.model))}
+            onChange={(on) => onRows(toggle(rows, on, () => make(m.model), (r) => r.model === m.model))}
           />
         ))}
       </div>
       {rows.map((r) => (
         <LineBox key={r.model} title={r.model} onRemove={() => onRows(rows.filter((x) => x.model !== r.model))}>
           <Field label="제안가 (VAT 포함)">
-            <MoneyInput value={r.price} invalid={showErrors && !r.price} onChange={(v) => patch(r.model, { price: v })} />
+            <MoneyInput value={r.price} invalid={showErrors && !r.price} onChange={(v) => patch(r.model, { price: v } as Partial<T>)} />
           </Field>
           <Field label="기존장비 인수금액 (선택)">
-            <MoneyInput value={r.tradein} placeholder="없으면 비움" onChange={(v) => patch(r.model, { tradein: v || null })} />
+            <MoneyInput value={r.tradein} placeholder="없으면 비움" onChange={(v) => patch(r.model, { tradein: v || null } as Partial<T>)} />
           </Field>
+          {extra?.(r, (p) => patch(r.model, p))}
         </LineBox>
       ))}
+    </>
+  );
+}
+
+/** 한 카테고리를 브랜드별 소분류로 나눠 보여 준다(C-ARM: GENORAY · DRTECH, MAMMOGRAPHY: DRTECH · BEMEMS). 행은 한 목록에 그대로 둔다. */
+function BrandGroups<M extends { model: string; brand: string }, T extends ModelPrice>({
+  models,
+  rows,
+  onRows,
+  render,
+}: {
+  models: M[];
+  rows: T[];
+  onRows: (rows: T[]) => void;
+  render: (brand: string, models: M[], rows: T[], onRows: (rows: T[]) => void) => React.ReactNode;
+}) {
+  return (
+    <>
+      {Array.from(new Set(models.map((m) => m.brand))).map((brand) => {
+        const mine = models.filter((m) => m.brand === brand);
+        const isMine = (model: string) => mine.some((m) => m.model === model);
+        return (
+          <div key={brand} className="space-y-2">
+            <SubHead title={brand} />
+            {render(brand, mine, rows.filter((r) => isMine(r.model)), (sub) => onRows([...rows.filter((r) => !isMine(r.model)), ...sub]))}
+          </div>
+        );
+      })}
     </>
   );
 }
@@ -255,35 +290,130 @@ export default function CategoryPanels({
             </div>
           </LineBox>
         ))}
-        <SubHead title="이동형 (모바일 DR)" note="옵션 없음 · 한 대에 소개 3장" />
-        <ModelPriceSection
+        <SubHead title="이동형 (모바일 DR)" note="옵션 없음 · 한 대에 소개 3장 · 디텍터는 여러 장 고를 수 있음" />
+        <ModelPriceSection<MobileLine>
           models={catalog.xray_mobile.map((m) => ({ model: m.model, sub: `DRGEM · ${m.sub}` }))}
           rows={items.xray_mobile}
           onRows={(rows) => setItems((it) => ({ ...it, xray_mobile: rows }))}
           showErrors={showErrors}
           defaultPrice={(m) => dp(`xray_mobile:${m}`)}
+          newRow={(model, price) => ({ model, price, tradein: null, detectors: [{ size: "성인용", type: "" }] })}
+          extra={(r, patch) => {
+            const dets = r.detectors ?? [];
+            const setDet = (i: number, p: Partial<MobileLine["detectors"][number]>) =>
+              patch({ detectors: dets.map((d, j) => (j === i ? { ...d, ...p } : d)) });
+            return (
+              <div className="space-y-2 sm:col-span-2">
+                <span className="fg-muted block text-ui-xs">디텍터 (장마다 크기 · 종류)</span>
+                {dets.map((d, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <span className="fg-muted w-5 shrink-0 text-ui-xs">{i + 1}</span>
+                    <select
+                      className={`field min-w-0 flex-1 ${showErrors && !d.size ? "!border-error-400" : ""}`}
+                      aria-label={`디텍터 ${i + 1} 크기`}
+                      value={d.size}
+                      onChange={(e) => setDet(i, { size: e.target.value })}
+                    >
+                      <option value="">크기 선택</option>
+                      {catalog.mobile_detector_sizes.map((s) => (
+                        <option key={s} value={s}>{s}</option>
+                      ))}
+                    </select>
+                    <select
+                      className={`field min-w-0 flex-1 ${showErrors && !d.type ? "!border-error-400" : ""}`}
+                      aria-label={`디텍터 ${i + 1} 종류`}
+                      value={d.type}
+                      onChange={(e) => setDet(i, { type: e.target.value })}
+                    >
+                      <option value="">종류 선택</option>
+                      {catalog.mobile_detector_types.map((t) => (
+                        <option key={t} value={t}>{t}</option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      className="btn btn-ghost h-8 shrink-0 px-2 text-ui-xs"
+                      onClick={() => patch({ detectors: dets.filter((_, j) => j !== i) })}
+                    >
+                      빼기
+                    </button>
+                  </div>
+                ))}
+                {dets.length < 6 && (
+                  <button
+                    type="button"
+                    className="btn btn-default h-8 px-3 text-ui-xs"
+                    onClick={() => patch({ detectors: [...dets, { size: "성인용", type: "" }] })}
+                  >
+                    + 디텍터 추가
+                  </button>
+                )}
+              </div>
+            );
+          }}
         />
         <Check
           label="PACS 소개 페이지 넣기"
-          sub="TECHHEIM VIEWREX 3 · 12 Copy"
+          sub="ViewRex3 · GEMPACS · UBPACS-Z 중 하나"
           checked={!!items.pacs}
-          onChange={(on) => setItems((it) => ({ ...it, pacs: on ? { price: dp("pacs") } : null }))}
+          onChange={(on) => setItems((it) => ({ ...it, pacs: on ? { model: "VIEWREX 3", price: dp("pacs:VIEWREX 3") } : null }))}
         />
         {items.pacs && (
-          <Field label="PACS 제안가 (VAT 포함)">
-            <MoneyInput value={items.pacs.price} invalid={showErrors && !items.pacs.price} onChange={(v) => setItems((it) => ({ ...it, pacs: { price: v } }))} />
-          </Field>
+          <>
+            <div className="seg">
+              {catalog.pacs.map((m) => (
+                <button
+                  key={m.model}
+                  type="button"
+                  className={`seg-item ${(items.pacs?.model ?? "VIEWREX 3") === m.model ? "seg-item-on" : ""}`}
+                  onClick={() => setItems((it) => ({ ...it, pacs: { model: m.model, price: dp(`pacs:${m.model}`) } }))}
+                >
+                  {m.title}
+                  <span className="fg-muted ml-1 text-ui-xs">{m.brand}</span>
+                </button>
+              ))}
+            </div>
+            <Field label="PACS 제안가 (VAT 포함)">
+              <MoneyInput
+                value={items.pacs.price}
+                invalid={showErrors && !items.pacs.price}
+                onChange={(v) => setItems((it) => ({ ...it, pacs: it.pacs ? { ...it.pacs, price: v } : null }))}
+              />
+            </Field>
+          </>
         )}
       </Panel>
 
       {/* ---------- C-ARM ---------- */}
       <Panel title="C-ARM" count={items.carm.length + (items.carm_table ? 1 : 0) + (items.carm_reducer ? 1 : 0)}>
-        <ModelPriceSection
+        <BrandGroups
           models={catalog.carm}
           rows={items.carm}
           onRows={(rows) => setItems((it) => ({ ...it, carm: rows }))}
-          showErrors={showErrors}
-          defaultPrice={(m) => dp(`carm:${m}`)}
+          render={(brand, models, rows, onRows) => (
+            <ModelPriceSection
+              models={models}
+              rows={rows}
+              onRows={onRows}
+              showErrors={showErrors}
+              defaultPrice={(m) => dp(`carm:${m}`)}
+              extra={
+                brand === "DRTECH"
+                  ? (r, patch) => (
+                      <Field label="보증기간 (비우면 3년)">
+                        <input
+                          className="field w-full"
+                          placeholder="예: 3년"
+                          maxLength={40}
+                          value={r.warranty ?? ""}
+                          onChange={(e) => patch({ warranty: e.target.value || null })}
+                        />
+                      </Field>
+                    )
+                  : undefined
+              }
+            />
+          )}
         />
         <div>
           <span className="fg-muted mb-1 block text-ui-xs">전동테이블 소개 페이지 (가격은 &quot;C-arm 견적에 포함&quot;으로 표시)</span>
@@ -330,12 +460,13 @@ export default function CategoryPanels({
 
       {/* ---------- MAMMOGRAPHY ---------- */}
       <Panel title="MAMMOGRAPHY" count={items.mammo.length}>
-        <ModelPriceSection
-          models={catalog.mammo.map((m) => ({ model: m.model, sub: `${m.brand} · ${m.sub}` }))}
+        <BrandGroups
+          models={catalog.mammo}
           rows={items.mammo}
           onRows={(rows) => setItems((it) => ({ ...it, mammo: rows }))}
-          showErrors={showErrors}
-          defaultPrice={(m) => dp(`mammo:${m}`)}
+          render={(_brand, models, rows, onRows) => (
+            <ModelPriceSection models={models} rows={rows} onRows={onRows} showErrors={showErrors} defaultPrice={(m) => dp(`mammo:${m}`)} />
+          )}
         />
       </Panel>
 

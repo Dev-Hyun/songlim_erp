@@ -13,6 +13,12 @@ export interface ModelPrice {
   model: string;
   price: number;
   tradein?: number | null;
+  /** 직접 입력한 보증(지금은 C-ARM DRTECH만) */
+  warranty?: string | null;
+}
+/** 이동형 X-ray: 디텍터 여러 장, 장마다 크기(성인용·소아용) · 종류(LUMEN · H&abyz · Mano) */
+export interface MobileLine extends ModelPrice {
+  detectors: { size: string; type: string }[];
 }
 export interface UsBrandLine {
   brand: string;
@@ -29,8 +35,9 @@ export interface TherapyLine {
 export interface ProposalItems {
   xray: XrayLine[];
   /** 이동형 X-ray(모바일 DR) — 옵션 없음 */
-  xray_mobile: ModelPrice[];
-  pacs: { price: number } | null;
+  xray_mobile: MobileLine[];
+  /** PACS 소개 페이지 — 3종 중 하나(model 없으면 예전 제안서 = VIEWREX 3) */
+  pacs: { model?: string; price: number } | null;
   mammo: ModelPrice[];
   carm: ModelPrice[];
   carm_table: "HCK" | "01M" | null;
@@ -88,8 +95,11 @@ export interface Catalog {
   xray_table_types: string[];
   xray_options: { key: string; label: string }[];
   xray_mobile: { model: string; sub: string }[];
+  mobile_detector_sizes: string[];
+  mobile_detector_types: string[];
   mammo: { model: string; brand: string; sub: string }[];
-  carm: { model: string; sub: string }[];
+  carm: { model: string; brand: string; sub: string }[];
+  pacs: { model: string; brand: string; title: string }[];
   carm_tables: { key: "HCK" | "01M"; label: string }[];
   mct: { model: string; sub: string }[];
   bmd: { model: string; sub: string }[];

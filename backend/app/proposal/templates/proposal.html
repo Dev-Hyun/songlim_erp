@@ -148,9 +148,9 @@ body { background: {{ '#fff' if for_pdf else '#e9ecef' }}; }
   });
   var fonts = document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve();
   Promise.all(waits.concat([fonts])).then(function () {
-    // 왼쪽 칸이 넘치면: 서비스 띠를 빼고 → 그래도 넘치면 글자를 원래 크기로
+    // 왼쪽 칸(장비 .lc · 이동형 1장 .md-l)이 넘치면: 서비스 띠를 빼고 → 그래도 넘치면 글자를 원래 크기로
     var over = function (el) { return el.scrollHeight > el.clientHeight + 1; };
-    document.querySelectorAll(".lc").forEach(function (lc) {
+    document.querySelectorAll(".lc, .md-l").forEach(function (lc) {
       if (!over(lc)) return;
       lc.querySelectorAll(".filler").forEach(function (f) { f.remove(); });
       if (over(lc)) lc.classList.add("tight");

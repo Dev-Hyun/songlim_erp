@@ -23,6 +23,7 @@ function missing(f: ProposalForm): string[] {
   const it = f.items;
   if (it.xray.some((x) => !x.price || x.options.some((o) => !o.price))) out.push("X-RAY 금액");
   if (it.xray_mobile.some((x) => !x.price)) out.push("이동형 X-RAY 금액");
+  if (it.xray_mobile.some((x) => (x.detectors ?? []).some((d) => !d.size || !d.type))) out.push("이동형 X-RAY 디텍터");
   if (it.pacs && !it.pacs.price) out.push("PACS 금액");
   if (it.mammo.some((x) => !x.price)) out.push("MAMMOGRAPHY 금액");
   if (it.carm.some((x) => !x.price) || (it.carm_reducer && !it.carm_reducer.price)) out.push("C-ARM 금액");

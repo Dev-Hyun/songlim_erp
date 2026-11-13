@@ -50,7 +50,9 @@ def xray_include(model: str, detector_count: int, detector_type: str | None, tab
     ]
 
 
-# 이동형 X-ray(모바일 DR) — 옵션 없이 금액만. 한 대에 3장(소개 → 조작 편의 → 개인 맞춤·사양·가격).
+# 이동형 X-ray(모바일 DR) — 옵션 없이 금액 + 디텍터(여러 장, 장마다 크기·종류). 한 대에 3장(소개 → 조작 편의 → 맞춤·사양·가격).
+MOBILE_DETECTOR_SIZES = ["성인용", "소아용"]
+MOBILE_DETECTOR_TYPES = ["LUMEN", "H&abyz", "Mano"]
 # 출처: 디알젬 제품 페이지 https://www.drgemhealthcare.com/ko/raymo/ (기능 설명),
 #       미국 FDA 510(k) K260085 요약서(제너레이터·회전 범위·콜리메이터·디스플레이·소프트웨어 사양),
 #       Smart Control(RADMAX M 태블릿)은 국내 미출시라 넣지 않는다(사용자 요청 2026-11-12).
@@ -59,6 +61,8 @@ XRAY_MOBILE_MODELS: dict[str, dict] = {
     "RAYMO": {
         # 사진: 사용자가 디알젬 제품 페이지에서 받은 사진·영상(제안서/이미지/RAYMO) — 영상은 한 장면만 잘라 씀
         "sub": "모바일 DR 시스템", "hero": "img/raymo_main.jpg",
+        "compact_title": "더 가볍게, 더 작게", "p2_title": "손쉬운 제어를 위한 설계",
+        "p3_title": "사용자 맞춤 · 사양 · 제안가", "p3_sec": "RFID 사용자 인식",
         "photos": [("img/raymo_haptic.jpg", "SID 햅틱 피드백"), ("img/raymo_camera.jpg", "주행용 내장 카메라")],
         "monitor": ("img/raymo_monitor.jpg", "자동 틸팅 모니터 · 주행 카메라 화면"),
         "panel": ("img/raymo_panel.jpg", "조작부 — ① 전원 ② 비상정지 ③ 디텍터 잠금 ④⑤ 유·무선 조사 스위치 ⑥ 배터리 표시 ⑦ 바코드 스캐너 ⑧ RFID"),
@@ -78,8 +82,8 @@ XRAY_MOBILE_MODELS: dict[str, dict] = {
             ("도난 방지 디텍터 트레이", "**잠금 트레이**가 평판 디텍터를 고정해 분실·낙하를 막습니다.")],
         "imaging": [("자동 콜리메이터", "LED 램프 · 빠른 촬영 준비"), ("RADMAX", "그래픽 APR · 포지셔닝 가이드"),
                     ("소프트웨어 그리드", "그리드 없이 선량 최대 30% 저감"), ("듀얼 디텍터", "성인 · 소아 디텍터 함께 운용")],
-        "rfid": "사원증 태그 한 번으로 **사용자를 인식**해, 사람마다 저장해 둔 설정을 장비가 알아서 맞춥니다.",
-        "personal": [("자동 틸팅 모니터", "사용자별로 저장한 각도로 모니터가 기울어집니다."),
+        "p3_text": "사원증 태그 한 번으로 **사용자를 인식**해, 사람마다 저장해 둔 설정을 장비가 알아서 맞춥니다.",
+        "p3_cards": [("자동 틸팅 모니터", "사용자별로 저장한 각도로 모니터가 기울어집니다."),
                      ("자동 핸들바 위치", "손잡이 높이와 각도를 사용자에게 맞춥니다."),
                      ("자동 주행 감도", "운전 습관에 맞춰 주행 반응을 조절합니다.")],
         "spec": [("제너레이터", "고주파 40 kW · 최대 500 mA"), ("관전압 / mAs", "40 ~ 125 kV (옵션 150 kV) · 0.1 ~ 500 mAs"),
@@ -89,25 +93,103 @@ XRAY_MOBILE_MODELS: dict[str, dict] = {
                  ("디텍터", "무선 평판 디텍터 · 듀얼 디텍터 지원"), ("소프트웨어", "RADMAX 영상 소프트웨어"),
                  ("구동 / 인증", "전동 주행 · 접이식 컬럼 / FDA 510(k) · CE")],
     },
+    # PROMO — 수동형 모바일 DR. 문구: healthcare-in-europe 디알젬 제품 목록 · 디알젬 PROMO 페이지,
+    # 사양: 미국 FDA 510(k) K251443 요약서. 사진·영상: 사용자가 디알젬 페이지에서 받은 것(제안서/이미지/*PROMO*)
+    "PROMO": {
+        "sub": "모바일 DR 시스템 (수동 주행)", "hero": "img/promo_product.png", "hero_stage": True,  # 복도 사진은 제품이 작게 보여 누끼로(2026-11-13)
+        "compact_title": "쉽게 밀고, 높게 닿고", "p2_title": "자유로운 포지셔닝과 워크플로우",
+        "p3_title": "판독 · 연동 · 사양 · 제안가", "p3_sec": "영상 확인과 연동",
+        "photos": [("img/promo_focal.jpg", "높아진 X선 초점 위치"), ("img/promo_push.jpg", "Push-down-and-go 주행")],
+        "monitor": ("img/promo_viewer.jpg", "RADMAX 영상 확인"),
+        "panel": ("img/promo_rotation.jpg", "컬럼 · 암 · 튜브 회전 범위"),
+        "tagline": "누르고 밀면 바로 움직이는 수동형 모바일 DR",
+        "lead": "디알젬의 수동형 모바일 X-ray. 손잡이를 눌러 밀기만 하면 움직이는 Push-down-and-go 주행과 "
+                "높은 X선 초점 위치로 병동·응급실 어디서나 고화질 침상 촬영을 돕습니다.",
+        "highlights": [("40", "kW", "커패시터 제너레이터 · 최대 500mA"), ("21.5", "inch", "배터리 구동 터치 모니터"),
+                       ("180", "°", "회전 컬럼 (옵션 ±90°)"), ("AI", "", "진단 보조 · Bone Suppression")],
+        "compact": ["**Push-down-and-go** 주행", "높아진 **X선 초점 위치**",
+                    "**듀얼 포컬** 튜브 0.6 / 1.5mm", "**디텍터 충전** · 다용도 수납"],
+        "controls": [
+            ("Push-down-and-go", "손잡이를 **누르고 밀기만 하면** 바로 움직여 수동형인데도 가볍게 이동합니다."),
+            ("180° 회전 컬럼", "컬럼이 좌우 **±90°** 돌아(옵션) 침대 어느 쪽에서도 위치를 잡습니다."),
+            ("높은 X선 초점 위치", "초점을 **더 높이** 올릴 수 있어 높은 침대와 다양한 자세를 촬영합니다."),
+            ("넓은 튜브 회전", "튜브 축 **-49° ~ +147°** 회전으로 각도 촬영이 자유롭습니다."),
+            ("21.5인치 터치 모니터", "배터리로 켜지는 **대형 터치스크린**에서 촬영 직후 영상을 확인합니다."),
+            ("편리한 구성", "**리모컨** · 상태 표시등 · 다용도 수납 · **디텍터 충전** 내장")],
+        "imaging": [("AI 진단 보조", "판독을 돕는 AI 기능"), ("Bone Suppression", "뼈를 지워 폐 병변 확인"),
+                    ("S/W Grid", "그리드 없이 산란선 저감"), ("RIS · PACS 연동", "끊김 없는 영상 전송")],
+        "p3_text": "촬영 영상을 **대형 터치 모니터**에서 바로 확인하고, RADMAX로 처리해 **RIS · PACS**로 보냅니다.",
+        "p3_cards": [("실시간 영상 확인", "촬영 직후 21.5인치 모니터에서 바로 확인합니다."),
+                     ("RADMAX", "디알젬 영상 처리 · 촬영 소프트웨어"),
+                     ("DAP 미터", "환자 피폭 선량(DAP)을 측정합니다.")],
+        "spec": [("제너레이터", "고주파 40 kW · 10 ~ 500 mA"), ("관전압 / mAs", "40 ~ 125 kV · 0.1 ~ 500 mAs"),
+                 ("X-ray Tube", "듀얼 포컬 0.6 / 1.5 mm · 타깃 각도 14°"),
+                 ("회전 범위", "컬럼 고정 (옵션 ±90°) · 암 ±180° · 튜브 -49° ~ +147°"),
+                 ("콜리메이터", "LED 램프 · DAP 미터"), ("디스플레이", "21.5인치 터치스크린 (배터리 구동)"),
+                 ("디텍터", "무선 평판 디텍터"), ("소프트웨어", "RADMAX · AI 진단 보조 · S/W Grid"),
+                 ("구동 / 인증", "수동 주행 (Push-down-and-go) / FDA 510(k)")],
+    },
 }
 
-PACS = {
-    "brand": "TECHHEIM", "model": "VIEWREX 3", "warranty": "3년", "desc": "**12 Copy**",
-    "lead": [
-        "ViewRex3 PACS는 설치형 의료영상 저장·전송 시스템 서비스입니다.",
-        "다양한 의료장비의 영상을 빠르게 전송, 저장, 조회할 수 있는 PACS입니다.",
-    ],
-    "feats": [
-        "고도의 기술력과 User(고객병원) 의견 반영",
-        "**10개 국어 지원**: 글로벌 스탠다드 PACS Solution",
-        "세련된 이미지 툴",
-        "사용자 선호에 따라 수정, 확장",
-        "사용자 친화적 인터페이스 제공",
-        "Pre-loading과 Background loading 기술로 **빠른 영상 표시**",
-        "Windows 64bit OS 지원",
-        "다양한 사용자별 옵션 설정 기능",
-    ],
-    "imgs": ["img/viewrex1.png", "img/viewrex2.png", "img/viewrex3.png"],
+# PACS 소개 페이지 — 3종 가운데 하나를 고른다(제안 품목 X-RAY 안). 모양은 모두 ViewRex3와 같다.
+# desc(Copy 수)는 ViewRex3만 — 나머지는 사용자 요청으로 적지 않는다(2026-11-13).
+PACS_MODELS: dict[str, dict] = {
+    "VIEWREX 3": {
+        "brand": "TECHHEIM", "title": "ViewRex3", "warranty": "3년", "desc": "**12 Copy**",
+        "lead": [
+            "ViewRex3 PACS는 설치형 의료영상 저장·전송 시스템 서비스입니다.",
+            "다양한 의료장비의 영상을 빠르게 전송, 저장, 조회할 수 있는 PACS입니다.",
+        ],
+        "feats": [
+            "고도의 기술력과 User(고객병원) 의견 반영",
+            "**10개 국어 지원**: 글로벌 스탠다드 PACS Solution",
+            "세련된 이미지 툴",
+            "사용자 선호에 따라 수정, 확장",
+            "사용자 친화적 인터페이스 제공",
+            "Pre-loading과 Background loading 기술로 **빠른 영상 표시**",
+            "Windows 64bit OS 지원",
+            "다양한 사용자별 옵션 설정 기능",
+        ],
+        "imgs": ["img/viewrex1.png", "img/viewrex2.png", "img/viewrex3.png"],
+    },
+    # 문구: 디알젬 제품 페이지 https://www.drgemhealthcare.com/ko/software-gempacs/ (2026-11-13 확인), 화면: 사용자가 받은 사진(제안서/이미지/GEMPACS1~3)
+    "GEMPACS": {
+        "brand": "DRGEM", "title": "GEMPACS", "warranty": "3년",
+        "lead": [
+            "GEMPACS는 간단하고 효과적이며 예산 부담이 적은 PACS입니다.",
+            "핵심 기능에 집중해 의원·병원·영상센터에서 의료 영상을 저장·검색·조회하며, 디알젬 RADMAX와 통합됩니다.",
+        ],
+        "feats": [
+            "**X-ray · CT · MRI · 초음파** — CT · MR · US · CR · DX 멀티 모달리티",
+            "단일 워크스테이션 또는 **전용 서버** 설치, GEMPACS 뷰어로 여러 사용자",
+            "처음 쓰는 사람도 쉬운 **직관적인 화면**",
+            "한 장 · 여러 장 **레이아웃** 자유 구성, 멀티 프레임 동영상 재생",
+            "**간소화된 Worklist**와 빠르고 정확한 **판독 보고서**",
+            "크기 · 각도 · 거리 측정, **Cobb 각도** 자동 계산, CT **HU 값** 표시",
+            "이미지 **스티칭** · 영역 자르기 · 주석 · 흑백 반전",
+            "검사 · 스택 · 시리즈 **3가지 보기 모드**",
+        ],
+        "imgs": ["img/gempacs1.jpg", "img/gempacs2.jpg", "img/gempacs3.jpg"],
+    },
+    # 문구·화면: 의사랑(GC메디아이) 제품 페이지 https://www.ysarang.com/ProductIntro/PI0101?idx=150 (UBPACS-Z 탭)
+    "UBPACS-Z": {
+        "brand": "의사랑 (GC메디아이)", "title": "UBPACS-Z", "warranty": "3년",
+        "lead": [
+            "UBPACS-Z는 의료기관 내에 분산된 의료 영상 데이터를 통합하는 솔루션입니다.",
+            "다양한 의료기기의 영상·의료 데이터를 PACS에서 일원화하여 관리·공유하고 워크플로우를 최적화합니다.",
+        ],
+        "feats": [
+            "**Worklist** — 모든 진료과별 환자 영상 통합, 실시간 조회·판독",
+            "원격판독 · 협진의뢰 등 **외부기관과 원활한 연동**",
+            "**Viewer** — 여러 검사 동시 비교, 최대 10×10 layout",
+            "HP · AL 사용자 맞춤 자동화, Cobb's angle · Cross link 등 모달리티별 Tool",
+            "**Report** — 최대 32개 단축키 표준판독, Multi Reporting, G KEY 자동 문장",
+            "**EmbeddedEMR** — 의사랑 진료기록 · 검사결과 · 처방내역 확인",
+            "진료과 · 검사 · 질환별 **AI 어플리케이션 연동**",
+            "모든 EMR/OCS 파트너사 연동, 동의서 · 수술 전후 사진 등 jpg 업로드",
+        ],
+        "imgs": ["img/ubpacs1.png", "img/ubpacs2.png", "img/ubpacs3.png"],
+    },
 }
 
 MAMMO_MODELS: dict[str, dict] = {
@@ -137,25 +219,36 @@ MAMMO_MODELS: dict[str, dict] = {
 }
 
 CARM_INCLUDE = ["Main Body, 방호판 및 납복", "C-arm 장비 검사 및 방어시설 검사", "**전동테이블 포함**"]
-CARM_WARRANTY = "3년 (단, TUBE · I.I. · Detector는 2년)"
+# 보증: GENORAY는 기존 제안서 조건. DRTECH는 부품 조건 없이 기본 3년이고, 제안서마다 직접 고쳐 쓴다(사용자 요청 2026-11-13)
+CARM_WARRANTY = {"GENORAY": "3년 (단, TUBE · I.I. · Detector는 2년)", "DRTECH": "3년"}
 CARM_NOTE = {"title": "송림메디칼 차별화 서비스", "text": "**C-arm 대체 장비**를 운영하고 있어 문제 발생 시 **즉각 대응**이 가능합니다."}
 
 CARM_MODELS: dict[str, dict] = {
-    "ZEN-2090 TURBO": {"sub": "9 Inch I.I. (CCD)", "img": "img/zen2090.png", "desc": [
+    "ZEN-2090 TURBO": {"brand": "GENORAY", "sub": "9 Inch I.I. (CCD)", "img": "img/zen2090.png", "desc": [
         "**9인치 I.I.** (9 / 6 / 4.5인치 3단 시야)", "고출력 HLF 투시 모드 (2.0kW)",
         "Low Dose · Pulse 모드 · Laser Aimer", "Free Space 740mm · 120° 회전"]},
-    "OSCAR PRIME": {"sub": "Plate Panel 26×26", "img": "img/oscarprime.png", "desc": [
+    "OSCAR PRIME": {"brand": "GENORAY", "sub": "Plate Panel 26×26", "img": "img/oscarprime.png", "desc": [
         "**5.3kW** 발생기 + 쿨링 모듈 탑재", "26×26cm 평판 디텍터(FPD)",
         '10.4" 터치스크린 · DSA 기능', "Low Dose · Auto / Virtual Collimation"]},
-    "OSCAR 15": {"sub": "Plate Panel 26×26", "img": "img/oscar15.png", "desc": [
+    "OSCAR 15": {"brand": "GENORAY", "sub": "Plate Panel 26×26", "img": "img/oscar15.png", "desc": [
         "**15kW** 고출력 발생기 (회전양극관)", "26×26cm 평판 디텍터(FPD)",
         '10.4" 터치스크린 · DSA 기능', "Low Dose · Auto / Virtual Collimation"]},
-    "OSCAR 15FD": {"sub": "TFT FPD 30×30", "img": "img/oscar15fd.png", "desc": [
+    "OSCAR 15FD": {"brand": "GENORAY", "sub": "TFT FPD 30×30", "img": "img/oscar15fd.png", "desc": [
         "**15kW** 고출력 발생기 (회전양극관)", "**30×30cm TFT** 평판 디텍터",
         "**43인치 모니터** · DSA 기능", "모션 · 금속 보정, 선량 정보 표시"]},
-    "BELLIGER ACE": {"sub": "Plate Panel · 모니터 일체형", "img": "img/belliger.png", "desc": [
+    "BELLIGER ACE": {"brand": "GENORAY", "sub": "Plate Panel · 모니터 일체형", "img": "img/belliger.png", "desc": [
         "3.2kW 발생기 · **모니터 일체형**", "20×20 CMOS / 21×21 TFT FPD",
         '27" 4K UHD / FHD 모니터 (선택)', "시술 공간 860mm · 3단 선량 모드"]},
+    # DRTECH EXTRON — 문구·사양·사진: 디알텍 제품 페이지(drtech.co.kr, s_cate=2212 idx 324 / 292 / 291)
+    "EXTRON 3": {"brand": "DRTECH", "sub": "IGZO FPD 21×21 / 23×23", "img": "img/extron3.png", "desc": [
+        "**5kW** 고정양극관 (0.6 / 1.2mm), 컴팩트 모니터 카트", "IGZO 평판 디텍터 21×21 / 23×23cm, 픽셀 140 / 148㎛",
+        "자동 선량 감지로 불필요한 선량 제거", "Free Space 80.3cm · Depth 73cm · Orbital 165°"]},
+    "EXTRON 5": {"brand": "DRTECH", "sub": "IGZO FPD 23×23 / 30×30", "img": "img/extron5.png", "desc": [
+        "**4.8kW** 회전양극관 (0.3 / 0.6mm) — 안정적 연속 촬영", "IGZO 평판 디텍터 23×23 / 30×30cm, 픽셀 148㎛",
+        "**TRU Image** AI 영상처리 · RNR 노이즈 저감 · AIDC 선량 최적화", "Free Space 80.3cm · Depth 74cm · Orbital 165°"]},
+    "EXTRON 7": {"brand": "DRTECH", "sub": "IGZO FPD 23×23 / 30×30", "img": "img/extron7.png", "desc": [
+        "**15kW** 고출력 회전양극관 (0.3 / 0.6mm)", "IGZO 평판 디텍터 최대 **30×30cm** FOV, 픽셀 148㎛",
+        "AOD 금속 백화 최소화 · RNR · AIDC — 척추 · 외상 · 혈관 시술", "Free Space 80.3cm · Depth 74cm · Orbital 165°"]},
 }
 
 CARM_TABLES: dict[str, dict] = {
@@ -292,7 +385,7 @@ EMG_MODELS: dict[str, dict] = {
 
 # 처음 고를 때 들어가는 기본 금액 — 기존 제안서(2026-06~09)의 마지막 금액.
 # 제안서를 저장하면 그때 금액이 proposal_last_prices에 남아 다음부터 그 값이 기본값이 된다(누가 만들든 마지막 값).
-# 키: xray:모델 / xray_opt:옵션키 / xray_mobile:모델 / pacs / mammo:모델 / carm:모델 / carm_reducer / mct:모델 / bmd:모델 / us:브랜드:모델
+# 키: xray:모델 / xray_opt:옵션키 / xray_mobile:모델 / pacs:모델 / mammo:모델 / carm:모델 / carm_reducer / mct:모델 / bmd:모델 / us:브랜드:모델
 #     / lipus:모델 / eswt:모델 / emg:모델
 DEFAULT_PRICES: dict[str, int] = {
     "xray:GXR-E40S Plus": 28_180_000,
@@ -301,7 +394,7 @@ DEFAULT_PRICES: dict[str, int] = {
     "xray_opt:detector_1d": 10_000_000,
     "xray_opt:ma640": 6_000_000,
     "xray_opt:table_6way": 3_000_000,
-    "pacs": 2_000_000,
+    "pacs:VIEWREX 3": 2_000_000,
     "mammo:AIDIA UD": 130_000_000,
     "mammo:AIDIA TDB": 80_000_000,
     "mammo:AIDIA VOLVE": 55_000_000,
@@ -378,7 +471,10 @@ def catalog_for_client() -> dict:
         "xray_options": [{"key": k, "label": v} for k, v in XRAY_OPTIONS.items()],
         "mammo": [{"model": m, "brand": v["brand"], "sub": v["sub"]} for m, v in MAMMO_MODELS.items()],
         "xray_mobile": [{"model": m, "sub": v["sub"]} for m, v in XRAY_MOBILE_MODELS.items()],
-        "carm": [{"model": m, "sub": v["sub"]} for m, v in CARM_MODELS.items()],
+        "mobile_detector_sizes": MOBILE_DETECTOR_SIZES,
+        "mobile_detector_types": MOBILE_DETECTOR_TYPES,
+        "carm": [{"model": m, "brand": v["brand"], "sub": v["sub"]} for m, v in CARM_MODELS.items()],
+        "pacs": [{"model": m, "brand": v["brand"], "title": v["title"]} for m, v in PACS_MODELS.items()],
         "carm_tables": [{"key": k, "label": f"{v['brand']} {v['model']}"} for k, v in CARM_TABLES.items()],
         "mct": [{"model": m, "sub": v["sub"]} for m, v in MCT_MODELS.items()],
         "bmd": [{"model": m, "sub": v["sub"]} for m, v in BMD_MODELS.items()],

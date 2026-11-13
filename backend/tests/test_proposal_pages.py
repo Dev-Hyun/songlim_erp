@@ -145,7 +145,7 @@ def test_price_memory_keys():
     mem = price_memory(_items(**FULL))
     assert mem["xray:GXR-52SD"] == (52800000, None)
     assert mem["xray_opt:capacitor"] == (2500000, None)
-    assert mem["pacs"] == (2000000, None) and mem["carm_reducer"] == (4500000, None)
+    assert mem["pacs:VIEWREX 3"] == (2000000, None) and mem["carm_reducer"] == (4500000, None)  # 예전 {price}만 = ViewRex3
     assert mem["us:DRGEM:DS30"] == (2, 2)  # Probe 기본 2개가 수량 칸에 남는다
     assert mem["us:ALPINION:X-CUBE 50"] == (1, 3)
     assert mem["emg:Keypoint Focus"] == (25000000, None)
@@ -252,3 +252,66 @@ def test_raymo_and_mct_render_in_both_designs_without_smart_control():
         assert html.count('class="md-h"') == 2 and "md1" in html  # 3장: 소개 + 머리글 있는 2장
         assert "RADMAX M" not in html and "SMART CONTROL" not in html  # 국내 미출시
         assert "SMART M" in html and "65,000,000" in html
+
+
+def test_pacs_pick_one_of_three_and_copy_only_for_viewrex():
+    from app.proposal import catalog
+    from app.proposal.render import STATIC_DIR, render_html
+
+    old = [p for p in build_pages(_items(pacs={"price": 2})) if p["kind"] == "pacs"][0]
+    assert old["model"] == "VIEWREX 3" and old["title"] == "ViewRex3"   # 예전 제안서
+    meta = {"hospital_name": "병원", "doctor_name": "홍길동 원장님", "proposal_date": "2026-11-13",
+            "rep_name": "", "rep_title": "", "rep_phone": ""}
+    for model, title in (("UBPACS-Z", "UBPACS-Z"), ("GEMPACS", "GEMPACS")):
+        pg = [p for p in build_pages(_items(pacs={"model": model, "price": 3})) if p["kind"] == "pacs"][0]
+        assert pg["title"] == title and "desc" not in pg
+        for d in "AC":
+            html = render_html({**meta, "design": d}, build_pages(_items(pacs={"model": model, "price": 3})),
+                               asset_base=STATIC_DIR.as_uri() + "/", upload_base="")
+            assert f'<div class="h40">{title}</div>' in html and "Copy" not in html and "ViewRex3" not in html
+    for v in catalog.PACS_MODELS.values():
+        assert all((STATIC_DIR / x).is_file() for x in v["imgs"])
+        assert len(v["lead"]) == 2 and len(v["feats"]) == 8   # 세 PACS 모두 같은 모양
+    assert validate_items(_items(pacs={"model": "OTHER", "price": 1})) == ["PACS 모델 없음: OTHER"]
+
+
+def test_carm_genoray_then_drtech_with_brand_and_warranty():
+    from app.proposal import catalog
+    from app.proposal.render import STATIC_DIR
+
+    pages = build_pages(_items(carm=[{"model": "EXTRON 7", "price": 2}, {"model": "OSCAR PRIME", "price": 1},
+                                     {"model": "EXTRON 3", "price": 3}]))
+    eq = [p for p in pages if p.get("cat") == "C-ARM"]
+    assert [(p["brand"], p["model"]) for p in eq] == [("GENORAY", "OSCAR PRIME"), ("DRTECH", "EXTRON 3"), ("DRTECH", "EXTRON 7")]
+    assert eq[0]["warranty"] == "3년 (단, TUBE · I.I. · Detector는 2년)" and eq[1]["warranty"] == "3년"
+    # 보증은 직접 입력하면 그 값
+    typed = build_pages(_items(carm=[{"model": "EXTRON 5", "price": 1, "warranty": "5년 (무상점검 포함)"}]))
+    assert [p["warranty"] for p in typed if p.get("cat") == "C-ARM"] == ["5년 (무상점검 포함)"]
+    assert all((STATIC_DIR / v["img"]).is_file() for v in catalog.CARM_MODELS.values())
+
+
+def test_mobile_dr_raymo_and_promo_with_detectors():
+    from app.proposal import catalog
+    from app.proposal.render import STATIC_DIR, render_html
+
+    items = _items(xray_mobile=[
+        {"model": "PROMO", "price": 2, "detectors": [{"size": "성인용", "type": "LUMEN"}, {"size": "성인용", "type": "LUMEN"},
+                                                     {"size": "소아용", "type": "Mano"}]},
+        {"model": "RAYMO", "price": 1, "detectors": [{"size": "소아용", "type": "H&abyz"}]}])
+    pages = [p for p in build_pages(items) if p["kind"] == "mdr"]
+    assert [(p["model"], p["part"]) for p in pages] == [("RAYMO", 1), ("RAYMO", 2), ("RAYMO", 3), ("PROMO", 1), ("PROMO", 2), ("PROMO", 3)]
+    assert dict(pages[3]["spec"])["디텍터"] == "성인용 LUMEN ×2 · 소아용 Mano"
+    assert dict(pages[0]["spec"])["디텍터"] == "소아용 H&abyz"
+    # 디텍터를 안 고른 예전 제안서는 카탈로그 문구 그대로
+    assert dict(build_pages(_items(xray_mobile=[{"model": "RAYMO", "price": 1}]))[2]["spec"])["디텍터"] == "무선 평판 디텍터 · 듀얼 디텍터 지원"
+    assert validate_items(_items(xray_mobile=[{"model": "PROMO", "price": 1, "detectors": [{"size": "성인용", "type": ""}]}])) == [
+        "PROMO: 디텍터 크기·종류를 선택하세요"]
+    for v in catalog.XRAY_MOBILE_MODELS.values():
+        imgs = [v["hero"], v["monitor"][0], v["panel"][0]] + [src for src, _ in v["photos"]]
+        assert all((STATIC_DIR / x).is_file() for x in imgs)
+    meta = {"hospital_name": "병원", "doctor_name": "홍길동 원장님", "proposal_date": "2026-11-13",
+            "rep_name": "", "rep_title": "", "rep_phone": ""}
+    for d in "AC":
+        html = render_html({**meta, "design": d}, build_pages(items), asset_base=STATIC_DIR.as_uri() + "/", upload_base="")
+        assert "쉽게 밀고, 높게 닿고" in html and "RFID 사용자 인식" in html and "성인용 LUMEN ×2" in html
+        assert "H&amp;abyz" in html   # 자동 이스케이프

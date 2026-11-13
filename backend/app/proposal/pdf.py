@@ -64,6 +64,8 @@ async def html_to_pdf(html: str) -> bytes:
             browser = await _get_browser()
             ctx = await browser.new_context(viewport={"width": 1123, "height": 794})
             page = await ctx.new_page()
+            # 인쇄 때 글자 폭이 화면과 조금 달라(줄이 더 넘어감) 넘침 검사 스크립트가 인쇄 기준으로 재도록 한다
+            await page.emulate_media(media="print")
             await page.goto(Path(path).as_uri(), wait_until="load", timeout=TIMEOUT_MS)
             await page.wait_for_function("window.__proposalReady === true", timeout=TIMEOUT_MS)
             # 한 장(1123×794px)과 같은 크기로 뽑고, 용지만 정확한 A4 가로로 맞춘다

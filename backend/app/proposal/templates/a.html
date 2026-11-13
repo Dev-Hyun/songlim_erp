@@ -47,11 +47,11 @@
   <div class="rcol">{{ stage(e.img, e.model) }}{{ price_box(e) }}</div></div></div></div>{% endmacro %}
 
 {% macro pacs(e, n) %}<div class="sheet dA">{{ hd(n) }}<div class="body"><div class="two" style="grid-template-columns:1fr 470px">
-  <div class="collage">{% for s in e.imgs %}<div class="pic"><img src="{{ asset(s) }}" alt="ViewRex3 화면"></div>{% endfor %}</div>
-  <div><div class="ttl">{{ e.cat }} · {{ e.label }}</div><div class="h40">ViewRex3</div>
+  <div class="collage">{% for s in e.imgs %}<div class="pic"><img src="{{ asset(s) }}" alt="{{ e.title }} 화면"></div>{% endfor %}</div>
+  <div><div class="ttl">{{ e.cat }} · {{ e.label }}</div><div class="h40">{{ e.title }}</div>
     {% for t in e.lead %}<p class="lead2" style="margin-top:6px">{{ t }}</p>{% endfor %}
     <div class="sec">주요 기능</div><ul class="feat" style="grid-template-columns:1fr">{% for x in e.feats %}<li>{{ x|hl }}</li>{% endfor %}</ul>
-    {{ kv([("BRAND", e.brand), ("MODEL", e.model), ("DESCRIPTION", e.desc|hl), ("WARRANTY", warranty(e.warranty))]) }}
+    {{ kv([("BRAND", e.brand), ("MODEL", e.model)] + ([("DESCRIPTION", e.desc|hl)] if e.desc else []) + [("WARRANTY", warranty(e.warranty))]) }}
     {{ price_box(e, True) }}</div></div></div></div>{% endmacro %}
 
 {% macro hck(e, n) %}<div class="sheet dA">{{ hd(n) }}<div class="body"><div class="two">
@@ -101,7 +101,7 @@
   <div class="card"><div><div class="nm">{{ p.rep_name }}<span>{{ p.rep_title }}</span></div><div class="ph">{{ p.rep_phone }}</div></div>
   <div class="co"><b>송림메디칼㈜</b>대전 본사 · 서울 지사 · 대구 지사</div></div></div>{% endmacro %}
 
-{# 이동형 X-ray(RAYMO) — 한 대에 3장. part 1 소개 / 2 조작 편의 / 3 개인 맞춤·사양·가격 #}
+{# 이동형 X-ray(RAYMO · PROMO) — 한 대에 3장. part 1 소개 / 2 조작·포지셔닝 / 3 맞춤·사양·가격. 제목은 카탈로그 값 #}
 {% macro mdr_head(e, sub) %}<div class="md-h"><div><div class="ttl">{{ e.cat }} · MOBILE DR</div><div class="h40">{{ e.model }}<small>{{ sub }}</small></div></div><div class="meta">{{ e.brand }} · {{ e.model }} &nbsp;{{ e.part }} / 3</div></div>{% endmacro %}
 
 {% macro mdr(e, n) %}<div class="sheet dA">{{ hd(n) }}<div class="body">
@@ -109,17 +109,17 @@
   <div class="md-l"><div class="ttl">{{ e.cat }} · MOBILE DR</div><div class="brand">{{ e.brand }}</div><div class="model">{{ e.model }}<small>{{ e.sub }}</small></div>
     <p class="md-tag">{{ e.tagline }}</p><p class="md-lead">{{ e.lead }}</p>
     <div class="md-hi">{% for v, u, t in e.highlights %}<div><b>{{ v }}<small>{{ u }}</small></b><span>{{ t }}</span></div>{% endfor %}</div>
-    <div class="md-sec">더 가볍게, 더 작게</div><ul class="desc md-cp">{% for x in e.compact %}<li>{{ x|hl }}</li>{% endfor %}</ul>{{ svc() }}</div>
-  <div class="md-hero"><img src="{{ asset(e.hero) }}" alt="{{ e.brand }} {{ e.model }}"><span class="cap">{{ e.brand }} · {{ e.model }}</span></div></div>
-{% elif e.part == 2 %}{{ mdr_head(e, "손쉬운 제어를 위한 설계") }}
+    <div class="md-sec">{{ e.compact_title }}</div><ul class="desc md-cp">{% for x in e.compact %}<li>{{ x|hl }}</li>{% endfor %}</ul>{{ svc() }}</div>
+  {% if e.hero_stage %}<div class="md-r">{{ stage(e.hero, e.model) }}</div>{% else %}<div class="md-hero"><img src="{{ asset(e.hero) }}" alt="{{ e.brand }} {{ e.model }}"><span class="cap">{{ e.brand }} · {{ e.model }}</span></div>{% endif %}</div>
+{% elif e.part == 2 %}{{ mdr_head(e, e.p2_title) }}
   <div class="md2"><div class="md-photos">{% for src, cap in e.photos %}<figure><img src="{{ asset(src) }}" alt="{{ cap }}"><figcaption>{{ cap }}</figcaption></figure>{% endfor %}</div>
   <div class="md-cards">{% for t, d in e.controls %}<div class="md-card"><span class="no">0{{ loop.index }}</span><h4>{{ t }}</h4><p>{{ d|hl }}</p></div>{% endfor %}</div></div>
   <div class="md-band"><b>IMAGING</b>{% for t, d in e.imaging %}<div><h5>{{ t }}</h5><span>{{ d }}</span></div>{% endfor %}</div>
-{% else %}{{ mdr_head(e, "사용자 맞춤 · 사양 · 제안가") }}
+{% else %}{{ mdr_head(e, e.p3_title) }}
   <div class="md3"><div>
-    <div class="md-rfid"><div class="md-sec">RFID 사용자 인식</div><p>{{ e.rfid|hl }}</p>
-      <div class="md-pers"><ul>{% for t, d in e.personal %}<li><h5>{{ t }}</h5><span>{{ d }}</span></li>{% endfor %}</ul><figure><img src="{{ asset(e.monitor[0]) }}" alt="{{ e.monitor[1] }}"><figcaption>{{ e.monitor[1] }}</figcaption></figure></div></div>
-    <figure class="md-panel"><img src="{{ asset(e.panel[0]) }}" alt="RAYMO 조작부"><figcaption>{{ e.panel[1] }}</figcaption></figure></div>
+    <div class="md-rfid"><div class="md-sec">{{ e.p3_sec }}</div><p>{{ e.p3_text|hl }}</p>
+      <div class="md-pers"><ul>{% for t, d in e.p3_cards %}<li><h5>{{ t }}</h5><span>{{ d }}</span></li>{% endfor %}</ul><figure><img src="{{ asset(e.monitor[0]) }}" alt="{{ e.monitor[1] }}"><figcaption>{{ e.monitor[1] }}</figcaption></figure></div></div>
+    <figure class="md-panel"><img src="{{ asset(e.panel[0]) }}" alt="{{ e.model }} {{ e.panel[1] }}"><figcaption>{{ e.panel[1] }}</figcaption></figure></div>
     <div><div class="md-sec">SPECIFICATION</div>{{ kv(e.spec + [("WARRANTY", warranty(e.warranty))]) }}{{ price_box(e) }}</div></div>
 {% endif %}</div></div>{% endmacro %}
 
