@@ -315,3 +315,27 @@ def test_mobile_dr_raymo_and_promo_with_detectors():
         html = render_html({**meta, "design": d}, build_pages(items), asset_base=STATIC_DIR.as_uri() + "/", upload_base="")
         assert "쉽게 밀고, 높게 닿고" in html and "RFID 사용자 인식" in html and "성인용 LUMEN ×2" in html
         assert "H&amp;abyz" in html   # 자동 이스케이프
+
+
+def test_e40s_compact_include_options_and_ap_crest_only_for_sd():
+    from app.proposal import catalog
+
+    items = _items(xray=[{"model": "GXR-E40S Plus", "detector_count": 1, "price": 2},
+                         {"model": "GXR-E40S Compact", "detector_count": 2, "price": 21900000,
+                          "options": [{"key": "wbs_e", "price": 1200000}, {"key": "capacitor", "price": 2500000}]}])
+    eq = [p for p in build_pages(items) if p["kind"] == "eq"]
+    assert [p["model"] for p in eq] == ["GXR-E40S Compact", "GXR-E40S Plus"]   # Plus 앞
+    assert eq[0]["include"] == ["X-ray System", "Detector **2EA** (MANO 17 X 17)", "설치 및 장비 및 방어시설 검사비용 포함"]
+    assert eq[0]["options"] == [("Capacitor", 2500000), ("바닥형 월버키, 그리드 (WBS-E) 추가", 1200000)]
+    assert catalog.xray_option_keys("GXR-E40S Compact") == ["capacitor", "wbs_e"]
+    assert catalog.DEFAULT_PRICES["xray_opt:capacitor"] == 2500000 and catalog.DEFAULT_PRICES["xray_opt:wbs_e"] == 1200000
+    assert "auto_positioning" in catalog.xray_option_keys("GXR-52SD")
+    assert "auto_positioning" not in catalog.xray_option_keys("GXR-E40S Plus")
+    assert catalog.DEFAULT_PRICES["xray:GXR-E40S Compact"] == 21900000 and catalog.DEFAULT_PRICES["xray_opt:auto_positioning"] == 40000000
+    # 기본 금액은 처음 고를 때만 — 입력한 금액이 그대로 제안서에 나온다
+    typed = _items(xray=[{"model": "GXR-E40S Compact", "detector_count": 1, "price": 19500000, "options": [{"key": "wbs_e", "price": 900000}]}])
+    pg = [p for p in build_pages(typed) if p["kind"] == "eq"][0]
+    assert pg["price"] == 19500000 and pg["options"] == [("바닥형 월버키, 그리드 (WBS-E) 추가", 900000)]
+    # 다른 모델 옵션은 Compact에 못 붙인다
+    bad = _items(xray=[{"model": "GXR-E40S Compact", "detector_count": 1, "price": 1, "options": [{"key": "table_6way", "price": 1}]}])
+    assert validate_items(bad) == ["GXR-E40S Compact: 옵션 없음: table_6way"]

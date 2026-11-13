@@ -217,7 +217,10 @@ export default function CategoryPanels({
             />
           ))}
         </div>
-        {items.xray.map((x) => (
+        {/* 입력 상자도 모델 목록 순서대로(E40S Compact가 맨 앞) — 고른 순서와 상관없이 */}
+        {[...items.xray]
+          .sort((a, b) => catalog.xray.findIndex((m) => m.model === a.model) - catalog.xray.findIndex((m) => m.model === b.model))
+          .map((x) => (
           <LineBox key={x.model} title={x.model} onRemove={() => setItems((it) => ({ ...it, xray: it.xray.filter((r) => r.model !== x.model) }))}>
             <Field label="Detector 개수">
               {/* 1~3개가 기본이라 고르기만 하게(폰에서 숫자칸 수정이 불편했음). 예전에 4개 이상 저장한 값도 보이게 남긴다. */}
@@ -256,7 +259,9 @@ export default function CategoryPanels({
             <div className="sm:col-span-2">
               <span className="fg-muted mb-1 block text-ui-xs">OPTIONS (체크한 것만 제안서에 나옵니다)</span>
               <div className="space-y-1.5">
-                {catalog.xray_options.map((o) => {
+                {catalog.xray_options
+                  .filter((o) => (catalog.xray.find((m) => m.model === x.model)?.options ?? []).includes(o.key))
+                  .map((o) => {
                   const cur = x.options.find((v) => v.key === o.key);
                   return (
                     <div key={o.key} className="flex flex-wrap items-center gap-2">

@@ -126,7 +126,7 @@ def validate_items(items: ProposalItems) -> list[str]:
             if x.table not in catalog.XRAY_TABLE_TYPES:
                 errors.append(f"{x.model}: Table 종류를 선택하세요")
         for o in x.options:
-            if o.key not in catalog.XRAY_OPTIONS:
+            if o.key not in catalog.XRAY_OPTIONS or (x.model in catalog.XRAY_MODELS and o.key not in catalog.xray_option_keys(x.model)):
                 errors.append(f"{x.model}: 옵션 없음: {o.key}")
     if items.pacs and items.pacs.model not in catalog.PACS_MODELS:
         errors.append(f"PACS 모델 없음: {items.pacs.model}")

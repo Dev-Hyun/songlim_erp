@@ -9,6 +9,9 @@ XRAY_DETECTOR_TYPES = ["MANO 17x17", "LUMEN 17X17"]
 XRAY_TABLE_TYPES = ["PBT-4", "PBT-6", "PBT-6 DELUXE"]
 
 XRAY_MODELS: dict[str, dict] = {
+    # E40S Compact: 고를 수 있는 옵션이 따로(options) — Capacitor + WBS-E 두 개만(2026-11-13 New.md)
+    "GXR-E40S Compact": {"type": "stand", "sub": "Stand Type", "desc_line": "500mA / 125kV / 40kW, Stand Type",
+                         "img": "img/e40s_compact.png", "options": ["capacitor", "wbs_e"], "compact": True},
     "GXR-E40S Plus": {"type": "stand", "sub": "Stand Type", "desc_line": "500mA / 125kV / 40kW, Stand Type", "img": "img/e40s.png"},
     "GXR-40SD": {"type": "ceiling", "sub": "Ceiling Type", "desc_line": "500mA / 125kV / 40kW, Ceiling Type, Tube: CSE", "img": "img/sd.png"},
     "GXR-52SD": {"type": "ceiling", "sub": "Ceiling Type", "desc_line": "640mA / 150kV / 52kW, Ceiling Type, Tube: CSE", "img": "img/sd.png"},
@@ -29,11 +32,24 @@ XRAY_OPTIONS: dict[str, str] = {
     "auto_sync": "AUTO SYNC 추가 (CSA-A)",
     "auto_stitching": "AUTO STICHING 추가 (CSA-AS)",
     "stitching_stand": "STICHING STAND 추가",
+    "auto_positioning": "AUTO POSITIONING (AP CREST) 추가",   # SD(천장형)만
+    "wbs_e": "바닥형 월버키, 그리드 (WBS-E) 추가",                # E40S Compact 전용
 }
+_XRAY_COMMON_OPTIONS = [k for k in XRAY_OPTIONS if k not in ("auto_positioning", "wbs_e")]
+
+
+def xray_option_keys(model: str) -> list[str]:
+    """모델마다 고를 수 있는 옵션(표시 순서 = XRAY_OPTIONS 순서). Compact는 전용 2개, SD(천장형)는 AP CREST가 더 붙는다."""
+    spec = XRAY_MODELS[model]
+    if "options" in spec:
+        return spec["options"]
+    return _XRAY_COMMON_OPTIONS + (["auto_positioning"] if spec["type"] == "ceiling" else [])
 
 
 def xray_include(model: str, detector_count: int, detector_type: str | None, table: str | None) -> list[str]:
     """X-ray INCLUDE 문구 자동 작성 (New.md 지시 문구 그대로)."""
+    if XRAY_MODELS[model].get("compact"):
+        return ["X-ray System", f"Detector **{detector_count}EA** (MANO 17 X 17)", "설치 및 장비 및 방어시설 검사비용 포함"]
     if XRAY_MODELS[model]["type"] == "stand":
         return [
             "X-ray System",
@@ -388,9 +404,12 @@ EMG_MODELS: dict[str, dict] = {
 # 키: xray:모델 / xray_opt:옵션키 / xray_mobile:모델 / pacs:모델 / mammo:모델 / carm:모델 / carm_reducer / mct:모델 / bmd:모델 / us:브랜드:모델
 #     / lipus:모델 / eswt:모델 / emg:모델
 DEFAULT_PRICES: dict[str, int] = {
+    "xray:GXR-E40S Compact": 21_900_000,
     "xray:GXR-E40S Plus": 28_180_000,
     "xray:GXR-40SD": 60_000_000,
     "xray_opt:capacitor": 2_500_000,
+    "xray_opt:wbs_e": 1_200_000,
+    "xray_opt:auto_positioning": 40_000_000,
     "xray_opt:detector_1d": 10_000_000,
     "xray_opt:ma640": 6_000_000,
     "xray_opt:table_6way": 3_000_000,
@@ -465,7 +484,8 @@ THERAPY_SEED: list[dict] = [
 def catalog_for_client() -> dict:
     """작성 화면이 입력 UI를 그리는 데 필요한 목록(문구 제외)."""
     return {
-        "xray": [{"model": m, "type": v["type"], "desc_line": v["desc_line"]} for m, v in XRAY_MODELS.items()],
+        "xray": [{"model": m, "type": v["type"], "desc_line": v["desc_line"], "options": xray_option_keys(m)}
+                 for m, v in XRAY_MODELS.items()],
         "xray_detector_types": XRAY_DETECTOR_TYPES,
         "xray_table_types": XRAY_TABLE_TYPES,
         "xray_options": [{"key": k, "label": v} for k, v in XRAY_OPTIONS.items()],

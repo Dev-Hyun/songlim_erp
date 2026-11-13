@@ -90,7 +90,8 @@ export interface TherapyCatalogItem {
 }
 
 export interface Catalog {
-  xray: { model: string; type: "stand" | "ceiling"; desc_line: string }[];
+  /** options: 이 모델에서 고를 수 있는 옵션 키(Compact 전용 · SD는 AP CREST 추가) */
+  xray: { model: string; type: "stand" | "ceiling"; desc_line: string; options: string[] }[];
   xray_detector_types: string[];
   xray_table_types: string[];
   xray_options: { key: string; label: string }[];
