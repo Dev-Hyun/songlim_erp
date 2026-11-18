@@ -11,6 +11,7 @@ export async function fetchHospitals(params: {
   sigungu?: string;
   maker?: string;
   model?: string;
+  minTenure?: number;
   nameSearch?: string;
   mapOnly: boolean;
   sort?: "dist" | "maker" | "name";
@@ -24,6 +25,7 @@ export async function fetchHospitals(params: {
   if (params.sigungu) qs.set("sigungu", params.sigungu);
   if (params.maker) qs.set("maker", params.maker);
   if (params.model) qs.set("model", params.model);
+  if (params.minTenure) qs.set("min_tenure", String(params.minTenure));
   if (params.nameSearch) qs.set("name_search", params.nameSearch);
   qs.set("map_only", String(params.mapOnly));
   if (params.sort) qs.set("sort", params.sort);

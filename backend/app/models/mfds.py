@@ -39,3 +39,32 @@ class MfdsDeviceItem(Base, TimestampMixin):
     revoked_date: Mapped[Optional[str]] = mapped_column(default=None)  # RTRCN_DSCTN_DT
     nation: Mapped[Optional[str]] = mapped_column(default=None)        # MNSC_NATN_CD 제조국
     industry: Mapped[Optional[str]] = mapped_column(default=None)      # INDT_NM 제조업/수입업
+
+
+class MfdsPermit(Base, TimestampMixin):
+    """식약처 의료기기 품목허가 1건(허가 업체명 포함). 고유키는 품목일련번호(MDEQ_PRDLST_SN).
+
+    mfds_device_items(MdeqPrdlstInfoService02)에는 **허가 업체명이 없다** — 국내 제조품은
+    제조원(MNSC_NM) 칸이 비어 제조사를 알 수 없었다. 이 표는 다른 API(15057456)에서 받는다:
+      entrps   ENTRPS   허가·신고 업체. 국내 제조 허가(제허·제인·제신…)는 곧 제조사, 수입 허가는 수입사.
+      manuf_nm MANUF_NM 제조원(수입품의 해외 제조사).
+    같은 품목일련번호 체계지만 출처·갱신 주기가 달라 표를 나눴다(둘 중 하나만 다시 받아도 된다).
+
+    원천: https://apis.data.go.kr/1471000/MdlpPrdlstPrmisnInfoService06/getMdlpPrdlstPrmisnList05
+    적재: backend/scripts/sync_mfds_permits.py
+    사용: backend/scripts/apply_brand.py (허가번호 → 표시용 제조사)
+    """
+
+    __tablename__ = "mfds_permits"
+    __table_args__ = (Index("idx_mfds_permit_license", "license_no"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    item_sn: Mapped[str] = mapped_column(unique=True)                     # MDEQ_PRDLST_SN
+    license_no: Mapped[Optional[str]] = mapped_column(default=None)       # PRDUCT_PRMISN_NO 정규화본
+    entrps: Mapped[Optional[str]] = mapped_column(default=None)           # ENTRPS 허가 업체
+    manuf_nm: Mapped[Optional[str]] = mapped_column(default=None)         # MANUF_NM 제조원
+    client_name: Mapped[Optional[str]] = mapped_column(default=None)      # MNFT_CLNT_NM 제조 의뢰자
+    product: Mapped[Optional[str]] = mapped_column(default=None)          # PRDUCT 품목명
+    permit_date: Mapped[Optional[str]] = mapped_column(default=None)      # PRMISN_DT
+    revoked_code: Mapped[Optional[str]] = mapped_column(default=None)     # RTRCN_DSCTN_DIVS_CD
+    changed_date: Mapped[Optional[str]] = mapped_column(default=None)     # CHG_DT

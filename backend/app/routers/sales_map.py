@@ -13,8 +13,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.brand_map import brand_expr as _brand_expr, display_maker as _display_of
 from app.manufacturer_map import model_series as _compute_model_series
-from app.models import Hospital, Equipment, SalesNote, User, PersonalMemo
+from app.models import Hospital, Equipment, SalesNote, User, PersonalMemo, MfdsDeviceItem
 from app.routers.auth import require_staff
+from app.tenure import model_tenure, snapshot_span, tenure_by_row_key, tenure_fields
 
 router = APIRouter(prefix="/api", tags=["sales_map"])
 
@@ -49,6 +50,7 @@ async def _query_hospitals(
     name_search: Optional[str],
     map_only: bool,
     sort: str,
+    min_tenure: Optional[int] = None,
 ):
     q = select(Hospital)
     if sido:
@@ -88,6 +90,18 @@ async def _query_hospitals(
             narrow = narrow.where(Equipment.model == model)
         q = q.where(Hospital.id.in_(narrow))
 
+    # 보유 기간(app/tenure.py) — "N년 이상"이면 최신 연도와 N-1년 전 둘 다 이 분류가 있는 병원만
+    # SQL로 먼저 좁힌다(idx_eq_year_cat_cover). 정확한 판정(같은 모델·빈 해 없음)은 아래 파이썬에서 한다.
+    span = await snapshot_span(db, category)
+    if min_tenure:
+        start = span[1] - min_tenure + 1 if span else None
+        if start is None or start < span[0]:
+            return []  # 데이터 연도 범위로는 확인할 수 없는 기간
+        for y in (span[1], start):
+            q = q.where(Hospital.id.in_(
+                select(Equipment.hospital_id).where(Equipment.year == y, Equipment.category == category)
+            ))
+
     hospitals = (await db.execute(q)).scalars().all()
 
     hosp_ids = [h.id for h in hospitals]
@@ -95,12 +109,12 @@ async def _query_hospitals(
     BATCH = 500  # SQLite 바인드변수 한도 대응 — 전국 검색처럼 hosp_ids가 많을 때 IN절을 분할
     for i in range(0, len(hosp_ids), BATCH):
         batch = hosp_ids[i:i + BATCH]
-        # 아래에서 쓰는 건 이 여섯 칸뿐이다. Equipment ORM 객체를 통째로 만들면
+        # 아래에서 쓰는 건 이 일곱 칸뿐이다. Equipment ORM 객체를 통째로 만들면
         # 전국 조회에서 수십만 개를 짓느라 시간이 다 간다.
         eq_q = (
             select(
                 Equipment.hospital_id, Equipment.year, Equipment.category,
-                Equipment.brand, Equipment.manufacturer, Equipment.model,
+                Equipment.brand, Equipment.manufacturer, Equipment.model, Equipment.source,
             )
             .where(Equipment.hospital_id.in_(batch), Equipment.category == category)
             .order_by(Equipment.hospital_id, Equipment.year.desc())
@@ -119,6 +133,27 @@ async def _query_hospitals(
         eq_by_hosp = {
             hid: rows for hid, rows in eq_by_hosp.items()
             if any(r.model == model for r in rows if r.year == rows[0].year)
+        }
+
+    # 병원별 보유 기간 후보 [(모델, Tenure)] — 지금 보유 중인 모델이 여럿이면 가장 오래된 것을 보여준다
+    tenure_by_hosp: dict[int, list] = {}
+    if span:
+        tenures = model_tenure(((r.hospital_id, r.year, r.model) for r in eq_rows if r.source != "manual"), *span)
+        # 제조사·모델로 거른 검색이면 그 조건에 맞는 모델의 보유 기간만 본다
+        # (model=X 로 찾았는데 X는 올해 새로 들였고 다른 모델 Y가 오래된 병원이 '교체 대상'으로 잡히지 않게)
+        wanted = None
+        if maker or model:
+            wanted = {
+                (r.hospital_id, r.model) for r in eq_rows
+                if r.year == span[1] and (not maker or _display_maker(r) == maker) and (not model or r.model == model)
+            }
+        for (hid, m), t in tenures.items():
+            if wanted is None or (hid, m) in wanted:
+                tenure_by_hosp.setdefault(hid, []).append((m, t))
+    if min_tenure:
+        eq_by_hosp = {
+            hid: rows for hid, rows in eq_by_hosp.items()
+            if any(t.years >= min_tenure for _, t in tenure_by_hosp.get(hid, []))
         }
 
     # 장비 미보유 병원은 병원명 검색일 때만 노출한다. 시도/제조사/모델 필터(map_only=False)는
@@ -142,6 +177,12 @@ async def _query_hospitals(
                 continue
 
         latest = eq[0] if eq else None
+        # 같은 연수면 목록에 보이는 현재 모델을 고른다(엇갈려 보이지 않게), 그다음 모델명순
+        tenure_model, tenure = max(
+            tenure_by_hosp.get(h.id, []),
+            key=lambda mt: (mt[1].years, latest is not None and mt[0] == latest.model, str(mt[0])),
+            default=(None, None),
+        )
         results.append({
             "id": h.id, "name": h.name, "type": h.type,
             "sido": h.sido, "sigungu": h.sigungu, "address": h.address,
@@ -150,6 +191,8 @@ async def _query_hospitals(
             "has_equipment": has_equipment,
             "current_maker": _display_maker(latest) if latest else None,
             "current_model": latest.model if latest else None,
+            "tenure_model": tenure_model,
+            **tenure_fields(tenure),
         })
 
     # 검색 결과는 항상 장비 보유 병원 상단, 미보유 하단
@@ -178,8 +221,9 @@ async def get_hospitals(
     name_search: Optional[str] = None,
     map_only: bool = True,  # True: 지도 표시용(장비 보유만), False: 검색용(전체 + 정렬)
     sort: str = "dist",
+    min_tenure: Optional[int] = None,  # 보유 N년 이상 — 같은 모델 연속 등록 연수(app/tenure.py)
 ):
-    results = await _query_hospitals(db, lat, lng, radius_km, category, sido, sigungu, maker, model, name_search, map_only, sort)
+    results = await _query_hospitals(db, lat, lng, radius_km, category, sido, sigungu, maker, model, name_search, map_only, sort, min_tenure)
     return results[:500]
 
 
@@ -196,6 +240,7 @@ async def export_hospitals_excel(
     maker: Optional[str] = None,
     model: Optional[str] = None,
     map_only: bool = True,
+    min_tenure: Optional[int] = None,
 ):
     """영업지도 목록 Excel 내보내기 (레거시 /api/hospitals/export 참고)."""
     import io
@@ -205,7 +250,7 @@ async def export_hospitals_excel(
     from fastapi.responses import StreamingResponse
     from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 
-    results = await _query_hospitals(db, lat, lng, radius_km, category, sido, sigungu, maker, model, None, map_only, "name")
+    results = await _query_hospitals(db, lat, lng, radius_km, category, sido, sigungu, maker, model, None, map_only, "name", min_tenure)
     cat_label = {"us": "초음파", "xray": "엑스레이", "ct": "CT", "mri": "MRI", "bmd": "BMD", "carm": "C-Arm"}.get(category, category)
 
     wb = openpyxl.Workbook()
@@ -217,7 +262,8 @@ async def export_hospitals_excel(
     thin = Border(*(Side(style="thin", color="D5DDE5"),) * 4)
     center = Alignment(horizontal="center", vertical="center", wrap_text=True)
 
-    cols = ["순위", "병원명", "시도", "시군구", "병원종별", f"현재 {cat_label}장비", "제조사", "회원가입", "거리(km)"]
+    cols = ["순위", "병원명", "시도", "시군구", "병원종별", f"현재 {cat_label}장비", "제조사", "회원가입", "거리(km)",
+            "보유 연수", "보유 시작", "보유 기준 모델"]
     ws.append(cols)
     for c in range(1, len(cols) + 1):
         cell = ws.cell(row=1, column=c)
@@ -231,12 +277,16 @@ async def export_hospitals_excel(
             i, h["name"], h["sido"], h["sigungu"], h["type"],
             h["current_model"] or "-", h["current_maker"] or "-",
             "O" if h["is_member"] else "-", h["dist_km"] if h["dist_km"] is not None else "-",
+            h["tenure_years"] or "-",
+            # 첫 데이터 연도부터 이어진 경우 실제 시작은 그 이전일 수 있다
+            (f"{h['since_year']}년 이전부터" if h["tenure_capped"] else f"{h['since_year']}년부터") if h["since_year"] else "-",
+            h["tenure_model"] or "-",
         ]
         ws.append(row)
         for c in range(1, len(cols) + 1):
             ws.cell(row=i + 1, column=c).border = thin
 
-    for col, width in zip("ABCDEFGHI", [6, 26, 10, 12, 12, 22, 16, 10, 10]):
+    for col, width in zip("ABCDEFGHIJKL", [6, 26, 10, 12, 12, 22, 16, 10, 10, 10, 14, 22]):
         ws.column_dimensions[col].width = width
 
     buf = io.BytesIO()
@@ -320,6 +370,59 @@ async def get_sigungu_list(db: AsyncSession = Depends(get_db), sido: str = Query
     return list(rows)
 
 
+def _origin(license_no: str | None, industry: str | None) -> str | None:
+    """국산/수입. 허가번호 머리글자가 근거다 — 제허·제인·제신은 국내 제조 허가, 수허·수인·수신은 수입 허가.
+    체외진단(체외…)·디지털의료기기(인2…·신2…)처럼 머리글자로 안 갈리는 번호만 식약처 업종(제조업/수입업)을 본다.
+    국산 = '국내 제조업 허가'라는 뜻이다. 해외 위탁생산(제조국이 외국)일 수 있어 화면에 제조국을 같이 보여준다."""
+    head = (license_no or "")[:1]
+    if head == "제":
+        return "국산"
+    if head == "수":
+        return "수입"
+    if industry and "수입" in industry:
+        return "수입"
+    if industry and "제조" in industry:
+        return "국산"
+    return None
+
+
+async def _license_info(db: AsyncSession, license_nos: set[str]) -> dict[str, dict]:
+    """허가번호 → 식약처 품목허가 요약. equipment.license_no 와 mfds_device_items.license_no 는
+    적재 때 같은 규칙(scripts/import_hira_equipment_full.norm_license)으로 정규화돼 있어 그대로 맞춘다.
+    한 허가번호에 품목 행이 여럿(형명 여러 개)이면: 품목명은 가장 이른 허가 행, 제조원은 모아서,
+    '취소·취하'는 모든 행이 취소·취하일 때만 단다."""
+    out: dict[str, dict] = {}
+    lics = sorted(license_nos)
+    for i in range(0, len(lics), 500):  # SQLite 바인드변수 한도 대응
+        rows = (await db.execute(
+            select(
+                MfdsDeviceItem.license_no, MfdsDeviceItem.item_name, MfdsDeviceItem.maker_name,
+                MfdsDeviceItem.client_name, MfdsDeviceItem.nation, MfdsDeviceItem.permit_date,
+                MfdsDeviceItem.revoked_code, MfdsDeviceItem.revoked_date, MfdsDeviceItem.industry,
+            )
+            .where(MfdsDeviceItem.license_no.in_(lics[i:i + 500]))
+            .order_by(MfdsDeviceItem.license_no, MfdsDeviceItem.permit_date)
+        )).all()
+        for r in rows:
+            d = out.get(r.license_no)
+            if d is None:
+                d = out[r.license_no] = {
+                    "item_name": r.item_name, "origin": _origin(r.license_no, r.industry),
+                    "makers": [], "client": r.client_name, "nation": r.nation,
+                    "permit_date": r.permit_date, "revoked": True, "revoked_date": None,
+                }
+            if r.maker_name and r.maker_name not in d["makers"]:
+                d["makers"].append(r.maker_name)
+            if r.revoked_code:
+                d["revoked_date"] = max(d["revoked_date"] or "", r.revoked_date or "") or None
+            else:
+                d["revoked"] = False
+    for d in out.values():
+        if not d["revoked"]:
+            d["revoked_date"] = None
+    return out
+
+
 @router.get("/hospital/{hospital_id}")
 async def get_hospital_detail(hospital_id: int, db: AsyncSession = Depends(get_db), user: User = Depends(require_staff)):
     """병원 상세 — 지도 마커/카드 클릭 시 우측 패널에 표시. 카테고리별 연도별 보유장비 이력 포함."""
@@ -327,24 +430,40 @@ async def get_hospital_detail(hospital_id: int, db: AsyncSession = Depends(get_d
     if not h:
         return {"error": "not found"}
 
+    # 필요한 칸만 읽는다 — 상급종합병원은 수천 행이라 ORM 객체를 통째로 만들면 그것만으로 느리다
     eq_rows = (
         await db.execute(
-            select(Equipment)
+            select(
+                Equipment.id, Equipment.hospital_id, Equipment.category, Equipment.category_name, Equipment.year,
+                Equipment.model, Equipment.manufacturer, Equipment.brand, Equipment.eq_count, Equipment.source,
+                Equipment.license_no,
+            )
             .where(Equipment.hospital_id == hospital_id)
             .order_by(Equipment.category, Equipment.year.desc())
         )
-    ).scalars().all()
+    ).all()
+
+    # 보유 기간(교체 시기) — 분류 최신 연도의 공공데이터 행에만 값이 붙고 나머지(이전 연도·수동 등록)는 None (app/tenure.py)
+    tenure = await tenure_by_row_key(db, eq_rows)
 
     by_category: dict[str, dict[int, list[dict]]] = {}
     for e in eq_rows:
         by_category.setdefault(e.category, {}).setdefault(e.year, []).append({
             "id": e.id, "manufacturer": e.manufacturer, "model": e.model, "eq_count": e.eq_count, "source": e.source,
+            "maker": _display_maker(e), "license_no": e.license_no,
+            **tenure_fields(tenure.get((e.category, e.year, e.model)) if e.source != "manual" else None),
         })
 
+    # 연도별 이력 탭은 영업지도 6분류뿐이다. 나머지 분류(심평원 전체 장비군)는 '전체' 보기에서
+    # 최신 연도만 쓰므로 그 해만 보낸다 — 상급종합병원은 이것만으로 응답이 절반으로 준다.
     yearly_by_category = {
         cat: [{"year": y, "models": models, "total": sum(m["eq_count"] for m in models)}
-              for y, models in sorted(years.items(), reverse=True)]
+              for y, models in sorted(years.items(), reverse=True)[: None if cat in MANUAL_CATEGORIES else 1]]
         for cat, years in by_category.items()
+    }
+    category_names = {e.category: e.category_name for e in eq_rows if e.category_name}
+    sent_licenses = {
+        m["license_no"] for yrs in yearly_by_category.values() for yr in yrs for m in yr["models"] if m["license_no"]
     }
 
     return {
@@ -353,8 +472,11 @@ async def get_hospital_detail(hospital_id: int, db: AsyncSession = Depends(get_d
             "sido": h.sido, "sigungu": h.sigungu, "address": h.address,
             "lat": h.lat, "lng": h.lng,
             "is_member": h.hospital_profile_id is not None,
+            "estb_date": h.estb_date,
         },
         "yearly_by_category": yearly_by_category,
+        "category_names": category_names,
+        "licenses": await _license_info(db, sent_licenses),
     }
 
 

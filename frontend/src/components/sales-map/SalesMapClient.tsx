@@ -6,7 +6,7 @@ import { fetchEquipmentCatalog, fetchHospitalDetail, fetchHospitals, fetchSidoLi
 import HospitalDetailPanel from "./HospitalDetailPanel";
 import HospitalListPanel from "./HospitalListPanel";
 import { makeMarkerSvg } from "./markerIcon";
-import { CATEGORY_LABEL, EquipmentCategory, HospitalDetail, HospitalListItem } from "./types";
+import { CATEGORY_LABEL, EquipmentCategory, HospitalDetail, HospitalListItem, TENURE_OPTIONS } from "./types";
 
 const NAVER_CLIENT_ID = process.env.NEXT_PUBLIC_NAVER_CLIENT_ID || "";
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8010";
@@ -41,6 +41,8 @@ export default function SalesMapClient() {
   const [maker, setMaker] = useState("");
   const [modelList, setModelList] = useState<string[]>([]);
   const [model, setModel] = useState("");
+  // 보유 N년 이상(같은 모델 연속 등록) — 교체 영업 대상 찾기. 0 = 전체
+  const [minTenure, setMinTenure] = useState(0);
   const [searchInput, setSearchInput] = useState("");
   const [searchMode, setSearchMode] = useState(false);
   const [hospitals, setHospitals] = useState<HospitalListItem[]>([]);
@@ -106,7 +108,7 @@ export default function SalesMapClient() {
         // 시도/제조사/모델 등 다른 필터는 지도 위 표시 범위(map_only)에 영향을 주면 안 됨 — sorting/필터링 시에도
         // 미보유 병원은 절대 지도에 나오지 않아야 한다는 요구사항.
         const hasNameSearch = !!opts?.nameSearch;
-        const isSearch = hasNameSearch || !!sido || !!maker || !!model;
+        const isSearch = hasNameSearch || !!sido || !!maker || !!model || !!minTenure;
         const data = await fetchHospitals({
           lat: center ? center.lat() : DEFAULT_CENTER.lat,
           lng: center ? center.lng() : DEFAULT_CENTER.lng,
@@ -116,6 +118,7 @@ export default function SalesMapClient() {
           sigungu: sigungu || undefined,
           maker: maker || undefined,
           model: model || undefined,
+          minTenure: minTenure || undefined,
           nameSearch: opts?.nameSearch,
           // 시도/제조사/모델 등 필터가 하나라도 걸려 있으면 지도에 보이는 좁은 반경(3km)이 아니라
           // 해당 조건 전체(시도군구 선택 시 그 지역 전체, 미선택 시 전국)를 기준으로 조회한다.
@@ -131,7 +134,7 @@ export default function SalesMapClient() {
         setLoadingList(false);
       }
     },
-    [category, sido, sigungu, maker, model]
+    [category, sido, sigungu, maker, model, minTenure]
   );
 
   function iconFor(
@@ -225,11 +228,11 @@ export default function SalesMapClient() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isMobile]);
 
-  // 카테고리/시도/구군/제조사/모델 변경 시 재조회
+  // 카테고리/시도/구군/제조사/모델/보유기간 변경 시 재조회
   useEffect(() => {
     if (mapRef.current || isMobile) loadHospitals();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [category, sido, sigungu, maker, model]);
+  }, [category, sido, sigungu, maker, model, minTenure]);
 
   function highlightMarker(id: number | null) {
     const naver = window.naver;
@@ -290,6 +293,7 @@ export default function SalesMapClient() {
     setSigungu("");
     setMaker("");
     setModel("");
+    setMinTenure(0);
     setSearchMode(false);
     setStackIds(null);
     loadHospitals();
@@ -321,6 +325,7 @@ export default function SalesMapClient() {
       if (sigungu) params.set("sigungu", sigungu);
       if (maker) params.set("maker", maker);
       if (model) params.set("model", model);
+      if (minTenure) params.set("min_tenure", String(minTenure));
       const res = await fetch(`${API}/api/hospitals/export?${params.toString()}`, { credentials: "include" });
       if (!res.ok) {
         alert("Excel 내보내기 실패");
@@ -417,6 +422,20 @@ export default function SalesMapClient() {
             {modelList.map((m) => (
               <option key={m} value={m} title={m}>
                 {m}
+              </option>
+            ))}
+          </select>
+
+          <select
+            value={minTenure}
+            onChange={(e) => setMinTenure(Number(e.target.value))}
+            title="같은 모델을 연속으로 등록한 기간 — 오래될수록 교체 시기"
+            className="field"
+          >
+            <option value={0}>전체 보유기간</option>
+            {TENURE_OPTIONS.map((n) => (
+              <option key={n} value={n}>
+                보유 {n}년 이상
               </option>
             ))}
           </select>

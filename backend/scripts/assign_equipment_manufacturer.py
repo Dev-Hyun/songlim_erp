@@ -169,9 +169,9 @@ def main() -> int:
         makers.add(name)
         if name != cur_mfr or grade != cur_conf:
             changed += 1
-        # brand(표시용 제조사)도 같이 채운다. 이 스크립트가 건드리는 출처(hira_*/odcloud_*)는
-        # 레거시 6분류가 아니므로 표시값 = 제조원이다 (app/brand_map.py display_maker 참고).
-        updates.append((name, name, grade, synced_at, eid))
+        # brand(표시용 제조사)는 여기서 쓰지 않는다 — 허가 업체·회사 표기 묶기·모델 전파까지
+        # 반영해야 해서 scripts/apply_brand.py 가 맡는다. 이 스크립트 뒤에 그걸 돌린다.
+        updates.append((name, grade, synced_at, eid))
 
     if args.apply:
         backup = f"{args.db}.bak_eq_maker_{int(time.time())}"
@@ -179,7 +179,7 @@ def main() -> int:
         print(f"백업 생성: {backup}")
         for i in range(0, len(updates), BATCH):
             conn.executemany(
-                "UPDATE equipment SET manufacturer = ?, brand = ?, manufacturer_confidence = ?, "
+                "UPDATE equipment SET manufacturer = ?, manufacturer_confidence = ?, "
                 "manufacturer_synced_at = ? WHERE id = ?", updates[i:i + BATCH])
         conn.commit()
         conn.execute("ANALYZE")
@@ -205,6 +205,7 @@ def main() -> int:
         "SELECT COUNT(*) FROM equipment WHERE source = 'import' AND manufacturer IS NULL"
     ).fetchone()[0]
     print(f"\n반영 완료. source='import' 중 manufacturer NULL: {legacy}행 (0이어야 정상 — 레거시 무손상)")
+    print("다음: scripts/apply_brand.py --apply 로 표시용 제조사(brand)를 다시 계산하세요.")
     return 0
 
 

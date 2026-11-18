@@ -1,6 +1,6 @@
 "use client";
 
-import { CATEGORY_LABEL, EquipmentCategory, HospitalListItem } from "./types";
+import { CATEGORY_LABEL, EquipmentCategory, HospitalListItem, REPLACE_SOON_YEARS, tenureLabel } from "./types";
 
 interface Props {
   category: EquipmentCategory;
@@ -109,6 +109,20 @@ export default function HospitalListPanel({
                 <div className="mt-1 text-ui-sm">
                   <span className="fg-base font-medium">{h.current_model || "-"}</span>
                   <span className="fg-subtle ml-1">{h.current_maker}</span>
+                  {/* 보유 기간(교체 시기) — 지금 보유 모델 중 가장 오래 연속 등록된 것. 현재 모델과 다르면 모델명도 붙인다 */}
+                  {tenureLabel(h) && (
+                    <div
+                      className="mt-0.5 fg-muted text-ui-xs"
+                      title={`${h.tenure_model ?? ""} — ${h.since_year}년${h.tenure_capped ? " 이전" : ""}부터 연속 등록`}
+                    >
+                      <span className="chip">
+                        {/* 교체 시기(상세 배지와 같은 기준)면 점 색을 바꾼다 */}
+                        <span className={`dot ${(h.tenure_years ?? 0) >= REPLACE_SOON_YEARS ? "bg-warning-500" : "bg-gray-300"}`} />
+                        {CATEGORY_LABEL[category]} {tenureLabel(h)}
+                      </span>
+                      {h.tenure_model !== h.current_model && <span className="ml-1">{h.tenure_model}</span>}
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="fg-subtle mt-1 text-ui-sm">{CATEGORY_LABEL[category]} 장비 없음</div>

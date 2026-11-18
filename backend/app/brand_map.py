@@ -27,6 +27,8 @@
 넣지 않는다 — 빼면 `manufacturer` 값이 그대로 쓰인다.
 
 반영: backend/scripts/apply_brand.py
+
+심평원 전체 분류(C108 등, 레거시 6분류 밖)는 파일 아래쪽 '허가번호로 표시용 제조사 정하기' 규칙을 쓴다.
 """
 import re
 
@@ -123,3 +125,190 @@ def brand_expr():
     from app.models.sales_map import Equipment
 
     return Equipment.brand
+
+
+# ─── 심평원 전체 분류(C108 등) — 허가번호로 표시용 제조사 정하기 ─────────────────────
+#
+# 레거시 6분류 밖(source='hira_*'/'odcloud_*')의 brand 는 원래 manufacturer(식약처 MdeqPrdlst 의
+# 제조원 MNSC_NM) 그대로였다. 그 API 는 국내 제조품의 업체명이 비어 있어, 국내 제조 장비가
+# 대부분 제조사 없음으로 남았다(2024 저주파자극기 대수 90%). 그래서 15057456 API(mfds_permits)의
+# 허가 업체(ENTRPS)·제조원(MANUF_NM)으로 채운다. MEDIDOCS(pipeline/medidocs/transforms/makers.py)
+# 에서 검증한 규칙을 그대로 옮겼다 — 정확도 우선, 확정 못 하면 비워 둔다.
+#   1) 국내 제조 허가(제허·제인·제신…)는 허가 업체 = 제조사, 수입 허가(수허·수인·수신)는 제조원.
+#   2) 한 허가번호의 허가 행들이 서로 다른 회사를 가리키면 쓰지 않는다. 1990년대 번호는 지방청마다
+#      따로 매겨 접두어를 떼면 겹친다(예: 제허96-1호 = 40여 개 회사).
+#   3) 구성품 허가(디텍터·센서·카세트…)는 쓰지 않는다. 심평원에 장비 본체 대신 구성품 허가번호가
+#      적힌 경우라 업체가 장비 브랜드가 아니다.
+#   4) 그래도 비는 행은 같은 (분류, 모델명)에서 확정된 대수의 95% 이상이 한 회사일 때만 그 회사로.
+# 회사 표기는 COMPANY_ALIASES 로 묶는다. 표시명은 **레거시 6분류에 이미 있는 표기를 그대로**
+# 쓴다(DRGEM·Samsung Medison 등) — 기존 브랜드 이름을 바꾸지 않기 위해서다.
+
+DOMESTIC_LICENSE = re.compile(r"^(제허|제인|제신)")   # 국내 제조 허가·인증·신고
+IMPORT_LICENSE = re.compile(r"^(수허|수인|수신)")     # 수입 허가·인증·신고
+# 그 밖의 번호(인22-…·신·허 단독, 체외… 등)는 앞글자로 국산·수입을 가릴 수 없다 → 제조원이 적혀 있으면 제조원,
+# 없으면 허가 업체(수입품은 허가 자료에 제조원이 적힌다).
+COMPONENT_PRODUCT = re.compile(r"검출기|디텍터|센서|부품|카세트")    # 구성품 허가 품목명
+PROPAGATE_SHARE = 0.95
+
+# (표시명, 업체명에 들어 있으면 그 회사로 보는 낱말들 — 소문자). 위에서부터 먼저 맞는 것.
+# 확실한 같은 회사(법인·공장 표기 차이)만 묶는다. 인수·합병 관계로 추정해 합치지 않는다.
+# 낱말은 앞이 글자가 아닐 때만 맞는다('alcon' 이 'Falcon' 에, '바텍' 이 '콘바텍(ConvaTec)' 에 걸리지 않게).
+COMPANY_ALIASES = [
+    # 레거시 6분류 표기 그대로
+    # 'siemens' 단독은 안 쓴다 — SIEMENS MEDICAL INSTRUMENTS(보청기, 지금은 다른 회사)가 걸린다
+    ("Siemens Healthineers", ("siemens healthineers", "siemens healthcare", "siemens medical system",
+                              "siemens medical solution", "siemens ag", "siemens shenzhen",
+                              "siemens shanghai", "지멘스헬시니어스", "지멘스메디칼")),
+    ("Philips", ("philips", "필립스")),
+    ("GE Healthcare", ("ge medical", "ge healthcare", "ge oec", "ge vingmed", "ge ultrasound",
+                       "ge hualun", "ge precision", "general electric", "한국지이초음파", "지이헬스케어",
+                       # GE 헬스케어 법인(마취기·환자감시). 제품은 GE 상표로 팔리고 ERP 도 GE 로 보여 왔다
+                       "datex-ohmeda", "critikon")),
+    ("Canon Medical", ("canon medical", "toshiba medical", "캐논메디칼")),
+    ("Fujifilm", ("fujifilm", "후지필름")),
+    ("Samsung Medison", ("samsung medison", "삼성메디슨")),
+    ("Hologic", ("hologic",)),
+    ("Shimadzu", ("shimadzu",)),
+    ("Mindray", ("mindray",)),
+    ("Olympus", ("olympus", "올림푸스")),
+    ("Carestream", ("carestream",)),
+    ("Konica Minolta", ("konica minolta",)),
+    ("Medtronic", ("medtronic", "메드트로닉")),
+    ("Boston Scientific", ("boston scientific",)),
+    ("Esaote", ("esaote",)),
+    ("Alpinion", ("alpinion", "알피니언")),
+    ("Healcerion", ("healcerion", "힐세리온")),
+    ("DRGEM", ("drgem", "디알젬")),
+    ("LISTEM", ("listem", "리스템")),
+    ("Genoray", ("genoray", "제노레이")),
+    ("OsteoSys", ("osteosys", "오스테오시스")),
+    ("SG Healthcare", ("sg healthcare", "에스지헬스케어")),
+    ("GEMSS", ("gemss", "젬스헬스케어")),
+    ("ECORAY", ("ecoray", "에코레이")),
+    ("디알텍", ("drtech", "디알텍")),
+    ("DK메디칼시스템", ("디케이메디칼",)),
+    ("포스콤", ("poskom", "포스콤")),
+    # 레거시에 없는 회사 (MEDIDOCS 회사 그룹 + 심평원 분류에서 표기가 여러 갈래인 큰 회사)
+    ("Intuitive Surgical", ("intuitive surgical",)),
+    ("Varian", ("varian medical",)),
+    ("Elekta", ("elekta",)),
+    ("Accuray", ("accuray",)),
+    ("Pentax", ("pentax",)),
+    ("Karl Storz", ("karl storz",)),
+    ("Storz Medical", ("storz medical",)),
+    ("Nidek", ("nidek",)),
+    ("Lumenis", ("lumenis",)),
+    ("Brainlab", ("brainlab",)),
+    ("Stryker", ("stryker",)),
+    ("Dräger", ("dräger", "drager", "draeger")),
+    ("Sirona", ("sirona",)),
+    ("Agfa", ("agfa",)),
+    ("Richard Wolf", ("richard wolf",)),
+    ("BTL", ("btl industries",)),
+    ("Quantel Medical", ("quantel",)),
+    ("Candela", ("candela",)),
+    ("Dornier", ("dornier",)),
+    ("Alcon", ("alcon",)),
+    ("Carl Zeiss Meditec", ("carl zeiss",)),
+    ("Ellex", ("ellex",)),
+    ("Nihon Kohden", ("nihon kohden", "nihonkohden", "니혼코덴")),
+    ("Fresenius", ("fresenius",)),
+    ("Gambro", ("gambro",)),
+    ("Woodpecker", ("guilin woodpecker",)),
+    ("B. Braun", ("b.braun", "b. braun")),
+    ("J. Morita", ("j. morita", "j.morita")),
+    ("Maquet", ("maquet",)),
+    ("바텍", ("vatech", "바텍")),
+    ("덴티움", ("dentium", "덴티움")),
+]
+_ALIAS_RES = [
+    (name, re.compile("|".join(
+        # 앞이 글자가 아니거나, 국내 법인 이름처럼 "한국"으로 시작할 때(한국후지필름·한국필립스·한국올림푸스)
+        r"(?:(?<![a-z가-힣])|(?<=한국))" + re.escape(k) for k in keys)))
+    for name, keys in COMPANY_ALIASES
+]
+_KR_LEGAL = re.compile(r"\(주\)|㈜|주식회사|\(유\)|유한회사|\(재\)|\(사\)|\(합\)")
+_EN_LEGAL = re.compile(
+    r"[\s,]+(co\.?,?\s*ltd\.?|co\.|inc\.?|gmbh|corp(oration)?\.?|limited|ltd\.?|llc|s\.?\s?a\.?|"
+    r"s\.?p\.?a\.?|ag|ab|a/s|oy|b\.?v\.?|pte\.?)\s*$", re.I)
+_HAS_WORD = re.compile(r"[0-9A-Za-z가-힣]")
+# 법인 표기 뒤에 붙는 공장·지사·DBA 표기까지 잘라 낸다: "Toray Medical Co., Ltd. Shizuoka Plant" → "Toray Medical",
+# "Natus Medical Inc. DBA Excel-Tech" · "Natus Medical Incorporated DBA …" → 둘 다 "Natus Medical".
+_EN_LEGAL_CUT = re.compile(
+    r"[\s,]+(co\.?,?\s*ltd\b|company\s+ltd\b|co\.|inc\b\.?|incorporated\b|gmbh\b|corp\b\.?|corporation\b|limited\b|ltd\b\.?|llc\b|pte\b\.?)", re.I)
+_PAREN_NOTE = re.compile(r"\((제조자|본사|제조원|(?:a\s+)?subsidiary of[^)]*)\)", re.I)  # 원본에 섞인 설명 괄호
+
+
+def company_display(name):
+    """업체명 → 표시용 회사명. 묶인 회사면 그 표시명, 아니면 법인 표기((주)·Co., Ltd. 등)만 뗀 원문.
+
+    글자가 하나도 없는 값('(' 같은 원본 오류)은 None.
+    """
+    if not name:
+        return None
+    low = name.lower()
+    for display, rx in _ALIAS_RES:
+        if rx.search(low):
+            return display
+    n = _PAREN_NOTE.sub(" ", _KR_LEGAL.sub("", name))
+    cut = _EN_LEGAL_CUT.search(n)
+    if cut and _HAS_WORD.search(n[:cut.start()]):
+        n = n[:cut.start()]
+        if n.count("(") > n.count(")"):   # 괄호 안에서 잘렸으면 그 괄호부터 버린다
+            n = n[:n.rfind("(")]
+    prev = None
+    while prev != n:
+        prev = n
+        n = _EN_LEGAL.sub("", n.strip(" ,.")).strip(" ,.")
+    n = re.sub(r"\s+", " ", n).strip(" ,.-·")
+    return n if _HAS_WORD.search(n) else None
+
+
+def license_names(license_no, permits):
+    """허가 행들이 가리키는 회사 표시명 집합. 국내 제조 허가는 허가 업체, 수입 허가는 제조원.
+
+    permits: [(entrps, manuf_nm, product, permit_date, changed_date), ...]
+    빈 집합 = 허가 자료에 회사가 없다(예: 제조원 칸이 빈 수입 허가). 둘 이상 = 번호가 겹친다.
+    """
+    if not license_no:
+        return set()
+    if DOMESTIC_LICENSE.match(license_no):
+        pick = lambda p: p[0]  # noqa: E731
+    elif IMPORT_LICENSE.match(license_no):
+        pick = lambda p: p[1]  # noqa: E731
+    else:
+        pick = lambda p: p[1] or p[0]  # noqa: E731
+    return {company_display(pick(p)) for p in permits} - {None}
+
+
+def license_company(license_no, permits):
+    """허가번호 하나의 허가 행들 → (표시 회사명, 구성품 허가인가) 또는 None.
+
+    회사가 정확히 하나일 때만 값이 있다(license_names 참고). 구성품 여부는 가장 최근 허가 행의
+    품목명으로 본다.
+    """
+    names = license_names(license_no, permits)
+    if len(names) != 1:
+        return None
+    last = max(permits, key=lambda p: (p[3] or "", p[4] or ""))
+    return names.pop(), bool(COMPONENT_PRODUCT.search(last[2] or ""))
+
+
+def model_key(category, model):
+    """모델 전파 키. 브랜드 표(_key)와 같은 접기 — 대소문자·공백·기호 차이만 흡수한다."""
+    return _key(category, model)
+
+
+def propagate(votes, share=PROPAGATE_SHARE):
+    """{(분류, 모델 키): Counter{회사: 대수}} → {(분류, 모델 키): 회사}.
+
+    확정된 대수 중 한 회사가 share 이상일 때만. 모델 키가 빈 그룹은 쓰지 않는다.
+    """
+    out = {}
+    for k, cnt in votes.items():
+        if not k[1] or not cnt:
+            continue
+        top, n = cnt.most_common(1)[0]
+        if n / sum(cnt.values()) >= share:
+            out[k] = top
+    return out

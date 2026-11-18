@@ -27,7 +27,7 @@ from .calendar import CalendarEvent, CalendarEventAssignee, CalendarEventTeam
 from .audit import AuditLog
 from .kakao import KakaoOutbox
 from .localdata import LocaldataClinic
-from .mfds import MfdsDeviceItem
+from .mfds import MfdsDeviceItem, MfdsPermit
 from .push import PushSubscription
 from .proposal import Proposal, ProposalLastPrice, ProposalTherapyItem
 
@@ -39,6 +39,7 @@ __all__ = [
     "PushSubscription",
     "LocaldataClinic",
     "MfdsDeviceItem",
+    "MfdsPermit",
     "Base",
     "GradeMaster",
     "HospitalProfile",
